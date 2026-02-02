@@ -1,0 +1,217 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>0</epicId>
+    <storyId>5</storyId>
+    <title>Redis Caching Layer</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-01-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/0-5-redis-caching-layer.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>DevOps Engineer</asA>
+    <iWant>provision a Redis cluster for caching and rate limiting</iWant>
+    <soThat>the application can cache sessions, LLM responses, and enforce rate limits with high performance</soThat>
+    <tasks>
+      <task id="1" name="ElastiCache Subnet Group Creation" acs="8">
+        <subtask>1.1 Create ElastiCache subnet group using database subnets</subtask>
+        <subtask>1.2 Verify subnet group spans both availability zones</subtask>
+      </task>
+      <task id="2" name="Security Group Configuration" acs="8">
+        <subtask>2.1-2.4 Create security group, allow port 6379 from K8s nodes only</subtask>
+      </task>
+      <task id="3" name="Parameter Group Configuration" acs="9">
+        <subtask>3.1-3.5 Create custom Redis 7 parameter group with eviction policy</subtask>
+      </task>
+      <task id="4" name="Redis Cluster Provisioning" acs="1,2,3,4,5,6">
+        <subtask>4.1-4.10 Create ElastiCache Redis replication group with cluster mode, encryption, failover</subtask>
+      </task>
+      <task id="5" name="Secrets Manager Integration" acs="7">
+        <subtask>5.1-5.4 Create secret, store connection info, IAM policy for IRSA</subtask>
+      </task>
+      <task id="6" name="Key Namespacing Documentation" acs="10">
+        <subtask>6.1-6.4 Document tenant isolation key format and TTL recommendations</subtask>
+      </task>
+      <task id="7" name="Validation &amp; Testing" acs="all">
+        <subtask>7.1-7.7 Verification commands, connectivity tests, failover test, documentation</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">Redis 7+ ElastiCache cluster created</ac>
+    <ac id="2">Node type: cache.t3.micro (dev), cache.r5.large (staging/prod)</ac>
+    <ac id="3">Cluster mode enabled with 2 shards for horizontal scaling</ac>
+    <ac id="4">Automatic failover enabled with Multi-AZ replica</ac>
+    <ac id="5">Encryption in transit enabled (TLS)</ac>
+    <ac id="6">Encryption at rest enabled</ac>
+    <ac id="7">Redis connection string stored in AWS Secrets Manager</ac>
+    <ac id="8">Security group allows access only from Kubernetes private subnets</ac>
+    <ac id="9">Eviction policy configured: allkeys-lru (Least Recently Used)</ac>
+    <ac id="10">Redis key namespacing strategy documented for tenant isolation</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Services and Modules</section>
+        <snippet>AWS ElastiCache Redis 7+: cache.t3.micro (dev), cache.r5.large (prod), cluster mode, Multi-AZ. Session management, rate limiting, LLM response caching.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Redis Key Namespacing</section>
+        <snippet>Key format: tenant_id:scope:key_identifier. Prevents tenant A from reading tenant B's cached data. Enforced at application layer (Epic 1 implementation).</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Security Threat Model</section>
+        <snippet>Attack Vector #5: Tenant isolation via shared cache. Mitigation: Story 0.5 AC10 - Redis keys prefixed tenant_id:scope:key.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-0-infrastructure.md</path>
+        <title>Epic 0: Infrastructure Foundation</title>
+        <section>Story 0.5</section>
+        <snippet>Redis Caching Layer with ElastiCache, cluster mode, encryption, eviction policy. Dependencies: Story 0.2 (VPC setup).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Caching Layer</section>
+        <snippet>Redis 7+ for session management, rate limiting, LLM response caching. Managed service (AWS ElastiCache). Tenant isolation via key namespacing.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-2-vpc-network-configuration.md</path>
+        <title>Story 0.2: VPC &amp; Network Configuration</title>
+        <section>Outputs</section>
+        <snippet>Prerequisite: database_subnet_ids (10.0.20.0/24, 10.0.21.0/24), vpc_id for ElastiCache subnet group creation.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <note>Greenfield infrastructure - Story 0.2 provides VPC foundation (ready-for-dev).</note>
+      <prerequisites>
+        <story id="0-2-vpc-network-configuration" status="ready-for-dev">
+          <provides>database_subnet_ids, vpc_id, private_subnet_cidrs</provides>
+        </story>
+      </prerequisites>
+      <expectedStructure>
+        <folder path="infrastructure/terraform/elasticache" purpose="ElastiCache Terraform module" />
+        <file path="infrastructure/terraform/elasticache/main.tf" purpose="Redis cluster definition" />
+        <file path="infrastructure/terraform/elasticache/parameter-group.tf" purpose="Custom Redis parameter group" />
+        <file path="infrastructure/terraform/elasticache/subnet-group.tf" purpose="ElastiCache subnet group" />
+        <file path="infrastructure/terraform/elasticache/security-group.tf" purpose="Redis security group" />
+        <file path="infrastructure/terraform/elasticache/secrets.tf" purpose="Secrets Manager secret" />
+        <file path="infrastructure/terraform/elasticache/variables.tf" purpose="ElastiCache variables" />
+        <file path="infrastructure/terraform/elasticache/outputs.tf" purpose="Endpoints, secret ARN" />
+        <file path="infrastructure/README.md" purpose="Redis architecture, key namespacing documentation" />
+      </expectedStructure>
+      <outputs description="Resources exported for downstream stories and epics">
+        <output name="redis_primary_endpoint" consumers="Epic 1 (session mgmt), Epic 2 (LLM caching)" />
+        <output name="redis_reader_endpoint" consumers="Read replicas for scaling" />
+        <output name="redis_secret_arn" consumers="K8s pods via IRSA" />
+        <output name="redis_security_group_id" consumers="Application pods needing Redis access" />
+        <output name="redis_port" consumers="Application configuration" />
+      </outputs>
+      <keyNamespacingPatterns>
+        <pattern scope="session" format="{tenant_id}:session:{user_id}" ttl="24 hours" />
+        <pattern scope="llm_cache" format="{tenant_id}:llm_cache:{prompt_hash}" ttl="1-7 days" />
+        <pattern scope="rate_limit" format="{tenant_id}:rate_limit:{api_key}" ttl="1 minute" />
+        <pattern scope="temp" format="{tenant_id}:temp:{operation_id}" ttl="1 hour" />
+      </keyNamespacingPatterns>
+    </code>
+
+    <dependencies>
+      <terraform>
+        <provider name="aws" version="~&gt; 5.0" />
+      </terraform>
+      <terraformModules>
+        <module name="terraform-aws-modules/elasticache/aws" version="~&gt; 1.0" purpose="ElastiCache cluster" optional="true" />
+      </terraformModules>
+      <tools>
+        <tool name="aws-cli" version="2.x" purpose="ElastiCache verification" />
+        <tool name="terraform" version="&gt;= 1.5.0" purpose="Infrastructure as Code" />
+        <tool name="redis-cli" version="7+" purpose="Redis connection testing (with --tls flag)" />
+      </tools>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="Architecture">Redis 7.0+ required for latest features and security</constraint>
+    <constraint source="Architecture">Cluster mode required for horizontal scaling and high availability</constraint>
+    <constraint source="Security">ElastiCache must be in database subnets only (no public access)</constraint>
+    <constraint source="Security">TLS encryption required for all connections (in-transit encryption)</constraint>
+    <constraint source="Security">At-rest encryption required using AWS KMS</constraint>
+    <constraint source="Red Team" critical="true">Key namespacing required: tenant_id:scope:key format to prevent cross-tenant cache access</constraint>
+    <constraint source="Operations">Multi-AZ with automatic failover required for production (99.5% uptime SLA)</constraint>
+    <constraint source="Performance">Eviction policy must be allkeys-lru to handle memory pressure gracefully</constraint>
+    <constraint source="Dependency">Story 0.2 (VPC) must be complete first</constraint>
+    <constraint source="Cost">Can defer to Epic 2 if not needed for Sprint 0 smoke tests</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>AWS ElastiCache API</name>
+      <kind>REST API (via Terraform aws provider)</kind>
+      <signature>aws_elasticache_replication_group, aws_elasticache_subnet_group, aws_elasticache_parameter_group</signature>
+      <path>infrastructure/terraform/elasticache/main.tf</path>
+    </interface>
+    <interface>
+      <name>AWS Secrets Manager API</name>
+      <kind>REST API (via Terraform aws provider)</kind>
+      <signature>aws_secretsmanager_secret, aws_secretsmanager_secret_version</signature>
+      <path>infrastructure/terraform/elasticache/secrets.tf</path>
+    </interface>
+    <interface>
+      <name>Redis Connection</name>
+      <kind>TCP protocol (port 6379 with TLS)</kind>
+      <signature>rediss://:${auth_token}@${primary_endpoint}:6379</signature>
+      <path>Stored in AWS Secrets Manager</path>
+    </interface>
+    <interface>
+      <name>AWS KMS API</name>
+      <kind>REST API (for encryption)</kind>
+      <signature>Default aws/elasticache key or custom CMK</signature>
+      <path>infrastructure/terraform/elasticache/main.tf</path>
+    </interface>
+    <interface>
+      <name>AWS VPC Security Groups</name>
+      <kind>Network ACL</kind>
+      <signature>aws_security_group with ingress rule for port 6379</signature>
+      <path>infrastructure/terraform/elasticache/security-group.tf</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Infrastructure testing follows acceptance test verification pattern using AWS CLI and redis-cli commands. Each AC has explicit verification. DevOps Lead executes verification. Integration test validates connectivity from K8s pod and verifies tenant key isolation.
+    </standards>
+    <locations>
+      <location>Manual verification via AWS Console, CLI, and redis-cli</location>
+      <location>Terraform plan/apply output validation</location>
+      <location>redis-cli commands for cluster verification</location>
+    </locations>
+    <ideas>
+      <idea ac="1">aws elasticache describe-cache-clusters shows EngineVersion starts with "7"</idea>
+      <idea ac="2">aws elasticache describe-cache-clusters shows CacheNodeType matches environment</idea>
+      <idea ac="3">aws elasticache describe-replication-groups shows NumNodeGroups=2</idea>
+      <idea ac="4">aws elasticache describe-replication-groups shows AutomaticFailover=enabled</idea>
+      <idea ac="5">aws elasticache describe-replication-groups shows TransitEncryptionEnabled=true</idea>
+      <idea ac="6">aws elasticache describe-replication-groups shows AtRestEncryptionEnabled=true</idea>
+      <idea ac="7">aws secretsmanager get-secret-value --secret-id qualisys/redis/connection returns valid JSON</idea>
+      <idea ac="8">Security group shows inbound 6379 only from K8s node security group or private subnet CIDRs</idea>
+      <idea ac="9">aws elasticache describe-cache-parameters shows maxmemory-policy=allkeys-lru</idea>
+      <idea ac="10">README.md documents key format: {tenant_id}:{scope}:{key} with examples</idea>
+      <idea ac="connectivity">kubectl run redis-test --rm -it --image=redis:7 -- redis-cli -h $ENDPOINT --tls PING returns PONG</idea>
+      <idea ac="isolation">Verify connection fails from public internet (telnet endpoint 6379 times out)</idea>
+      <idea ac="tls">redis-cli without --tls flag fails to connect (TLS required)</idea>
+      <idea ac="failover">Optional: Simulate primary node failure, verify automatic failover to replica</idea>
+      <idea ac="eviction">SET keys until memory pressure, verify LRU eviction occurs (not OOM error)</idea>
+      <idea ac="key-namespace">Application code review: verify all Redis operations use tenant-prefixed keys</idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -1,0 +1,10 @@
+# Development environment variables
+# Copy to dev.tfvars and fill in values
+# NEVER commit actual .tfvars files (they may contain secrets)
+
+aws_region            = "us-east-1"
+environment           = "dev"
+project_name          = "qualisys"
+account_alias         = "qualisys-main"
+budget_alert_email    = "devops@example.com"
+cloudtrail_retention_days = 90

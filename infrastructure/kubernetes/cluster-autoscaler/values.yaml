@@ -1,0 +1,61 @@
+# Cluster Autoscaler Helm Values
+# Story: 0-3 Kubernetes Cluster Provisioning
+# AC: 6 - Cluster autoscaler enabled and functional
+# Tasks: 6.3, 6.4
+#
+# Chart: autoscaler/cluster-autoscaler (~> 9.29)
+# Repo: https://kubernetes.github.io/autoscaler
+#
+# Install command:
+#   helm repo add autoscaler https://kubernetes.github.io/autoscaler
+#   helm install cluster-autoscaler autoscaler/cluster-autoscaler \
+#     -n kube-system \
+#     -f values.yaml
+
+autoDiscovery:
+  clusterName: qualisys-eks
+
+awsRegion: us-east-1
+
+rbac:
+  create: true
+  serviceAccount:
+    create: true
+    name: cluster-autoscaler
+    annotations:
+      # Task 6.2 - IRSA annotation (replace with actual role ARN from Terraform output)
+      eks.amazonaws.com/role-arn: "arn:aws:iam::<ACCOUNT_ID>:role/qualisys-cluster-autoscaler"
+
+# Task 6.4 - Configure autoscaler to respect node group min/max
+extraArgs:
+  # Balance similar node groups to distribute pods evenly
+  balance-similar-node-groups: true
+  # Skip nodes with system pods (except DaemonSets)
+  skip-nodes-with-system-pods: false
+  # Scale down delay after scale up (stability)
+  scale-down-delay-after-add: "5m"
+  # Scale down if utilization below 50%
+  scale-down-utilization-threshold: "0.5"
+  # Expander strategy: least-waste to optimize cost
+  expander: least-waste
+  # Respect node group min/max boundaries
+  enforce-node-group-min-size: true
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 300Mi
+  limits:
+    cpu: 200m
+    memory: 500Mi
+
+# Pod disruption budget
+podDisruptionBudget:
+  maxUnavailable: 1
+
+# Node selector - run on general nodes only
+nodeSelector:
+  node-type: general
+
+# Tolerations (none needed - runs on general nodes without taints)
+tolerations: []

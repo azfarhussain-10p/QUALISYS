@@ -1,0 +1,388 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>0</epicId>
+    <storyId>16</storyId>
+    <title>CI/CD Test Pipeline Integration</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-01-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/0-16-ci-cd-test-pipeline-integration.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Developer</asA>
+    <iWant>the CI/CD pipeline to run all tests with proper reporting and parallel execution</iWant>
+    <soThat>we have visibility into test results and fast feedback on code changes</soThat>
+    <tasks>
+      <task id="1" name="Parallel Test Job Configuration" acs="1,6">
+        <subtask>1.1-1.5 Create parallel jobs for unit/integration/E2E, optimize for speed</subtask>
+      </task>
+      <task id="2" name="Test Matrix Configuration" acs="7">
+        <subtask>2.1-2.5 Configure Node.js version matrix (18, 20), fail-fast: false</subtask>
+      </task>
+      <task id="3" name="Test Artifacts and Reporting" acs="2,3,4,10">
+        <subtask>3.1-3.5 JUnit XML output, dorny/test-reporter, PR comments, 30-day retention</subtask>
+      </task>
+      <task id="4" name="Coverage Integration" acs="9">
+        <subtask>4.1-4.5 Configure 80% threshold, Codecov upload, coverage badge</subtask>
+      </task>
+      <task id="5" name="Flaky Test Handling" acs="5">
+        <subtask>5.1-5.5 Configure Jest retryTimes: 3, Playwright retries: 2, logging</subtask>
+      </task>
+      <task id="6" name="Database Integration" acs="8">
+        <subtask>6.1-6.5 PostgreSQL service container, migrations, seed data</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">GitHub Actions workflow runs tests in parallel (unit, integration, E2E)</ac>
+    <ac id="2">Test results uploaded to GitHub Actions artifacts (JUnit XML, coverage)</ac>
+    <ac id="3">Test summary posted as PR comment (X/Y tests passed, Z% coverage)</ac>
+    <ac id="4">Failed tests show full stack traces and error logs</ac>
+    <ac id="5">Flaky test detection enabled (retry 3x before marking failed)</ac>
+    <ac id="6">Test execution time tracked and optimized (target less than 10 min total)</ac>
+    <ac id="7">Test matrix supports multiple Node.js versions (18, 20)</ac>
+    <ac id="8">Database migrations run before integration tests</ac>
+    <ac id="9">Test coverage threshold enforced (80% minimum)</ac>
+    <ac id="10">Test artifacts retained for 30 days</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>CI/CD Pipeline Sequence</section>
+        <snippet>PR checks workflow runs: lint, format, type-check, unit tests, integration tests. Coverage report shows 80%+. PR comment posted with results. Test execution time less than 10 minutes.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Test Infrastructure</section>
+        <snippet>GitHub Actions matrix strategy to parallelize test suites. Test frameworks output JUnit XML. dorny/test-reporter action posts PR comments. Flaky test detection with retry 3x.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-0-infrastructure.md</path>
+        <title>Epic 0: Infrastructure Foundation</title>
+        <section>Story 0.16</section>
+        <snippet>CI/CD Test Pipeline Integration: Parallel execution, test results artifacts, PR comments, flaky test detection, execution time optimization.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-10-automated-test-execution-on-pr.md</path>
+        <title>Story 0.10: Automated Test Execution on PR</title>
+        <section>Test Job Configuration</section>
+        <snippet>Prerequisite: Test framework configurations (Jest, Playwright). This story extends with full pipeline integration, parallel jobs, and reporting.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-14-test-database-provisioning.md</path>
+        <title>Story 0.14: Test Database Provisioning</title>
+        <section>CI/CD Integration</section>
+        <snippet>Prerequisite: PostgreSQL service container configuration for integration tests.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <note>Extends test infrastructure from Stories 0.10, 0.14, 0.15.</note>
+      <prerequisites>
+        <story id="0-8-github-actions-workflow-setup" status="ready-for-dev">
+          <provides>GitHub Actions workflow infrastructure</provides>
+        </story>
+        <story id="0-10-automated-test-execution-on-pr" status="ready-for-dev">
+          <provides>Test framework configurations (Jest, Playwright)</provides>
+        </story>
+        <story id="0-14-test-database-provisioning" status="ready-for-dev">
+          <provides>Test database, service container configuration</provides>
+        </story>
+        <story id="0-15-test-data-factories-seeding" status="ready-for-dev">
+          <provides>Seed script for test data</provides>
+        </story>
+      </prerequisites>
+      <expectedStructure>
+        <file path=".github/workflows/pr-checks.yml" purpose="Complete test pipeline workflow" />
+        <file path="jest.config.js" purpose="Base Jest configuration with coverage" />
+        <file path="jest.unit.config.js" purpose="Unit test configuration" />
+        <file path="jest.integration.config.js" purpose="Integration test configuration" />
+        <file path="playwright.config.ts" purpose="Playwright configuration" />
+        <folder path="test-results" purpose="JUnit XML output (gitignored)" />
+        <folder path="coverage" purpose="Coverage reports (gitignored)" />
+        <file path="CONTRIBUTING.md" purpose="Updated with test pipeline docs" />
+      </expectedStructure>
+      <outputs description="CI/CD test pipeline infrastructure">
+        <output name="pr-checks.yml" consumers="All PRs, developers" />
+        <output name="JUnit XML reports" consumers="Story 0.17 (Test Dashboard)" />
+        <output name="Coverage reports" consumers="Codecov, PR comments" />
+      </outputs>
+      <workflowTemplate>
+        <![CDATA[
+name: PR Checks
+on:
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18, 20]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm test -- --coverage --maxWorkers=4 --ci --reporters=default --reporters=jest-junit
+        env:
+          JEST_JUNIT_OUTPUT_DIR: ./test-results/unit
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results-node-${{ matrix.node-version }}
+          path: test-results/unit/
+          retention-days: 30
+      - uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          flags: unit-tests
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: qualisys_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run db:migrate:test
+        env:
+          TEST_DATABASE_URL: postgresql://test_user:test_password@localhost:5432/qualisys_test
+      - run: npm run db:seed:test
+        env:
+          TEST_DATABASE_URL: postgresql://test_user:test_password@localhost:5432/qualisys_test
+      - run: npm run test:integration -- --ci --reporters=default --reporters=jest-junit
+        env:
+          TEST_DATABASE_URL: postgresql://test_user:test_password@localhost:5432/qualisys_test
+          JEST_JUNIT_OUTPUT_DIR: ./test-results/integration
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: test-results/integration/
+          retention-days: 30
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:critical
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+  test-report:
+    needs: [unit-tests, integration-tests, e2e-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: all-test-results
+      - uses: dorny/test-reporter@v1
+        with:
+          name: Test Results
+          path: 'all-test-results/**/junit.xml'
+          reporter: jest-junit
+          fail-on-error: true
+        ]]>
+      </workflowTemplate>
+      <jestConfigTemplate>
+        <![CDATA[
+// jest.config.js
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  collectCoverage: true,
+  coverageThreshold: {
+    global: {
+      branches: 70,
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
+  },
+  coverageReporters: ['text', 'lcov', 'cobertura'],
+  coveragePathIgnorePatterns: ['/node_modules/', '/__tests__/', '/dist/'],
+  testMatch: ['**/__tests__/**/*.test.[jt]s?(x)'],
+  maxWorkers: '50%',
+  retryTimes: process.env.CI ? 3 : 0,
+  reporters: process.env.CI
+    ? ['default', ['jest-junit', { outputDirectory: './test-results' }]]
+    : ['default'],
+};
+        ]]>
+      </jestConfigTemplate>
+      <playwrightConfigTemplate>
+        <![CDATA[
+// playwright.config.ts
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './e2e/tests',
+  timeout: 30000,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 2 : undefined,
+  reporter: [
+    ['html', { outputFolder: 'playwright-report' }],
+    ['junit', { outputFile: 'test-results/e2e/junit.xml' }],
+  ],
+  use: {
+    headless: true,
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+    trace: 'retain-on-failure',
+  },
+});
+        ]]>
+      </playwrightConfigTemplate>
+      <packageJsonScripts>
+        <![CDATA[
+{
+  "scripts": {
+    "test": "jest",
+    "test:unit": "jest --config jest.unit.config.js",
+    "test:integration": "jest --config jest.integration.config.js",
+    "test:e2e": "playwright test",
+    "test:e2e:critical": "playwright test --grep @critical",
+    "test:coverage": "jest --coverage",
+    "test:ci": "jest --ci --coverage --maxWorkers=4"
+  }
+}
+        ]]>
+      </packageJsonScripts>
+    </code>
+
+    <dependencies>
+      <npm>
+        <package name="jest" version="^29.0.0" purpose="Test framework" />
+        <package name="jest-junit" version="^16.0.0" purpose="JUnit XML reporter" />
+        <package name="@playwright/test" version="^1.40.0" purpose="E2E testing" />
+        <package name="ts-jest" version="^29.0.0" purpose="TypeScript support for Jest" />
+      </npm>
+      <githubActions>
+        <action name="actions/checkout" version="v4" purpose="Clone repository" />
+        <action name="actions/setup-node" version="v4" purpose="Node.js setup with caching" />
+        <action name="actions/upload-artifact" version="v4" purpose="Upload test results" />
+        <action name="actions/download-artifact" version="v4" purpose="Download test results" />
+        <action name="codecov/codecov-action" version="v3" purpose="Coverage upload" />
+        <action name="dorny/test-reporter" version="v1" purpose="PR test comments" />
+        <action name="actions/github-script" version="v7" purpose="Custom PR comments" />
+      </githubActions>
+      <services>
+        <service name="postgres:15" purpose="Integration test database" />
+      </services>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="Performance" critical="true">Total test execution must be less than 10 minutes</constraint>
+    <constraint source="Quality" critical="true">Coverage threshold 80% enforced - build fails if not met</constraint>
+    <constraint source="Reliability">Flaky tests retry 3 times before marking as failed</constraint>
+    <constraint source="Visibility">PR comments must show test summary with pass/fail counts</constraint>
+    <constraint source="Retention">Test artifacts retained for 30 days</constraint>
+    <constraint source="Compatibility">Must test on Node.js 18 and 20</constraint>
+    <constraint source="Dependency">Stories 0.8, 0.10, 0.14, 0.15 must be complete</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>GitHub Actions Workflow</name>
+      <kind>CI/CD Pipeline</kind>
+      <signature>Triggered on pull_request to main/develop</signature>
+      <path>.github/workflows/pr-checks.yml</path>
+    </interface>
+    <interface>
+      <name>Jest Test Runner</name>
+      <kind>CLI / Node.js</kind>
+      <signature>npm test -- --coverage --ci --reporters=jest-junit</signature>
+      <path>jest.config.js</path>
+    </interface>
+    <interface>
+      <name>Playwright Test Runner</name>
+      <kind>CLI / Node.js</kind>
+      <signature>npm run test:e2e:critical</signature>
+      <path>playwright.config.ts</path>
+    </interface>
+    <interface>
+      <name>Codecov API</name>
+      <kind>REST API (via GitHub Action)</kind>
+      <signature>Upload lcov.info to Codecov</signature>
+      <path>.github/workflows/pr-checks.yml</path>
+    </interface>
+    <interface>
+      <name>dorny/test-reporter</name>
+      <kind>GitHub Action</kind>
+      <signature>Parse JUnit XML and post PR comment</signature>
+      <path>.github/workflows/pr-checks.yml</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      CI/CD pipeline testing validates workflow execution, parallel jobs, test reporting, coverage thresholds, and artifact handling. DevOps Lead verifies pipeline configuration. Integration test creates PR and validates full pipeline.
+    </standards>
+    <locations>
+      <location>GitHub Actions tab for workflow execution</location>
+      <location>PR comments for test summary</location>
+      <location>Codecov dashboard for coverage tracking</location>
+      <location>Workflow artifacts for test results</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Create PR, verify unit-tests, integration-tests, e2e-tests jobs run in parallel</idea>
+      <idea ac="2">Download artifacts from workflow run, verify JUnit XML files present</idea>
+      <idea ac="3">Check PR conversation for test summary comment with pass/fail counts</idea>
+      <idea ac="4">Intentionally fail a test, verify stack trace appears in PR comment</idea>
+      <idea ac="5">Create flaky test (random fail), verify retry attempts in workflow logs</idea>
+      <idea ac="6">Check workflow summary, verify total time less than 10 minutes</idea>
+      <idea ac="7">Workflow logs show matrix jobs for Node.js 18 and 20</idea>
+      <idea ac="8">Integration job logs show migration step completed before tests</idea>
+      <idea ac="9">Set coverage to 50%, verify build fails with threshold error</idea>
+      <idea ac="10">Check artifact retention settings in workflow, verify 30 days configured</idea>
+      <idea ac="codecov">Codecov dashboard shows coverage percentage and diff</idea>
+      <idea ac="parallel-timing">Compare parallel vs sequential, verify significant speedup</idea>
+    </ideas>
+  </tests>
+</story-context>

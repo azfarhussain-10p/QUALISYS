@@ -1,0 +1,141 @@
+# Kubernetes RBAC ClusterRoles
+# Story: 0-3 Kubernetes Cluster Provisioning
+# AC: 4 - RBAC policies configured: developer (read-only prod), devops (full access), ci-cd (deploy to staging)
+
+# =============================================================================
+# Task 4.1 - qualisys-developer ClusterRole
+# Permissions: read-only for production, full for dev/staging
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: qualisys-developer
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    rbac.qualisys.io/role: developer
+rules:
+  # Read-only access across all namespaces for common resources
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "endpoints", "configmaps", "events", "namespaces"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "networkpolicies"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
+---
+# Developer Role for dev namespace (full access)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: qualisys-developer-full
+  namespace: dev
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+rules:
+  - apiGroups: ["", "apps", "batch", "networking.k8s.io", "autoscaling"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+# Developer Role for staging namespace (full access)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: qualisys-developer-full
+  namespace: staging
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+rules:
+  - apiGroups: ["", "apps", "batch", "networking.k8s.io", "autoscaling"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+# =============================================================================
+# Task 4.2 - qualisys-devops ClusterRole (full cluster admin)
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: qualisys-devops
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    rbac.qualisys.io/role: devops
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+# =============================================================================
+# Task 4.3 - qualisys-cicd ClusterRole (deploy to staging only)
+# =============================================================================
+
+# CI/CD Role for staging namespace (full deploy access)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: qualisys-cicd-deploy
+  namespace: staging
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    rbac.qualisys.io/role: cicd
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "secrets", "serviceaccounts"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+# CI/CD Role for playwright-pool namespace (deploy test runners)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: qualisys-cicd-deploy
+  namespace: playwright-pool
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    rbac.qualisys.io/role: cicd
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "secrets", "serviceaccounts"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+# CI/CD ClusterRole for read-only cluster access (needed for status checks)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: qualisys-cicd-readonly
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    rbac.qualisys.io/role: cicd
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+  # Explicitly deny exec into pods (Red Team constraint)
+  # Note: pods/exec is NOT listed in any verbs - CI/CD cannot exec into pods

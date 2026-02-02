@@ -1,0 +1,94 @@
+# Kubernetes Namespaces
+# Story: 0-3 Kubernetes Cluster Provisioning
+# AC: 3 - Namespaces created: dev, staging, production, playwright-pool, monitoring
+# AC: 9 - Pod Security Standards enforced (baseline for dev/staging, restricted for production)
+
+# =============================================================================
+# Task 3.1 - dev namespace (PSS: baseline)
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    environment: dev
+    # Task 3.6 - Pod Security Standards: baseline (allow debugging tools)
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+---
+# =============================================================================
+# Task 3.2 - staging namespace (PSS: baseline)
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: staging
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    environment: staging
+    # Task 3.6 - Pod Security Standards: baseline (mirror production config)
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+---
+# =============================================================================
+# Task 3.3 - production namespace (PSS: restricted)
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: production
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    environment: production
+    # Task 3.6 - Pod Security Standards: restricted (maximum security)
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+---
+# =============================================================================
+# Task 3.4 - playwright-pool namespace (PSS: baseline)
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: playwright-pool
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    environment: test
+    # Task 3.6 - Pod Security Standards: baseline (Playwright needs some privileges)
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+---
+# =============================================================================
+# Task 3.5 - monitoring namespace (PSS: baseline)
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    environment: monitoring
+    # Task 3.6 - Pod Security Standards: baseline (Prometheus needs some privileges)
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest

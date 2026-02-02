@@ -1,0 +1,411 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>0</epicId>
+    <storyId>12</storyId>
+    <title>Production Deployment with Approval Gate</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-01-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/0-12-production-deployment-with-approval-gate.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>DevOps Lead</asA>
+    <iWant>production deployments to require manual approval with gradual rollout</iWant>
+    <soThat>we maintain control over production changes and can quickly rollback if issues arise</soThat>
+    <tasks>
+      <task id="1" name="Production Deployment Workflow" acs="1,8,10">
+        <subtask>1.1-1.5 Create deploy-production.yml with manual trigger, input params, audit logging</subtask>
+      </task>
+      <task id="2" name="GitHub Environment Protection" acs="2,3,8">
+        <subtask>2.1-2.5 Create production environment with required reviewers, branch rules, secrets</subtask>
+      </task>
+      <task id="3" name="Canary Deployment Strategy" acs="4,6">
+        <subtask>3.1-3.5 Configure canary manifests, traffic splitting, gradual rollout, auto-rollback</subtask>
+      </task>
+      <task id="4" name="Smoke Tests" acs="5,6">
+        <subtask>4.1-4.5 Create smoke test script for login, API health, DB connectivity</subtask>
+      </task>
+      <task id="5" name="Production Domain Configuration" acs="7">
+        <subtask>5.1-5.5 DNS record, Ingress, SSL certificate, WAF rules</subtask>
+      </task>
+      <task id="6" name="Rollback and Documentation" acs="6,9,all">
+        <subtask>6.1-6.5 Document rollback procedure, test rollback, create runbook, train team</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">Production deployment workflow requires manual trigger (not automatic)</ac>
+    <ac id="2">GitHub Environment "production" configured with required reviewers</ac>
+    <ac id="3">Approval required before deployment proceeds</ac>
+    <ac id="4">Deployment uses canary strategy with gradual rollout (10% to 50% to 100%)</ac>
+    <ac id="5">Smoke tests run post-deployment to verify critical paths</ac>
+    <ac id="6">Automatic rollback on failed smoke tests or health checks</ac>
+    <ac id="7">Production accessible at https://app.qualisys.io</ac>
+    <ac id="8">Deployment audit trail logged (who approved, when, what version)</ac>
+    <ac id="9">Rollback procedure documented and tested</ac>
+    <ac id="10">Production deployment time less than 10 minutes including rollout and smoke tests</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>CI/CD Pipeline Sequence</section>
+        <snippet>Deploy to production (Story 0.12): GitHub Environment approval (DevOps Lead, Tech Lead). Blue-green deployment. Smoke tests. Gradual rollout: 10% to 50% to 100%. Rollback on failure.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Reliability/Availability</section>
+        <snippet>Blue-green deployment tested successfully in staging before production use. Production deployment time less than 10 minutes including gradual rollout and smoke tests.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-0-infrastructure.md</path>
+        <title>Epic 0: Infrastructure Foundation</title>
+        <section>Story 0.12</section>
+        <snippet>Production Deployment with Approval Gate: Manual trigger, GitHub Environment with required reviewers, canary deployment, smoke tests, rollback procedure documented.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Deployment Strategy</section>
+        <snippet>Production deployments require manual approval. Canary deployment strategy limits blast radius. Automatic rollback on health check failures. Full audit trail maintained.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-11-staging-auto-deployment.md</path>
+        <title>Story 0.11: Staging Auto-Deployment</title>
+        <section>Deployment Patterns</section>
+        <snippet>Prerequisite: Staging deployment patterns, health check endpoints, rollback procedures. Production extends these with approval gates and canary rollout.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <note>Production deployment extends staging patterns with approval gates and canary strategy.</note>
+      <prerequisites>
+        <story id="0-3-kubernetes-cluster-provisioning" status="ready-for-dev">
+          <provides>EKS cluster with production namespace</provides>
+        </story>
+        <story id="0-6-container-registry" status="ready-for-dev">
+          <provides>ECR repositories with tagged images</provides>
+        </story>
+        <story id="0-8-github-actions-workflow-setup" status="ready-for-dev">
+          <provides>GitHub Actions infrastructure, environments</provides>
+        </story>
+        <story id="0-11-staging-auto-deployment" status="ready-for-dev">
+          <provides>Staging deployment patterns, health checks, tested in staging first</provides>
+        </story>
+        <story id="0-13-load-balancer-ingress-configuration" status="backlog">
+          <provides>Ingress controller, SSL termination for production domain</provides>
+        </story>
+      </prerequisites>
+      <expectedStructure>
+        <file path=".github/workflows/deploy-production.yml" purpose="Production deployment workflow" />
+        <folder path="kubernetes/production" purpose="Production Kubernetes manifests" />
+        <file path="kubernetes/production/stable-deployment.yaml" purpose="Stable production deployment" />
+        <file path="kubernetes/production/canary-deployment.yaml" purpose="Canary deployment for rollout" />
+        <file path="kubernetes/production/service.yaml" purpose="Services with traffic splitting" />
+        <file path="kubernetes/production/ingress.yaml" purpose="Production ingress" />
+        <file path="scripts/smoke-tests.sh" purpose="Smoke test script" />
+        <file path="CONTRIBUTING.md" purpose="Updated with production deploy and rollback docs" />
+      </expectedStructure>
+      <outputs description="Production deployment infrastructure">
+        <output name="deploy-production.yml" consumers="DevOps team, release process" />
+        <output name="production namespace" consumers="Epic 1-5 feature releases" />
+        <output name="smoke-tests.sh" consumers="CI/CD pipeline, manual verification" />
+        <output name="rollback runbook" consumers="On-call engineers, incident response" />
+      </outputs>
+      <workflowTemplate>
+        <![CDATA[
+name: Deploy to Production
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to deploy (Git SHA)'
+        required: true
+        type: string
+      skip_canary:
+        description: 'Skip canary phase (emergency hotfix only)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+  deployments: write
+
+jobs:
+  approve:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deployment approved
+        run: |
+          echo "Deployment approved by ${{ github.actor }}"
+          echo "Image tag: ${{ inputs.image_tag }}"
+          echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  canary:
+    needs: approve
+    if: ${{ !inputs.skip_canary }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_PRODUCTION_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Deploy canary (10%)
+        run: |
+          aws eks update-kubeconfig --name qualisys-cluster --region us-east-1
+          kubectl set image deployment/qualisys-api-canary \
+            qualisys-api=${{ secrets.ECR_REGISTRY }}/qualisys-api:${{ inputs.image_tag }} \
+            -n production
+          kubectl rollout status deployment/qualisys-api-canary -n production --timeout=120s
+      - name: Smoke tests on canary
+        run: ./scripts/smoke-tests.sh https://canary.app.qualisys.io
+
+  rollout-50:
+    needs: canary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS and scale to 50%
+        run: |
+          kubectl scale deployment/qualisys-api-canary --replicas=5 -n production
+          kubectl scale deployment/qualisys-api-stable --replicas=5 -n production
+      - name: Smoke tests
+        run: ./scripts/smoke-tests.sh https://app.qualisys.io
+
+  rollout-100:
+    needs: rollout-50
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Promote to 100%
+        run: |
+          kubectl set image deployment/qualisys-api-stable \
+            qualisys-api=${{ secrets.ECR_REGISTRY }}/qualisys-api:${{ inputs.image_tag }} \
+            -n production
+          kubectl rollout status deployment/qualisys-api-stable -n production --timeout=180s
+          kubectl scale deployment/qualisys-api-canary --replicas=0 -n production
+      - name: Final smoke tests
+        run: ./scripts/smoke-tests.sh https://app.qualisys.io
+      - name: Notify Slack
+        uses: slackapi/slack-github-action@v1
+        with:
+          slack-message: ":rocket: Production deployment complete - ${{ inputs.image_tag }}"
+        ]]>
+      </workflowTemplate>
+      <canaryDeploymentTemplate>
+        <![CDATA[
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qualisys-api-canary
+  namespace: production
+  labels:
+    app: qualisys-api
+    track: canary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qualisys-api
+      track: canary
+  template:
+    metadata:
+      labels:
+        app: qualisys-api
+        track: canary
+    spec:
+      containers:
+        - name: qualisys-api
+          image: ${ECR_REGISTRY}/qualisys-api:${CANARY_TAG}
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+        ]]>
+      </canaryDeploymentTemplate>
+      <smokeTestTemplate>
+        <![CDATA[
+#!/bin/bash
+# scripts/smoke-tests.sh
+set -e
+BASE_URL="${1:-https://app.qualisys.io}"
+
+echo "=== Running Production Smoke Tests ==="
+echo "Target: $BASE_URL"
+
+# Test 1: Health endpoint
+echo "[1/4] Testing health endpoint..."
+curl -sf "$BASE_URL/api/health" | jq -e '.status == "ok"'
+
+# Test 2: Ready endpoint
+echo "[2/4] Testing ready endpoint..."
+curl -sf "$BASE_URL/api/ready" | jq -e '.status == "ready"'
+
+# Test 3: Login page loads
+echo "[3/4] Testing login page..."
+curl -sf "$BASE_URL/login" | grep -q "Sign In"
+
+# Test 4: API authentication
+echo "[4/4] Testing API authentication..."
+curl -sf -H "Authorization: Bearer $SMOKE_TEST_TOKEN" \
+  "$BASE_URL/api/v1/user/me" | jq -e '.id != null'
+
+echo "=== All smoke tests passed! ==="
+        ]]>
+      </smokeTestTemplate>
+      <rollbackProcedure>
+        <![CDATA[
+# Rollback Procedure for Production
+
+## Automatic Rollback
+Kubernetes automatically rolls back if:
+- Readiness probe fails 3 times
+- Liveness probe fails 3 times
+- Smoke tests fail in workflow
+
+## Manual Rollback
+
+### Option 1: Undo last deployment
+kubectl rollout undo deployment/qualisys-api-stable -n production
+kubectl rollout undo deployment/qualisys-web-stable -n production
+
+### Option 2: Deploy specific version
+kubectl set image deployment/qualisys-api-stable \
+  qualisys-api=<ECR_REGISTRY>/qualisys-api:<PREVIOUS_SHA> \
+  -n production
+
+### Verify rollback
+kubectl rollout status deployment/qualisys-api-stable -n production
+kubectl get pods -n production -l app=qualisys-api
+
+### Check history
+kubectl rollout history deployment/qualisys-api-stable -n production
+        ]]>
+      </rollbackProcedure>
+    </code>
+
+    <dependencies>
+      <githubActions>
+        <action name="actions/checkout" version="v4" purpose="Clone repository" />
+        <action name="aws-actions/configure-aws-credentials" version="v4" purpose="OIDC AWS auth" />
+        <action name="slackapi/slack-github-action" version="v1" purpose="Slack notifications" />
+      </githubActions>
+      <kubernetes>
+        <resource name="Deployment (stable)" purpose="Primary production workload" />
+        <resource name="Deployment (canary)" purpose="Canary for gradual rollout" />
+        <resource name="Service" purpose="Traffic routing with splitting" />
+        <resource name="Ingress" purpose="External traffic, SSL termination" />
+      </kubernetes>
+      <secrets>
+        <secret name="AWS_PRODUCTION_ROLE_ARN" purpose="OIDC role for production AWS access" />
+        <secret name="ECR_REGISTRY" purpose="ECR registry URL" />
+        <secret name="SMOKE_TEST_TOKEN" purpose="API token for smoke test authentication" />
+        <secret name="SLACK_BOT_TOKEN" purpose="Slack API authentication" />
+        <secret name="SLACK_DEPLOY_CHANNEL" purpose="Deployment notifications channel" />
+      </secrets>
+      <tools>
+        <tool name="kubectl" purpose="Kubernetes CLI for deployments" />
+        <tool name="curl" purpose="HTTP requests in smoke tests" />
+        <tool name="jq" purpose="JSON parsing in smoke tests" />
+      </tools>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="Security" critical="true">Manual trigger only - production never auto-deploys</constraint>
+    <constraint source="Security" critical="true">Required reviewers must approve before deployment proceeds</constraint>
+    <constraint source="Availability" critical="true">Canary rollout limits blast radius to 10% initially</constraint>
+    <constraint source="Reliability">Automatic rollback on failed smoke tests or health checks</constraint>
+    <constraint source="Performance">Total deployment time less than 10 minutes</constraint>
+    <constraint source="Auditability">Full audit trail of who approved what version when</constraint>
+    <constraint source="Dependency">Story 0.11 (Staging) must be complete - staging tested first</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>GitHub workflow_dispatch</name>
+      <kind>GitHub Events</kind>
+      <signature>on: workflow_dispatch with inputs: image_tag, skip_canary</signature>
+      <path>.github/workflows/deploy-production.yml</path>
+    </interface>
+    <interface>
+      <name>GitHub Environment Protection</name>
+      <kind>GitHub Settings</kind>
+      <signature>Environment "production" with required_reviewers, deployment_branches</signature>
+      <path>Repository Settings > Environments</path>
+    </interface>
+    <interface>
+      <name>Canary Traffic Split</name>
+      <kind>Kubernetes Service</kind>
+      <signature>Service selects both stable and canary pods, replica ratio controls split</signature>
+      <path>kubernetes/production/service.yaml</path>
+    </interface>
+    <interface>
+      <name>Smoke Test Script</name>
+      <kind>Bash script</kind>
+      <signature>./scripts/smoke-tests.sh [BASE_URL]</signature>
+      <path>scripts/smoke-tests.sh</path>
+    </interface>
+    <interface>
+      <name>kubectl rollout</name>
+      <kind>Kubernetes CLI</kind>
+      <signature>kubectl rollout status|undo|history deployment/{name} -n production</signature>
+      <path>Manual and automated rollback</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Production deployment testing validates approval workflow, canary rollout, smoke tests, rollback behavior, and audit trail. DevOps Lead and Tech Lead verify process. Integration test performs full deployment to production-like environment.
+    </standards>
+    <locations>
+      <location>GitHub Actions tab for workflow execution and approval</location>
+      <location>GitHub repository settings for environment configuration</location>
+      <location>kubectl commands for deployment verification</location>
+      <location>Slack channel for deployment notifications</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Verify workflow only appears in Actions with manual "Run workflow" button</idea>
+      <idea ac="2">Check repository Settings > Environments shows production with reviewers</idea>
+      <idea ac="3">Trigger deployment, verify workflow pauses at "approve" job until approval</idea>
+      <idea ac="4">During deployment, verify traffic split: 10% to canary, 90% to stable</idea>
+      <idea ac="5">Workflow logs show smoke test execution after each rollout phase</idea>
+      <idea ac="6">Deploy with failing smoke test, verify automatic rollback to previous version</idea>
+      <idea ac="7">Browser navigates to https://app.qualisys.io successfully with valid SSL</idea>
+      <idea ac="8">GitHub Actions logs show approver name, timestamp, image tag deployed</idea>
+      <idea ac="9">CONTRIBUTING.md includes rollback procedure, runbook accessible to team</idea>
+      <idea ac="10">GitHub Actions summary shows total workflow time less than 10 minutes</idea>
+      <idea ac="canary-metrics">During canary phase, monitoring shows canary pod metrics separately</idea>
+      <idea ac="skip-canary">Emergency hotfix with skip_canary=true deploys directly to stable</idea>
+      <idea ac="concurrent">Second deployment attempt while one is running shows queued or blocked</idea>
+      <idea ac="audit">GitHub audit log shows deployment event with all metadata</idea>
+    </ideas>
+  </tests>
+</story-context>

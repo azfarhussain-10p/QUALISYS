@@ -1,0 +1,191 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>0</epicId>
+    <storyId>19</storyId>
+    <title>Monitoring Infrastructure (Prometheus + Grafana)</title>
+    <status>drafted</status>
+    <generatedAt>2026-01-24</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/0-19-monitoring-infrastructure-prometheus-grafana.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>DevOps Engineer</asA>
+    <iWant>monitoring infrastructure set up</iWant>
+    <soThat>we can track application and infrastructure health in real-time</soThat>
+    <tasks>
+      <task id="1" name="Prometheus Deployment" acs="1,2">
+        <subtask>1.1 Create monitoring namespace in Kubernetes</subtask>
+        <subtask>1.2 Deploy Prometheus Operator via Helm chart</subtask>
+        <subtask>1.3 Configure Prometheus persistent storage (50GB)</subtask>
+        <subtask>1.4 Verify node metrics collection (node-exporter)</subtask>
+        <subtask>1.5 Configure 15-day retention policy</subtask>
+        <subtask>1.6 Document Prometheus access and PromQL basics</subtask>
+      </task>
+      <task id="2" name="Application Metrics Scraping" acs="3">
+        <subtask>2.1 Create ServiceMonitor CRD for qualisys-api</subtask>
+        <subtask>2.2 Create ServiceMonitor CRD for qualisys-web</subtask>
+        <subtask>2.3 Configure /metrics endpoint in application</subtask>
+        <subtask>2.4 Add standard metrics (request count, latency, errors)</subtask>
+        <subtask>2.5 Verify metrics appear in Prometheus</subtask>
+      </task>
+      <task id="3" name="Database and Cache Metrics" acs="4,5">
+        <subtask>3.1 Deploy PostgreSQL exporter</subtask>
+        <subtask>3.2 Configure PostgreSQL exporter connection string</subtask>
+        <subtask>3.3 Deploy Redis exporter</subtask>
+        <subtask>3.4 Configure Redis exporter connection</subtask>
+        <subtask>3.5 Verify database and cache metrics in Prometheus</subtask>
+      </task>
+      <task id="4" name="Grafana Deployment" acs="6,7,8,13">
+        <subtask>4.1 Deploy Grafana via Helm chart</subtask>
+        <subtask>4.2 Configure Prometheus data source</subtask>
+        <subtask>4.3 Import Kubernetes cluster dashboard (ID: 315)</subtask>
+        <subtask>4.4 Create application performance dashboard (RED metrics)</subtask>
+        <subtask>4.5 Create database performance dashboard</subtask>
+        <subtask>4.6 Configure Grafana ingress with SSL</subtask>
+        <subtask>4.7 Set up OAuth or basic authentication</subtask>
+        <subtask>4.8 Configure admin password in Secrets Manager</subtask>
+      </task>
+      <task id="5" name="Alerting Rules" acs="9,10,11,12">
+        <subtask>5.1 Create PrometheusRule for pod crash loop alert</subtask>
+        <subtask>5.2 Create PrometheusRule for high CPU alert</subtask>
+        <subtask>5.3 Create PrometheusRule for high memory alert</subtask>
+        <subtask>5.4 Create PrometheusRule for database connection pool alert</subtask>
+        <subtask>5.5 Create PrometheusRule for API latency alert</subtask>
+        <subtask>5.6 Configure alert severity levels (critical, warning)</subtask>
+      </task>
+      <task id="6" name="Notification Integration" acs="14">
+        <subtask>6.1 Deploy Alertmanager</subtask>
+        <subtask>6.2 Configure Slack webhook integration</subtask>
+        <subtask>6.3 Create alert routing rules</subtask>
+        <subtask>6.4 Test alert notification flow</subtask>
+        <subtask>6.5 Document alert response procedures</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">Prometheus deployed in Kubernetes monitoring namespace</criterion>
+    <criterion id="AC2">Prometheus scrapes Kubernetes node metrics (CPU, memory, disk)</criterion>
+    <criterion id="AC3">Prometheus scrapes application pod metrics via /metrics endpoint</criterion>
+    <criterion id="AC4">Prometheus scrapes PostgreSQL metrics (connection pool, query performance)</criterion>
+    <criterion id="AC5">Prometheus scrapes Redis metrics (cache hit rate, memory usage)</criterion>
+    <criterion id="AC6">Grafana deployed with Kubernetes cluster overview dashboard</criterion>
+    <criterion id="AC7">Grafana has application performance dashboard (request rate, latency, errors)</criterion>
+    <criterion id="AC8">Grafana has database performance dashboard</criterion>
+    <criterion id="AC9">Alert rules configured: pod crash loop</criterion>
+    <criterion id="AC10">Alert rules configured: high CPU/memory usage (greater than 80%)</criterion>
+    <criterion id="AC11">Alert rules configured: database connection pool exhaustion</criterion>
+    <criterion id="AC12">Alert rules configured: API response time greater than 500ms (p95)</criterion>
+    <criterion id="AC13">Grafana accessible at https://grafana.qualisys.io</criterion>
+    <criterion id="AC14">Alerting notifications sent to Slack channel</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Observability Requirements</section>
+        <snippet>NFR-OBS3: Prometheus metrics with 15-second scrape interval. NFR-R4: Real-time monitoring for 99.5% uptime target.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-0-infrastructure.md</path>
+        <title>Epic 0: Infrastructure Foundation</title>
+        <section>Story 0.19: Monitoring Infrastructure</section>
+        <snippet>Prometheus + Grafana stack for metrics collection, dashboards, and alerting.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Monitoring Strategy</section>
+        <snippet>Observability stack: Prometheus for metrics, Grafana for visualization, Alertmanager for notifications.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>docs/stories/0-3-kubernetes-cluster-provisioning.md</path>
+        <kind>story</kind>
+        <symbol>Kubernetes Cluster</symbol>
+        <reason>Dependency: Monitoring namespace runs in K8s cluster</reason>
+      </file>
+      <file>
+        <path>docs/stories/0-4-postgresql-multi-tenant-database.md</path>
+        <kind>story</kind>
+        <symbol>PostgreSQL Database</symbol>
+        <reason>Dependency: Database to monitor with PostgreSQL exporter</reason>
+      </file>
+      <file>
+        <path>docs/stories/0-5-redis-caching-layer.md</path>
+        <kind>story</kind>
+        <symbol>Redis Cache</symbol>
+        <reason>Dependency: Cache to monitor with Redis exporter</reason>
+      </file>
+      <file>
+        <path>docs/stories/0-13-load-balancer-ingress-configuration.md</path>
+        <kind>story</kind>
+        <symbol>Ingress Configuration</symbol>
+        <reason>Dependency: Grafana ingress configuration</reason>
+      </file>
+    </code>
+    <dependencies>
+      <helm>
+        <chart name="kube-prometheus-stack" repo="prometheus-community" version="^55.0.0">Prometheus Operator with Grafana</chart>
+      </helm>
+      <node>
+        <package name="prom-client" version="^15.0.0">Prometheus client for Node.js</package>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="namespace">All monitoring components in 'monitoring' namespace</constraint>
+    <constraint type="retention">15-day retention for Prometheus metrics</constraint>
+    <constraint type="storage">50GB persistent volume for Prometheus</constraint>
+    <constraint type="access">Team-wide access at https://grafana.qualisys.io</constraint>
+    <constraint type="authentication">OAuth or basic auth required for Grafana</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>/metrics</name>
+      <kind>HTTP endpoint</kind>
+      <signature>GET /metrics - Returns Prometheus-formatted metrics</signature>
+      <path>src/metrics/prometheus.ts</path>
+    </interface>
+    <interface>
+      <name>ServiceMonitor</name>
+      <kind>Kubernetes CRD</kind>
+      <signature>monitoring.coreos.com/v1 ServiceMonitor</signature>
+      <path>k8s/monitoring/servicemonitor-api.yaml</path>
+    </interface>
+    <interface>
+      <name>PrometheusRule</name>
+      <kind>Kubernetes CRD</kind>
+      <signature>monitoring.coreos.com/v1 PrometheusRule</signature>
+      <path>k8s/monitoring/alert-rules.yaml</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Infrastructure validation through smoke tests. Verify Prometheus scraping targets, Grafana dashboard loading,
+      and alert rule triggering. Use kubectl and curl for validation. Alert notifications tested via Slack webhook.
+    </standards>
+    <locations>
+      <location>k8s/monitoring/</location>
+      <location>src/metrics/</location>
+    </locations>
+    <ideas>
+      <idea ac="AC1">Verify prometheus pods running in monitoring namespace</idea>
+      <idea ac="AC2">Query node_cpu_seconds_total returns data</idea>
+      <idea ac="AC3">Query http_requests_total returns application metrics</idea>
+      <idea ac="AC4">Query pg_stat_activity_count returns PostgreSQL data</idea>
+      <idea ac="AC5">Query redis_connected_clients returns Redis data</idea>
+      <idea ac="AC6,7,8">Verify Grafana dashboards load without errors</idea>
+      <idea ac="AC9-12">Trigger alert conditions and verify PrometheusRule fires</idea>
+      <idea ac="AC13">Verify https://grafana.qualisys.io accessible with auth</idea>
+      <idea ac="AC14">Test alert notification appears in Slack channel</idea>
+    </ideas>
+  </tests>
+</story-context>

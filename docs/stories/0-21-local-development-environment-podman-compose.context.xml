@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<storyContext version="1.0">
+  <metadata>
+    <storyId>0-21</storyId>
+    <title>Local Development Environment (Podman Compose)</title>
+    <epic>epic-0-infrastructure</epic>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-01-24</generatedAt>
+    <sourceStoryPath>docs/stories/0-21-local-development-environment-podman-compose.md</sourceStoryPath>
+  </metadata>
+
+  <storyDetails>
+    <asA>Developer</asA>
+    <iWant>a local development environment setup</iWant>
+    <soThat>I can develop and test locally without cloud dependencies</soThat>
+    <tasks>
+      <task id="1" name="Podman Compose Configuration" acs="1,2,3,6">
+        <subtask>1.1 Create compose.yml with service definitions</subtask>
+        <subtask>1.2 Configure PostgreSQL service with init scripts</subtask>
+        <subtask>1.3 Configure Redis service</subtask>
+        <subtask>1.4 Configure MailCatcher service</subtask>
+        <subtask>1.5 Set up Podman network for service communication</subtask>
+        <subtask>1.6 Add health checks for all services</subtask>
+        <subtask>1.7 Verify all services start with podman-compose up</subtask>
+      </task>
+      <task id="2" name="Application Services Setup" acs="4,5,12">
+        <subtask>2.1 Create API service Containerfile.dev for development</subtask>
+        <subtask>2.2 Configure volume mounts for hot reload</subtask>
+        <subtask>2.3 Set up nodemon/ts-node-dev for API hot reload</subtask>
+        <subtask>2.4 Create Web service configuration for Next.js</subtask>
+        <subtask>2.5 Configure health check endpoints</subtask>
+        <subtask>2.6 Test hot reload functionality</subtask>
+      </task>
+      <task id="3" name="Database Initialization" acs="2,9">
+        <subtask>3.1-3.5 Create init scripts, migration runner, seed data</subtask>
+      </task>
+      <task id="4" name="Environment Configuration" acs="8">
+        <subtask>4.1-4.5 Create .env.example, document variables, validate</subtask>
+      </task>
+      <task id="5" name="Documentation" acs="7,10,11">
+        <subtask>5.1 Write README.md with setup instructions</subtask>
+        <subtask>5.2 Document prerequisites (Podman, Node.js versions)</subtask>
+        <subtask>5.3-5.6 Quick start guide, troubleshooting, timing validation</subtask>
+      </task>
+      <task id="6" name="Validation and Testing" acs="all">
+        <subtask>6.1-6.5 Test complete setup, services, email, hot reload</subtask>
+      </task>
+    </tasks>
+  </storyDetails>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">compose.yml file created with all required services</criterion>
+    <criterion id="AC2">PostgreSQL service runs with pre-created schemas</criterion>
+    <criterion id="AC3">Redis service runs and accepts connections</criterion>
+    <criterion id="AC4">API service runs with hot reload</criterion>
+    <criterion id="AC5">Web service runs with hot reload</criterion>
+    <criterion id="AC6">MailCatcher service runs for email testing</criterion>
+    <criterion id="AC7">README.md documents complete setup steps</criterion>
+    <criterion id="AC8">.env.example template provided with all variables</criterion>
+    <criterion id="AC9">Seed data script populates local database</criterion>
+    <criterion id="AC10">Local setup completes in &lt;30 minutes for new developers</criterion>
+    <criterion id="AC11">Troubleshooting guide covers common issues</criterion>
+    <criterion id="AC12">Health check endpoints accessible</criterion>
+  </acceptanceCriteria>
+
+  <documentationArtifacts>
+    <artifact type="architecture">
+      <path>docs/architecture/architecture.md</path>
+      <section>Development Environment</section>
+      <snippet>Local-first development with Podman Compose. Parity with production (PostgreSQL, Redis).</snippet>
+    </artifact>
+    <artifact type="techSpec">
+      <path>docs/tech-specs/tech-spec-epic-0.md</path>
+      <section>Story 0.21</section>
+      <snippet>Podman Compose setup for local development without cloud dependencies.</snippet>
+    </artifact>
+    <artifact type="epic">
+      <path>docs/epics/epic-0-infrastructure.md</path>
+      <section>Story 0.21</section>
+      <snippet>Local development environment with Podman Compose, PostgreSQL, Redis, hot reload.</snippet>
+    </artifact>
+  </documentationArtifacts>
+
+  <codeArtifacts>
+    <toCreate>
+      <file path="compose.yml" purpose="Main Podman Compose configuration" />
+      <file path="api/Containerfile.dev" purpose="API development container" />
+      <file path="web/Containerfile.dev" purpose="Web development container" />
+      <file path=".env.example" purpose="Environment template" />
+      <file path="scripts/init-db.sql" purpose="PostgreSQL initialization" />
+      <file path="scripts/seed.ts" purpose="Test data seeding" />
+      <file path="docs/local-development.md" purpose="Extended documentation" />
+    </toCreate>
+    <existing>
+      <note>Greenfield - no existing compose or container files.</note>
+    </existing>
+  </codeArtifacts>
+
+  <dependencies>
+    <external>
+      <podman>
+        <image name="postgres" version="15-alpine" purpose="Database" />
+        <image name="redis" version="7-alpine" purpose="Cache" />
+        <image name="node" version="18-alpine" purpose="API and Web base" />
+        <image name="schickling/mailcatcher" version="latest" purpose="Email testing" />
+      </podman>
+      <tools>
+        <tool name="podman" version="4.x+" purpose="Container runtime (10Pearls approved)" />
+        <tool name="podman-compose" version="latest" purpose="Compose orchestration" />
+        <tool name="node" version="18+" purpose="JavaScript runtime" />
+        <tool name="npm" version="9+" purpose="Package management" />
+      </tools>
+    </external>
+    <internal>
+      <none>This story has no internal dependencies and can start Day 1</none>
+    </internal>
+  </dependencies>
+
+  <constraints>
+    <constraint type="policy">10Pearls policy: Docker Desktop NOT approved - use Podman</constraint>
+    <constraint type="version">PostgreSQL 15+ (match production)</constraint>
+    <constraint type="version">Redis 7+ (match production)</constraint>
+    <constraint type="version">Node.js 18+ LTS</constraint>
+    <constraint type="performance">Setup must complete in &lt;30 minutes for new developers</constraint>
+    <constraint type="selinux">Use :Z suffix on volume mounts for SELinux systems</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface type="service">
+      <name>PostgreSQL</name>
+      <port>5432</port>
+      <healthcheck>pg_isready -U qualisys -d qualisys_master</healthcheck>
+      <path>compose.yml</path>
+    </interface>
+    <interface type="service">
+      <name>Redis</name>
+      <port>6379</port>
+      <healthcheck>redis-cli ping</healthcheck>
+      <path>compose.yml</path>
+    </interface>
+    <interface type="service">
+      <name>API</name>
+      <port>3001</port>
+      <healthcheck>curl -f http://localhost:3001/health</healthcheck>
+      <path>compose.yml</path>
+    </interface>
+    <interface type="service">
+      <name>Web</name>
+      <port>3000</port>
+      <healthcheck>curl -f http://localhost:3000</healthcheck>
+      <path>compose.yml</path>
+    </interface>
+    <interface type="service">
+      <name>MailCatcher</name>
+      <ports>1080 (UI), 1025 (SMTP)</ports>
+      <path>compose.yml</path>
+    </interface>
+  </interfaces>
+
+  <testingGuidance>
+    <strategy>
+      Developer onboarding test validates complete setup flow. Each AC has explicit verification method.
+    </strategy>
+    <locations>
+      <location>compose.yml validation: podman-compose config</location>
+      <location>Service health: podman-compose ps (all healthy)</location>
+      <location>Hot reload: modify source, observe restart/refresh</location>
+    </locations>
+    <testIdeas>
+      <idea ac="AC1">podman-compose config validates without errors</idea>
+      <idea ac="AC2">psql connects to localhost:5432, query tenant_dev_1.users succeeds</idea>
+      <idea ac="AC3">redis-cli -h localhost PING returns PONG</idea>
+      <idea ac="AC4">Modify api/src/index.ts, observe ts-node-dev restart</idea>
+      <idea ac="AC5">Modify web/src/app/page.tsx, observe Next.js Fast Refresh</idea>
+      <idea ac="AC6">Open http://localhost:1080, verify MailCatcher UI loads</idea>
+      <idea ac="AC7">New developer follows README, app running in 30 min</idea>
+      <idea ac="AC8">Copy .env.example to .env, podman-compose up succeeds</idea>
+      <idea ac="AC9">npm run seed, query returns seeded users</idea>
+      <idea ac="AC10">Time from git clone to http://localhost:3000 &lt;30 minutes</idea>
+      <idea ac="AC11">Review troubleshooting guide covers Podman, ports, DB issues</idea>
+      <idea ac="AC12">curl localhost:3001/health returns 200 OK</idea>
+    </testIdeas>
+  </testingGuidance>
+</storyContext>

@@ -1,0 +1,330 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>0</epicId>
+    <storyId>9</storyId>
+    <title>Docker Build Automation</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-01-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/0-9-docker-build-automation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>DevOps Engineer</asA>
+    <iWant>automate Docker image builds with multi-stage optimization and vulnerability scanning</iWant>
+    <soThat>every code change produces a tested, versioned, and secure container image</soThat>
+    <tasks>
+      <task id="1" name="API Service Dockerfile" acs="1,4,5,12">
+        <subtask>1.1-1.7 Create multi-stage Dockerfile with BuildKit, non-root user, health check</subtask>
+      </task>
+      <task id="2" name="Web Service Dockerfile" acs="2,4,5,12">
+        <subtask>2.1-2.7 Create Next.js multi-stage Dockerfile with standalone output</subtask>
+      </task>
+      <task id="3" name="Playwright Runner Dockerfile" acs="3,4,5">
+        <subtask>3.1-3.6 Create Playwright Dockerfile with browser dependencies</subtask>
+      </task>
+      <task id="4" name=".dockerignore Configuration" acs="6,11">
+        <subtask>4.1-4.5 Create .dockerignore files excluding secrets, node_modules, .git</subtask>
+      </task>
+      <task id="5" name="Image Tagging Strategy" acs="7">
+        <subtask>5.1-5.5 Implement Git SHA, branch-timestamp, semantic versioning tags</subtask>
+      </task>
+      <task id="6" name="Vulnerability Scanning" acs="9,10,11">
+        <subtask>6.1-6.6 Add Trivy scanning to CI/CD, configure severity thresholds, SARIF upload</subtask>
+      </task>
+      <task id="7" name="Build Optimization &amp; Validation" acs="8,12,all">
+        <subtask>7.1-7.7 Enable BuildKit, configure caching, measure build times, document</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">Dockerfile created for API service (Node.js/Python backend)</ac>
+    <ac id="2">Dockerfile created for Web service (Next.js frontend)</ac>
+    <ac id="3">Dockerfile created for Playwright runner (test executor)</ac>
+    <ac id="4">Multi-stage builds optimize image size (build + runtime stages)</ac>
+    <ac id="5">Base images use official, security-scanned versions</ac>
+    <ac id="6">.dockerignore files exclude unnecessary files</ac>
+    <ac id="7">Images tagged with Git SHA and branch name</ac>
+    <ac id="8">Build time less than 5 minutes per service with layer caching</ac>
+    <ac id="9">Image vulnerability scanning integrated (Trivy)</ac>
+    <ac id="10">Build fails if critical/high vulnerabilities detected</ac>
+    <ac id="11">No secrets baked into images (Trivy secret scan)</ac>
+    <ac id="12">Docker BuildKit enabled for improved caching</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Docker Build Automation</section>
+        <snippet>Multi-stage builds optimize image size. Base images use official versions (node:18-alpine, python:3.11-slim). Build time less than 5 minutes. Trivy vulnerability scanning integrated.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Security Threat Model</section>
+        <snippet>Attack Vector #4: Secrets exposure in Docker image. Mitigation: Trivy secret scanning fails build if detected. No secrets baked into images.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-0-infrastructure.md</path>
+        <title>Epic 0: Infrastructure Foundation</title>
+        <section>Story 0.9</section>
+        <snippet>Docker Build Automation with multi-stage builds, Trivy scanning, Git SHA tagging. Dependencies: Story 0.6 (Container registry).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Container Architecture</section>
+        <snippet>Containerized microservices with optimized Docker images. Multi-stage builds reduce attack surface. Non-root users for runtime security.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-6-container-registry.md</path>
+        <title>Story 0.6: Container Registry</title>
+        <section>Image Tagging Strategy</section>
+        <snippet>Prerequisite: ECR repositories for qualisys-api, qualisys-web, playwright-runner. Tagging: git-sha, branch-timestamp, production-version.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-8-github-actions-workflow-setup.md</path>
+        <title>Story 0.8: GitHub Actions Workflow Setup</title>
+        <section>Reusable Workflows</section>
+        <snippet>Prerequisite: reusable-build.yml workflow for Docker build and push integration.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <note>Greenfield Dockerfiles - Stories 0.6 and 0.8 provide registry and CI/CD foundation.</note>
+      <prerequisites>
+        <story id="0-6-container-registry" status="ready-for-dev">
+          <provides>ECR repositories (qualisys-api, qualisys-web, playwright-runner)</provides>
+        </story>
+        <story id="0-8-github-actions-workflow-setup" status="ready-for-dev">
+          <provides>reusable-build.yml workflow, CI/CD infrastructure</provides>
+        </story>
+      </prerequisites>
+      <expectedStructure>
+        <file path="api/Dockerfile" purpose="API service multi-stage build" />
+        <file path="api/.dockerignore" purpose="API build context exclusions" />
+        <file path="web/Dockerfile" purpose="Web service multi-stage build" />
+        <file path="web/.dockerignore" purpose="Web build context exclusions" />
+        <file path="playwright-runner/Dockerfile" purpose="Playwright test runner" />
+        <file path="playwright-runner/.dockerignore" purpose="Playwright build exclusions" />
+        <file path=".github/workflows/reusable-build.yml" purpose="Updated with Trivy scanning" />
+        <file path="docs/docker-build-guide.md" purpose="Build documentation" />
+      </expectedStructure>
+      <outputs description="Docker images for deployment and testing">
+        <output name="qualisys-api image" consumers="Story 0.11, 0.12 (deployments)" />
+        <output name="qualisys-web image" consumers="Story 0.11, 0.12 (deployments)" />
+        <output name="playwright-runner image" consumers="Story 0.10 (automated tests), Epic 4" />
+      </outputs>
+      <dockerfileTemplates>
+        <template name="api-multistage">
+          <![CDATA[
+# Stage 1: Build
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci
+COPY . .
+RUN npm run build
+
+# Stage 2: Runtime
+FROM node:20-alpine AS runner
+WORKDIR /app
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
+USER nodejs
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=3s CMD wget -q --spider http://localhost:3000/health || exit 1
+CMD ["node", "dist/main.js"]
+          ]]>
+        </template>
+        <template name="web-nextjs-multistage">
+          <![CDATA[
+# Stage 1: Dependencies
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci
+
+# Stage 2: Builder
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+ENV NEXT_TELEMETRY_DISABLED 1
+RUN npm run build
+
+# Stage 3: Runner
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV production
+RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+USER nextjs
+EXPOSE 3000
+ENV PORT 3000
+CMD ["node", "server.js"]
+          ]]>
+        </template>
+        <template name="playwright-runner">
+          <![CDATA[
+FROM mcr.microsoft.com/playwright:v1.40.0-jammy
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npx playwright install --with-deps
+USER pwuser
+CMD ["npx", "playwright", "test"]
+          ]]>
+        </template>
+      </dockerfileTemplates>
+      <dockerignoreTemplate>
+        <![CDATA[
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Environment and secrets
+.env
+.env.*
+.env.local
+*.pem
+secrets/
+credentials/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Logs and test artifacts
+*.log
+coverage/
+test-results/
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+        ]]>
+      </dockerignoreTemplate>
+      <trivyConfig>
+        <severity>HIGH,CRITICAL</severity>
+        <exitCode>1</exitCode>
+        <format>sarif</format>
+        <secretScan>true</secretScan>
+      </trivyConfig>
+    </code>
+
+    <dependencies>
+      <tools>
+        <tool name="docker" version="24+" purpose="Container builds" />
+        <tool name="trivy" version="0.45+" purpose="Vulnerability scanning" />
+      </tools>
+      <baseImages>
+        <image name="node:20-alpine" purpose="Node.js API and Web services" />
+        <image name="python:3.11-slim" purpose="Python API alternative" />
+        <image name="mcr.microsoft.com/playwright:v1.40.0-jammy" purpose="Playwright test runner" />
+      </baseImages>
+      <githubActions>
+        <action name="docker/build-push-action" version="v5" purpose="Docker build and push" />
+        <action name="docker/setup-buildx-action" version="v3" purpose="BuildKit setup" />
+        <action name="aquasecurity/trivy-action" version="master" purpose="Vulnerability scanning" />
+        <action name="github/codeql-action/upload-sarif" version="v2" purpose="SARIF upload" />
+        <action name="actions/cache" version="v3" purpose="Docker layer caching" />
+      </githubActions>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="Security" critical="true">No secrets baked into images - Trivy secret scan must pass</constraint>
+    <constraint source="Security" critical="true">Build fails on HIGH/CRITICAL vulnerabilities</constraint>
+    <constraint source="Security">All containers run as non-root user</constraint>
+    <constraint source="Security">Only official, regularly-updated base images allowed</constraint>
+    <constraint source="Performance">Build time must be less than 5 minutes with caching</constraint>
+    <constraint source="Performance">Image sizes: API/Web less than 500MB, Playwright less than 2GB</constraint>
+    <constraint source="Maintainability">Multi-stage builds required for all services</constraint>
+    <constraint source="Traceability">All images tagged with Git SHA for exact version tracking</constraint>
+    <constraint source="Dependency">Story 0.6 (ECR) and 0.8 (GitHub Actions) must be complete</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>Docker Build API</name>
+      <kind>CLI / BuildKit</kind>
+      <signature>docker build --file Dockerfile --tag image:tag .</signature>
+      <path>api/Dockerfile, web/Dockerfile, playwright-runner/Dockerfile</path>
+    </interface>
+    <interface>
+      <name>Docker Push API</name>
+      <kind>Registry protocol</kind>
+      <signature>docker push {ecr-registry}/{repository}:{tag}</signature>
+      <path>Integrated in reusable-build.yml</path>
+    </interface>
+    <interface>
+      <name>Trivy Scanner API</name>
+      <kind>CLI / GitHub Action</kind>
+      <signature>trivy image --severity HIGH,CRITICAL --exit-code 1 image:tag</signature>
+      <path>.github/workflows/reusable-build.yml</path>
+    </interface>
+    <interface>
+      <name>GitHub SARIF Upload</name>
+      <kind>GitHub Security API</kind>
+      <signature>Upload SARIF to GitHub Security tab for vulnerability tracking</signature>
+      <path>.github/workflows/reusable-build.yml</path>
+    </interface>
+    <interface>
+      <name>BuildKit Cache</name>
+      <kind>Docker BuildKit mount</kind>
+      <signature>RUN --mount=type=cache,target=/root/.npm npm ci</signature>
+      <path>All Dockerfiles</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Docker build testing validates Dockerfile syntax, build success, image size, and security scans. Each AC has explicit verification. DevOps Lead executes verification. Integration test builds all images and runs Trivy scans.
+    </standards>
+    <locations>
+      <location>Local Docker builds for Dockerfile validation</location>
+      <location>GitHub Actions for CI/CD build verification</location>
+      <location>ECR for pushed image verification</location>
+      <location>GitHub Security tab for SARIF scan results</location>
+    </locations>
+    <ideas>
+      <idea ac="1">File api/Dockerfile exists with FROM, WORKDIR, COPY, RUN, CMD instructions</idea>
+      <idea ac="2">File web/Dockerfile exists with Next.js standalone configuration</idea>
+      <idea ac="3">File playwright-runner/Dockerfile exists with browser installation</idea>
+      <idea ac="4">docker images shows qualisys-api less than 200MB, qualisys-web less than 300MB</idea>
+      <idea ac="5">grep -E "FROM (node:20-alpine|python:3.11-slim)" */Dockerfile returns matches</idea>
+      <idea ac="6">Files api/.dockerignore, web/.dockerignore exist with node_modules, .env exclusions</idea>
+      <idea ac="7">docker images shows tags like abc123, main-20260123-143022</idea>
+      <idea ac="8">GitHub Actions build logs show total time less than 5 minutes</idea>
+      <idea ac="9">Trivy scan step exists in reusable-build.yml workflow</idea>
+      <idea ac="10">Build with known vulnerable base image fails with exit code 1</idea>
+      <idea ac="11">Image with intentional secret (echo "secret" > /secret.txt) fails Trivy secret scan</idea>
+      <idea ac="12">Dockerfiles contain --mount=type=cache syntax for BuildKit</idea>
+      <idea ac="security">docker run --user shows non-root UID (1001)</idea>
+      <idea ac="health">docker inspect shows HEALTHCHECK configured</idea>
+      <idea ac="cache">Second build with no changes completes in less than 30 seconds (cache hit)</idea>
+      <idea ac="sarif">GitHub Security tab shows Trivy findings after build</idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -1,0 +1,299 @@
+# =============================================================================
+# QUALISYS .gitignore
+# Story: 0-1 Cloud Account & IAM Setup
+# AC: 6 - Credentials NOT committed to Git
+# =============================================================================
+
+# =============================================================================
+# Credentials and Secrets
+# =============================================================================
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+*.cer
+credentials*
+*.secret
+*.token
+.env
+.env.*
+.env.local
+.env.*.local
+!.env.example
+!.env.template
+secrets/
+*.credentials.json
+
+# =============================================================================
+# AWS & Cloud Provider
+# =============================================================================
+.aws/
+aws-credentials*
+*.aws-credentials
+.gcp/
+.azure/
+cloud-credentials*
+
+# =============================================================================
+# Terraform & Infrastructure as Code
+# =============================================================================
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+!*.tfvars.example
+!*.tfvars.template
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# =============================================================================
+# Python (FastAPI Backend)
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+cython_debug/
+
+# =============================================================================
+# Node.js / Next.js (Frontend)
+# =============================================================================
+node_modules/
+.npm
+*.tgz
+.yarn/
+.pnp.*
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.js
+
+# Next.js
+.next/
+out/
+build/
+dist/
+.vercel
+.vercel.json
+
+# Nuxt.js
+.nuxt
+.output
+
+# =============================================================================
+# IDEs and Editors
+# =============================================================================
+.idea/
+*.swp
+*.swo
+*~
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+.project
+.classpath
+.settings/
+*.iml
+
+# Cursor specific
+.cursor/
+.cursorrules.local
+
+# =============================================================================
+# Operating System
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Windows reserved device names (cannot be created as files)
+nul
+con
+prn
+aux
+com1
+com2
+com3
+com4
+com5
+com6
+com7
+com8
+com9
+lpt1
+lpt2
+lpt3
+lpt4
+lpt5
+lpt6
+lpt7
+lpt8
+lpt9
+
+# =============================================================================
+# Docker / Podman / Containers
+# =============================================================================
+.dockerignore.local
+docker-compose.override.yml
+*.log
+
+# =============================================================================
+# Testing & Coverage
+# =============================================================================
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+playwright/.cache/
+test-results/
+test-results-junit/
+*.lcov
+.coverage.*
+htmlcov/
+.pytest_cache/
+junit.xml
+test-output/
+allure-results/
+allure-report/
+
+# =============================================================================
+# Databases
+# =============================================================================
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+postgres-data/
+pgdata/
+redis-data/
+*.dump
+*.sql.gz
+
+# =============================================================================
+# AI/ML & Vector Databases
+# =============================================================================
+# LLM Models (too large for git)
+*.gguf
+*.bin
+*.safetensors
+models/
+*.model
+checkpoints/
+embeddings/
+
+# LangChain / LangFuse
+.langchain/
+.langfuse/
+langfuse_cache/
+langchain_cache/
+
+# Vector DB data
+qdrant-data/
+weaviate-data/
+chroma-data/
+*.index
+
+# =============================================================================
+# Logs & Temporary Files
+# =============================================================================
+*.log
+logs/
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+*.tmp
+*.temp
+*.bak
+*.backup
+*.swp
+*.swo
+tmp/
+temp/
+.tmp/
+
+# =============================================================================
+# Build Artifacts & Compiled Files
+# =============================================================================
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# =============================================================================
+# Documentation Build
+# =============================================================================
+docs/_build/
+docs/.doctrees/
+site/
+_site/
+
+# =============================================================================
+# CI/CD
+# =============================================================================
+.github/workflows/*.local.yml
+.circleci/local/
+.gitlab-ci-local/
+
+# =============================================================================
+# Local Development
+# =============================================================================
+local/
+.local/
+local-config/
+local_data/
+*.local.json
+!.settings.local.json.example
+
+# =============================================================================
+# Monitoring & Observability
+# =============================================================================
+prometheus-data/
+grafana-data/
+*.prom

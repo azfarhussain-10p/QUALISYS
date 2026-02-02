@@ -1,0 +1,211 @@
+<story-context id="bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1</storyId>
+    <title>User Account Creation</title>
+    <status>drafted</status>
+    <generatedAt>2026-02-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-1-user-account-creation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>new user</asA>
+    <iWant>sign up with email/password or Google SSO</iWant>
+    <soThat>I can access the QUALISYS platform</soThat>
+    <tasks>
+      <task id="1" title="Database Schema and Migration" acs="4,5">
+        <subtask>1.1 Create Alembic migration for public.users table (UUID PK, email, full_name, password_hash, email_verified, auth_provider, google_id, avatar_url, created_at, updated_at)</subtask>
+        <subtask>1.2 Create unique index on LOWER(email) for case-insensitive duplicate detection</subtask>
+        <subtask>1.3 Create SQLAlchemy model User with all fields and validation</subtask>
+        <subtask>1.4 Write migration rollback (downgrade) script</subtask>
+      </task>
+      <task id="2" title="FastAPI Registration Endpoints" acs="1,4,5,6,8">
+        <subtask>2.1 Create POST /api/v1/auth/register endpoint with Pydantic request schema</subtask>
+        <subtask>2.2 Implement server-side validation (email RFC 5322, password 12+ chars complexity, full_name)</subtask>
+        <subtask>2.3 Implement bcrypt password hashing (cost factor 12) using passlib</subtask>
+        <subtask>2.4 Implement duplicate email check (case-insensitive) with 409 response</subtask>
+        <subtask>2.5 Implement rate limiting middleware (5 req/IP/min) using Redis</subtask>
+        <subtask>2.6 Implement structured JSON error responses with correlation IDs</subtask>
+        <subtask>2.7 Ensure password_hash excluded from all response schemas</subtask>
+      </task>
+      <task id="3" title="Google OAuth 2.0 Flow" acs="2">
+        <subtask>3.1 Create GET /api/v1/auth/google endpoint to initiate OAuth authorization code flow</subtask>
+        <subtask>3.2 Create GET /api/v1/auth/google/callback endpoint to handle callback</subtask>
+        <subtask>3.3 Exchange authorization code for access token, fetch Google user profile</subtask>
+        <subtask>3.4 Create or link user account from Google profile</subtask>
+        <subtask>3.5 Handle edge cases: consent denied, existing email with different provider, network failures</subtask>
+        <subtask>3.6 Rate limit callback endpoint (10 req/IP/min)</subtask>
+      </task>
+      <task id="4" title="Email Verification" acs="3">
+        <subtask>4.1 Implement signed verification token generation (JWT, 24-hour expiry)</subtask>
+        <subtask>4.2 Create POST /api/v1/auth/verify-email endpoint</subtask>
+        <subtask>4.3 Create POST /api/v1/auth/resend-verification endpoint with rate limiting</subtask>
+        <subtask>4.4 Integrate SendGrid/AWS SES for transactional email</subtask>
+        <subtask>4.5 Create verification email HTML template (branded, mobile-responsive)</subtask>
+      </task>
+      <task id="5" title="React Signup UI" acs="1,2">
+        <subtask>5.1 Create /signup route with signup form using shadcn/ui</subtask>
+        <subtask>5.2 Implement real-time client-side validation (email, password strength, confirm password)</subtask>
+        <subtask>5.3 Implement Sign up with Google button with OAuth redirect</subtask>
+        <subtask>5.4 Implement form submission with loading state, error display, success redirect</subtask>
+        <subtask>5.5 Create Check your email interstitial page</subtask>
+        <subtask>5.6 Create email verification landing page</subtask>
+      </task>
+      <task id="6" title="Testing" acs="all">
+        <subtask>6.1 Unit tests: password hashing, email validation, token generation, rate limiting</subtask>
+        <subtask>6.2 Integration tests: POST /api/v1/auth/register (happy path, duplicate, invalid, rate limit)</subtask>
+        <subtask>6.3 Integration tests: Google OAuth flow (mock Google API, success/failure/linking)</subtask>
+        <subtask>6.4 Integration tests: email verification (valid/expired/invalid token, resend)</subtask>
+        <subtask>6.5 Frontend tests: form validation, OAuth button, error display, navigation</subtask>
+        <subtask>6.6 Security tests: SQL injection, XSS, password not in response, CSRF</subtask>
+      </task>
+      <task id="7" title="Security Review Checklist" acs="7">
+        <subtask>7.1 Verify parameterized queries in all DB operations</subtask>
+        <subtask>7.2 Verify password_hash excluded from all API responses</subtask>
+        <subtask>7.3 Verify no PII in server logs</subtask>
+        <subtask>7.4 Verify CSRF token enforcement</subtask>
+        <subtask>7.5 Verify rate limiting returns HTTP 429</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1" title="Email/Password Signup Form">Signup page renders form with email, password, confirm password, full name. Email validated RFC 5322. Password: min 12 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special char. Real-time inline validation. Submit disabled until valid.</ac>
+    <ac id="2" title="Google OAuth Signup Flow">Sign up with Google button initiates OAuth 2.0 authorization code flow. On consent, creates account from Google profile (email, name, avatar). Handles existing email, consent denied, network failure.</ac>
+    <ac id="3" title="Email Verification">Sends verification email via SendGrid/AWS SES with signed JWT token (24-hour expiry). Clicking link marks email_verified=true. Unverified users see interstitial. Resend available.</ac>
+    <ac id="4" title="Database Record Creation">User record in public.users: id (UUID v4), email (unique lowercase), full_name, password_hash (bcrypt cost 12, NULL for OAuth), email_verified, auth_provider (email/google), google_id, avatar_url, created_at, updated_at. Parameterized queries only.</ac>
+    <ac id="5" title="Duplicate Email Prevention">Rejects signup if email exists (case-insensitive via LOWER index). Error: An account with this email already exists. No information leakage about auth provider.</ac>
+    <ac id="6" title="Rate Limiting">Signup: 5 req/IP/min (Redis-backed). OAuth callback: 10 req/IP/min. Returns HTTP 429 with Retry-After header.</ac>
+    <ac id="7" title="Security Compliance">Passwords never logged/returned. password_hash excluded from responses. TLS 1.3. CSRF protection. XSS sanitization. ORM parameterized queries.</ac>
+    <ac id="8" title="Error Handling">HTTP status codes: 400 validation, 409 duplicate, 429 rate limit, 500 server. Structured JSON: {error: {code, message}}. Correlation IDs in logs. No PII in logs.</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/planning/prd.md" title="Product Requirements Document" section="User Account and Access Management" snippet="FR1: Users can create accounts with email/password or Google SSO. Password requirements: min 12 characters, complexity rules. OAuth 2.0 for Google SSO. Session management: JWT tokens, 7-day expiry with refresh tokens." />
+      <doc path="docs/planning/prd.md" title="Product Requirements Document" section="Compliance and Security Requirements" snippet="TLS 1.3 in transit, AES-256 at rest. MFA support (TOTP). Data encryption for sensitive data. Never log or expose secrets." />
+      <doc path="docs/architecture/architecture.md" title="Architecture" section="Technology Stack" snippet="Backend: Python 3.11+ / FastAPI. Frontend: Vite + React 18, Tailwind CSS + shadcn/ui. Database: PostgreSQL 15+ with schema-per-tenant + RLS. Cache: Redis 7+. Email: SendGrid or AWS SES." />
+      <doc path="docs/architecture/architecture.md" title="Architecture" section="Four-Pillar Multi-Tenancy" snippet="PostgreSQL schemas per tenant. public schema contains users table for cross-tenant lookup. Row-level security policies as defense-in-depth. Automated daily audit scanning." />
+      <doc path="docs/architecture/architecture.md" title="Architecture" section="Security Threat Model" snippet="Parameterized queries ONLY, zero dynamic SQL. Never log credentials. Sanitize all user input before processing. HMAC-signed pagination cursors. SQL injection prevention mandatory." />
+      <doc path="docs/architecture/architecture.md" title="Architecture" section="Authentication Architecture" snippet="OAuth 2.0 (Google) with SAML 2.0 planned for Phase 2. MFA via TOTP. JWT tokens with 7-day expiry, httpOnly cookies. Refresh token rotation. Redis for session storage and rate limiting." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Epic 1 Tech Spec" section="Authentication Architecture" snippet="Primary flow: OAuth 2.0 + Email/Password. JWT tokens (7-day expiry, httpOnly cookies). Refresh token rotation. Redis for session storage and rate limiting. MFA (TOTP) challenge at login." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Epic 1 Tech Spec" section="RBAC Permission Matrix" snippet="6 roles: Owner/Admin, PM/CSM, QA-Manual, QA-Automation, Dev, Viewer. Role assignment happens at org/project level (Story 1.2+). This story creates users without role assignment." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Epic 1 Tech Spec" section="Multi-Tenancy Architecture" snippet="PostgreSQL schema isolation. public.users for cross-tenant user lookup. Tenant schemas created on org creation (Story 1.2). Defense-in-depth with RLS policies." />
+      <doc path="docs/epics/epics.md" title="Epics" section="Story 1.1 User Account Creation" snippet="As a new user, signup with email/password or Google SSO. ACs: form validation, Google OAuth, email verification, bcrypt password, duplicate prevention. FR1 covered." />
+      <doc path="docs/planning/ux-design-specification.md" title="UX Design Specification" section="Flow 1: 5-Minute Value Onboarding" snippet="Post-signup flow: Welcome + Project Creation, Document Upload, App Connection, Agent Selection, Progress, Results. Design system: Tailwind CSS + shadcn/ui. Color: Professional dark blue primary (#1E3A5F)." />
+      <doc path="docs/planning/ux-design-specification.md" title="UX Design Specification" section="Design Philosophy" snippet="Professional testing co-pilot. Role-optimized interfaces. 5-minute onboarding target. Progressive disclosure. Empty states with guidance. Destructive actions require confirmation." />
+    </docs>
+
+    <code>
+      <!-- GREENFIELD: No existing source code. This is the first feature story. -->
+      <!-- Planned project structure from Dev Notes: -->
+      <planned path="src/api/v1/auth/" kind="api-routes" reason="Backend auth endpoints: register, google, verify-email. To be created." />
+      <planned path="src/models/user.py" kind="model" reason="SQLAlchemy User model. To be created." />
+      <planned path="alembic/versions/" kind="migration" reason="Alembic migration for public.users table. To be created." />
+      <planned path="src/pages/signup/" kind="frontend-page" reason="React signup form page. To be created." />
+      <planned path="src/pages/verify-email/" kind="frontend-page" reason="Email verification landing page. To be created." />
+      <planned path="src/templates/email/" kind="template" reason="Verification email HTML template. To be created." />
+    </code>
+
+    <dependencies>
+      <!-- No dependency manifests exist yet. Planned stack from architecture: -->
+      <planned-backend language="python" version="3.11+">
+        <package name="fastapi" purpose="Async web framework with auto-docs" />
+        <package name="uvicorn" purpose="ASGI server" />
+        <package name="sqlalchemy" version="2.0+" purpose="ORM with async support" />
+        <package name="alembic" purpose="Database migrations" />
+        <package name="asyncpg" purpose="Async PostgreSQL driver" />
+        <package name="passlib[bcrypt]" purpose="Password hashing (bcrypt cost 12)" />
+        <package name="python-jose[cryptography]" purpose="JWT token creation/validation" />
+        <package name="pydantic" version="2.0+" purpose="Request/response validation schemas" />
+        <package name="redis" purpose="Rate limiting, session cache" />
+        <package name="httpx" purpose="Async HTTP client (Google OAuth, email service)" />
+        <package name="sendgrid" purpose="Transactional email delivery (or boto3 for SES)" />
+        <package name="pytest" purpose="Test framework" />
+        <package name="pytest-asyncio" purpose="Async test support" />
+      </planned-backend>
+      <planned-frontend language="typescript" runtime="node">
+        <package name="vite" purpose="Build tool (10x faster than webpack)" />
+        <package name="react" version="18" purpose="UI framework" />
+        <package name="react-dom" version="18" purpose="React DOM renderer" />
+        <package name="tailwindcss" purpose="Utility-first CSS framework" />
+        <package name="@shadcn/ui" purpose="Accessible UI components" />
+        <package name="react-router-dom" purpose="Client-side routing" />
+        <package name="zod" purpose="Schema validation (form validation)" />
+        <package name="react-hook-form" purpose="Form state management" />
+        <package name="vitest" purpose="Test runner (Vite-native)" />
+        <package name="@testing-library/react" purpose="React component testing" />
+      </planned-frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture" priority="critical">Multi-tenant: Users created in public.users table. Tenant schema association deferred to Story 1.2 (Organization Creation). Do NOT create tenant schemas in this story.</constraint>
+    <constraint source="architecture" priority="critical">Parameterized queries ONLY. Zero dynamic SQL construction. Use SQLAlchemy ORM for all database operations.</constraint>
+    <constraint source="architecture" priority="critical">Never log passwords, tokens, or PII. Mask email addresses in error logs. Use structured logging with explicit allow-list fields.</constraint>
+    <constraint source="architecture" priority="critical">Password hash excluded from ALL API response schemas. Use Pydantic response models that omit sensitive fields.</constraint>
+    <constraint source="prd" priority="high">Password policy: Minimum 12 characters, at least 1 uppercase, 1 lowercase, 1 digit, 1 special character. Enforce both client-side and server-side.</constraint>
+    <constraint source="architecture" priority="high">Rate limiting via Redis INCR with EXPIRE (sliding window). Key format: rate:signup:{ip} with 60-second TTL.</constraint>
+    <constraint source="architecture" priority="high">Auth provider enum (email, google) in auth_provider column. Designed for future extensibility (SAML, GitHub) without schema changes.</constraint>
+    <constraint source="architecture" priority="medium">JWT verification tokens use a separate signing secret from session JWT secret. Single-purpose, short-lived (24-hour expiry).</constraint>
+    <constraint source="architecture" priority="medium">bcrypt cost factor 12 (~250ms hash time). Use passlib with automatic salt generation.</constraint>
+    <constraint source="ux-design" priority="medium">Frontend follows Tailwind CSS + shadcn/ui design system. Professional dark blue primary (#1E3A5F). Progressive disclosure pattern. Real-time inline validation feedback.</constraint>
+    <constraint source="story" priority="high">This is the FIRST feature story. Establish conventions for: directory structure, error handling patterns, API response format, test organization. Subsequent stories will follow these patterns.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="POST /api/v1/auth/register" kind="REST endpoint">
+      <signature>POST /api/v1/auth/register → { user: { id, email, full_name, email_verified, auth_provider, created_at } }</signature>
+      <request>{ email: string, password: string, full_name: string }</request>
+      <response>201: { user: UserResponse } | 400: { error: { code, message } } | 409: { error: { code, message } } | 429: { error: { code, message } }</response>
+      <path>src/api/v1/auth/register.py (to be created)</path>
+    </interface>
+    <interface name="GET /api/v1/auth/google" kind="REST endpoint">
+      <signature>GET /api/v1/auth/google → 302 Redirect to Google OAuth consent</signature>
+      <path>src/api/v1/auth/google.py (to be created)</path>
+    </interface>
+    <interface name="GET /api/v1/auth/google/callback" kind="REST endpoint">
+      <signature>GET /api/v1/auth/google/callback?code=...&amp;state=... → 302 Redirect to app with session</signature>
+      <path>src/api/v1/auth/google.py (to be created)</path>
+    </interface>
+    <interface name="POST /api/v1/auth/verify-email" kind="REST endpoint">
+      <signature>POST /api/v1/auth/verify-email → { success: true, message: string }</signature>
+      <request>{ token: string }</request>
+      <path>src/api/v1/auth/verify_email.py (to be created)</path>
+    </interface>
+    <interface name="POST /api/v1/auth/resend-verification" kind="REST endpoint">
+      <signature>POST /api/v1/auth/resend-verification → { success: true, message: string }</signature>
+      <request>{ email: string }</request>
+      <path>src/api/v1/auth/verify_email.py (to be created)</path>
+    </interface>
+    <interface name="User SQLAlchemy Model" kind="ORM model">
+      <signature>class User(Base): id: UUID, email: str, full_name: str, password_hash: Optional[str], email_verified: bool, auth_provider: str, google_id: Optional[str], avatar_url: Optional[str], created_at: datetime, updated_at: datetime</signature>
+      <path>src/models/user.py (to be created)</path>
+    </interface>
+    <interface name="UserResponse Pydantic Schema" kind="response schema">
+      <signature>class UserResponse(BaseModel): id: UUID, email: str, full_name: str, email_verified: bool, auth_provider: str, avatar_url: Optional[str], created_at: datetime (excludes password_hash)</signature>
+      <path>src/api/v1/auth/schemas.py (to be created)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Backend: Pytest with pytest-asyncio, async httpx test client against FastAPI TestClient, PostgreSQL test database with transaction rollback per test for isolation. Frontend: Vitest with React Testing Library for component tests. Coverage target: 80%+ for new code. Security tests explicitly required per architecture threat model — SQL injection, XSS, credential exposure, and CSRF must be validated. All tests must run in CI (GitHub Actions). Test data factories will be established in this story for User model (Faker.js patterns from Epic 0 Story 0-15).</standards>
+    <locations>
+      <location>tests/unit/ (backend unit tests)</location>
+      <location>tests/integration/ (backend integration tests)</location>
+      <location>tests/security/ (security-focused tests)</location>
+      <location>src/**/__tests__/ or src/**/*.test.tsx (frontend component tests)</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Test signup form renders all fields. Test email validation rejects invalid formats. Test password strength meter updates in real-time. Test submit button disabled when invalid.</idea>
+      <idea ac="2">Test Google OAuth redirect generates correct authorization URL. Test callback creates user from Google profile. Test callback handles existing email gracefully. Test consent denied returns user-friendly error.</idea>
+      <idea ac="3">Test verification token generated with 24-hour expiry. Test valid token marks email_verified=true. Test expired token returns 400. Test resend rate limited to 3/hour. Test unverified user sees interstitial.</idea>
+      <idea ac="4">Test user record created with correct fields. Test UUID v4 generated for id. Test password_hash is bcrypt with cost 12. Test OAuth user has NULL password_hash. Test created_at/updated_at populated.</idea>
+      <idea ac="5">Test duplicate email rejected with 409. Test case-insensitive comparison (User@Example.COM matches user@example.com). Test error message does not reveal auth provider.</idea>
+      <idea ac="6">Test 6th request within 1 minute returns 429. Test Retry-After header present. Test rate limit resets after window. Test OAuth callback rate limit at 10/min threshold.</idea>
+      <idea ac="7">Test password_hash not in any API response body. Test SQL injection payloads in email/name fields rejected. Test XSS payloads sanitized. Test CSRF token required on form POST.</idea>
+      <idea ac="8">Test 400 returned for missing required fields. Test 409 for duplicate email. Test 429 for rate limit. Test 500 logged with correlation ID. Test error JSON structure matches spec.</idea>
+    </ideas>
+  </tests>
+</story-context>

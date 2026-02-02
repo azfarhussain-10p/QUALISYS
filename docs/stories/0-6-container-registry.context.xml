@@ -1,0 +1,199 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>0</epicId>
+    <storyId>6</storyId>
+    <title>Container Registry</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-01-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/0-6-container-registry.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>DevOps Engineer</asA>
+    <iWant>set up a container registry with image scanning and lifecycle policies</iWant>
+    <soThat>we can store, version, and securely manage Docker images for deployment</soThat>
+    <tasks>
+      <task id="1" name="ECR Repository Creation" acs="1,2,8,9">
+        <subtask>1.1-1.3 Create ECR repositories: qualisys-api, qualisys-web, playwright-runner</subtask>
+        <subtask>1.4 Enable image tag immutability</subtask>
+        <subtask>1.5 Configure encryption (AES-256)</subtask>
+        <subtask>1.6 Verify no public access</subtask>
+      </task>
+      <task id="2" name="Image Scanning Configuration" acs="3,10">
+        <subtask>2.1-2.5 Enable scan on push, test scanning, document remediation</subtask>
+      </task>
+      <task id="3" name="Lifecycle Policy Configuration" acs="4,5">
+        <subtask>3.1-3.5 Create lifecycle rules for tagged/untagged images, apply to all repos</subtask>
+      </task>
+      <task id="4" name="IAM Policy Configuration" acs="6,7">
+        <subtask>4.1-4.6 Create push/pull policies, attach to CI/CD and EKS roles, test access</subtask>
+      </task>
+      <task id="5" name="Repository Access Policy" acs="8">
+        <subtask>5.1-5.3 Create policy denying public access, verify restrictions</subtask>
+      </task>
+      <task id="6" name="Validation &amp; Documentation" acs="all">
+        <subtask>6.1-6.6 Run verification commands, push test image, deploy to K8s, document tagging strategy</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">AWS ECR container registry created</ac>
+    <ac id="2">Repositories created: qualisys-api, qualisys-web, playwright-runner</ac>
+    <ac id="3">Image scanning enabled (scan for vulnerabilities on push)</ac>
+    <ac id="4">Lifecycle policy configured: keep last 10 tagged images</ac>
+    <ac id="5">Lifecycle policy configured: delete untagged images after 7 days</ac>
+    <ac id="6">IAM policy allows CI/CD role to push images</ac>
+    <ac id="7">IAM policy allows Kubernetes nodes to pull images</ac>
+    <ac id="8">Repository policy denies public access</ac>
+    <ac id="9">Image tag immutability enabled for production images</ac>
+    <ac id="10">Registry scanning results accessible via AWS Console or CLI</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Services and Modules</section>
+        <snippet>AWS ECR: Image scanning, lifecycle policies (keep 10 images). Docker image storage and versioning for qualisys-api, qualisys-web, playwright-runner.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Security Threat Model</section>
+        <snippet>Attack Vector #4: Secrets exposure in Docker image. Mitigation: Story 0.9 AC8 - Trivy secret scanning (fails build if detected).</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-0-infrastructure.md</path>
+        <title>Epic 0: Infrastructure Foundation</title>
+        <section>Story 0.6</section>
+        <snippet>Container Registry with ECR, image scanning, lifecycle policies. Dependencies: Story 0.1 (IAM setup). Tag images with git-sha, branch-timestamp.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Container Orchestration</section>
+        <snippet>Container registry (ECR) enables Docker image versioning for microservices architecture. Kubernetes pulls images from private ECR repositories.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-1-cloud-account-iam-setup.md</path>
+        <title>Story 0.1: Cloud Account &amp; IAM Setup</title>
+        <section>IAM Roles</section>
+        <snippet>Prerequisite: CI/CD IAM role for ECR push permissions, EKS node IAM role for ECR pull permissions.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <note>Greenfield infrastructure - Story 0.1 provides IAM foundation (ready-for-dev).</note>
+      <prerequisites>
+        <story id="0-1-cloud-account-iam-setup" status="ready-for-dev">
+          <provides>CI/CD IAM role ARN, EKS node IAM role ARN</provides>
+        </story>
+      </prerequisites>
+      <expectedStructure>
+        <folder path="infrastructure/terraform/ecr" purpose="ECR Terraform module" />
+        <file path="infrastructure/terraform/ecr/main.tf" purpose="ECR repository definitions" />
+        <file path="infrastructure/terraform/ecr/lifecycle-policy.tf" purpose="Lifecycle policy rules" />
+        <file path="infrastructure/terraform/ecr/iam.tf" purpose="Push/pull IAM policies" />
+        <file path="infrastructure/terraform/ecr/variables.tf" purpose="ECR variables" />
+        <file path="infrastructure/terraform/ecr/outputs.tf" purpose="Repository URLs, ARNs" />
+        <file path="infrastructure/README.md" purpose="Image tagging strategy, CI/CD workflow" />
+      </expectedStructure>
+      <outputs description="Resources exported for downstream stories">
+        <output name="ecr_repository_urls" consumers="Story 0.8, 0.9 (CI/CD image push)" />
+        <output name="ecr_repository_arns" consumers="IAM policy attachments" />
+        <output name="ecr_push_policy_arn" consumers="Story 0.1 (CI/CD role)" />
+        <output name="ecr_pull_policy_arn" consumers="Story 0.3 (EKS node role)" />
+      </outputs>
+      <imageTaggingStrategy>
+        <pattern tag="{git-sha}" purpose="Immutable reference to exact commit" example="abc123def" />
+        <pattern tag="{branch}-{timestamp}" purpose="Branch builds with timestamp" example="main-20260123-143022" />
+        <pattern tag="latest" purpose="Most recent build (dev only)" example="latest" />
+        <pattern tag="production-{version}" purpose="Production releases" example="production-v1.2.3" />
+        <pattern tag="staging-{date}" purpose="Staging deployments" example="staging-20260123" />
+      </imageTaggingStrategy>
+      <lifecyclePolicyRules>
+        <rule priority="1" description="Keep production images indefinitely" tagPrefix="production-" />
+        <rule priority="2" description="Keep last 10 tagged images" countMoreThan="10" />
+        <rule priority="3" description="Delete untagged images after 7 days" untaggedDays="7" />
+      </lifecyclePolicyRules>
+    </code>
+
+    <dependencies>
+      <terraform>
+        <provider name="aws" version="~&gt; 5.0" />
+      </terraform>
+      <tools>
+        <tool name="aws-cli" version="2.x" purpose="ECR verification and authentication" />
+        <tool name="terraform" version="&gt;= 1.5.0" purpose="Infrastructure as Code" />
+        <tool name="docker" version="24+" purpose="Image build and push" />
+      </tools>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="Architecture">All images encrypted at rest using AWS-managed keys (AES-256)</constraint>
+    <constraint source="Security">Tag immutability enabled - production tags cannot be overwritten</constraint>
+    <constraint source="Security">Scan on push enabled - every image scanned for vulnerabilities</constraint>
+    <constraint source="Security">No public access - all repositories private, IAM-only access</constraint>
+    <constraint source="Operations">Lifecycle policies prevent storage cost explosion</constraint>
+    <constraint source="CI/CD">Images tagged with git-sha for traceability</constraint>
+    <constraint source="Dependency">Story 0.1 (IAM) must be complete for role attachments</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>AWS ECR API</name>
+      <kind>REST API (via Terraform aws provider)</kind>
+      <signature>aws_ecr_repository, aws_ecr_lifecycle_policy, aws_ecr_repository_policy</signature>
+      <path>infrastructure/terraform/ecr/main.tf</path>
+    </interface>
+    <interface>
+      <name>AWS IAM API</name>
+      <kind>REST API (via Terraform aws provider)</kind>
+      <signature>aws_iam_policy for ecr-push-policy and ecr-pull-policy</signature>
+      <path>infrastructure/terraform/ecr/iam.tf</path>
+    </interface>
+    <interface>
+      <name>Docker Registry Protocol</name>
+      <kind>HTTPS API (OCI Distribution Spec)</kind>
+      <signature>{account}.dkr.ecr.{region}.amazonaws.com/{repository}:{tag}</signature>
+      <path>Used by Docker CLI and Kubernetes</path>
+    </interface>
+    <interface>
+      <name>ECR Authentication</name>
+      <kind>AWS CLI / Docker credential helper</kind>
+      <signature>aws ecr get-login-password | docker login --username AWS --password-stdin {registry}</signature>
+      <path>Used in CI/CD and local development</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Infrastructure testing follows acceptance test verification pattern using AWS CLI and Docker commands. Each AC has explicit verification. DevOps Lead executes verification. Integration test pushes sample image and deploys to K8s.
+    </standards>
+    <locations>
+      <location>Manual verification via AWS Console, CLI, and Docker</location>
+      <location>Terraform plan/apply output validation</location>
+      <location>Docker push/pull commands for registry verification</location>
+    </locations>
+    <ideas>
+      <idea ac="1">aws ecr describe-repositories returns list of repositories</idea>
+      <idea ac="2">aws ecr describe-repositories shows qualisys-api, qualisys-web, playwright-runner</idea>
+      <idea ac="3">aws ecr describe-repositories shows imageScanningConfiguration.scanOnPush=true</idea>
+      <idea ac="4">aws ecr get-lifecycle-policy shows rule for tagged images with countNumber=10</idea>
+      <idea ac="5">aws ecr get-lifecycle-policy shows rule for untagged images with countNumber=7 days</idea>
+      <idea ac="6">Assume CI/CD role, run: aws ecr get-login-password | docker login; docker push succeeds</idea>
+      <idea ac="7">kubectl run test --image={ecr-url}/qualisys-api:latest succeeds (image pulled)</idea>
+      <idea ac="8">aws ecr get-repository-policy shows no "Principal": "*" (no public access)</idea>
+      <idea ac="9">aws ecr describe-repositories shows imageTagMutability=IMMUTABLE</idea>
+      <idea ac="10">aws ecr describe-image-scan-findings returns vulnerability findings for pushed image</idea>
+      <idea ac="integration">Push hello-world image, verify scan completes, deploy to K8s, verify pod running</idea>
+      <idea ac="immutability">Attempt to push same tag twice, verify second push rejected</idea>
+      <idea ac="lifecycle">Push 15 tagged images, wait for lifecycle evaluation, verify only 10 remain</idea>
+      <idea ac="security">Attempt docker pull without authentication, verify access denied</idea>
+    </ideas>
+  </tests>
+</story-context>

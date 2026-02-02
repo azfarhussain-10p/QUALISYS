@@ -1,0 +1,131 @@
+# Kubernetes RBAC Bindings
+# Story: 0-3 Kubernetes Cluster Provisioning
+# AC: 4 - Task 4.4: Create ClusterRoleBindings for each role
+
+# =============================================================================
+# Developer Bindings
+# =============================================================================
+
+# Cluster-wide read-only for developers
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: qualisys-developer-binding
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: qualisys-developer
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: qualisys-developers
+---
+# Developer full access to dev namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: qualisys-developer-full-binding
+  namespace: dev
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: qualisys-developer-full
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: qualisys-developers
+---
+# Developer full access to staging namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: qualisys-developer-full-binding
+  namespace: staging
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: qualisys-developer-full
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: qualisys-developers
+---
+# =============================================================================
+# DevOps Bindings
+# =============================================================================
+
+# DevOps full cluster admin
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: qualisys-devops-binding
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: qualisys-devops
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: qualisys-devops
+---
+# =============================================================================
+# CI/CD Bindings
+# =============================================================================
+
+# CI/CD read-only cluster access
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: qualisys-cicd-readonly-binding
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: qualisys-cicd-readonly
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: qualisys-cicd
+---
+# CI/CD deploy to staging namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: qualisys-cicd-deploy-binding
+  namespace: staging
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: qualisys-cicd-deploy
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: qualisys-cicd
+---
+# CI/CD deploy to playwright-pool namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: qualisys-cicd-deploy-binding
+  namespace: playwright-pool
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: qualisys-cicd-deploy
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: qualisys-cicd

@@ -1,0 +1,256 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>0</epicId>
+    <storyId>3</storyId>
+    <title>Kubernetes Cluster Provisioning</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-01-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/0-3-kubernetes-cluster-provisioning.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>DevOps Engineer</asA>
+    <iWant>provision a Kubernetes cluster with proper node groups and RBAC</iWant>
+    <soThat>we can deploy containerized applications with orchestration, scaling, and namespace isolation</soThat>
+    <tasks>
+      <task id="1" name="EKS Cluster Creation" acs="1,10">
+        <subtask>1.1 Create EKS cluster via Terraform or eksctl</subtask>
+        <subtask>1.2 Configure cluster to use private subnets from Story 0.2</subtask>
+        <subtask>1.3 Enable cluster endpoint private access</subtask>
+        <subtask>1.4 Enable cluster logging</subtask>
+        <subtask>1.5 Configure cluster security group</subtask>
+      </task>
+      <task id="2" name="Node Group Configuration" acs="2">
+        <subtask>2.1 Create general node group: t3.medium, 2-10 nodes</subtask>
+        <subtask>2.2 Create playwright-pool node group: c5.xlarge, 5-20 nodes</subtask>
+        <subtask>2.3 Configure playwright-pool taint</subtask>
+        <subtask>2.4 Configure node groups to use private subnets</subtask>
+        <subtask>2.5 Add node labels</subtask>
+        <subtask>2.6 Configure IMDSv2 required</subtask>
+      </task>
+      <task id="3" name="Namespace Setup" acs="3,9">
+        <subtask>3.1-3.5 Create namespaces: dev, staging, production, playwright-pool, monitoring</subtask>
+        <subtask>3.6 Apply Pod Security Standards labels</subtask>
+        <subtask>3.7 Create resource quotas</subtask>
+      </task>
+      <task id="4" name="RBAC Configuration" acs="4">
+        <subtask>4.1-4.3 Create ClusterRoles: developer, devops, ci-cd</subtask>
+        <subtask>4.4 Create ClusterRoleBindings</subtask>
+        <subtask>4.5 Map IAM roles via aws-auth ConfigMap</subtask>
+        <subtask>4.6 Test permissions</subtask>
+      </task>
+      <task id="5" name="kubectl Access Setup" acs="5">
+        <subtask>5.1 Generate kubeconfig</subtask>
+        <subtask>5.2 Configure contexts</subtask>
+        <subtask>5.3-5.4 Document and secure kubeconfig</subtask>
+      </task>
+      <task id="6" name="Cluster Autoscaler" acs="6">
+        <subtask>6.1-6.2 Create IAM policy and IRSA service account</subtask>
+        <subtask>6.3-6.4 Deploy via Helm, configure min/max</subtask>
+        <subtask>6.5 Test autoscaling</subtask>
+      </task>
+      <task id="7" name="Metrics Server" acs="7">
+        <subtask>7.1-7.4 Deploy and verify metrics-server</subtask>
+      </task>
+      <task id="8" name="Ingress Controller" acs="8">
+        <subtask>8.1-8.3 Deploy AWS Load Balancer Controller</subtask>
+        <subtask>8.4-8.5 Test and document ingress</subtask>
+      </task>
+      <task id="9" name="Validation &amp; Documentation" acs="all">
+        <subtask>9.1-9.5 Run acceptance tests, deploy hello-world, update docs</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">EKS cluster created with managed control plane (Kubernetes 1.28+)</ac>
+    <ac id="2">Node groups created: General (t3.medium, 2-10 nodes), Playwright Pool (c5.xlarge, 5-20 nodes)</ac>
+    <ac id="3">Namespaces created: dev, staging, production, playwright-pool, monitoring</ac>
+    <ac id="4">RBAC policies configured: developer (read-only prod), devops (full), ci-cd (staging deploy)</ac>
+    <ac id="5">kubectl access configured for team with kubeconfig and context switching</ac>
+    <ac id="6">Cluster autoscaler enabled and functional</ac>
+    <ac id="7">Metrics server installed for HPA and resource monitoring</ac>
+    <ac id="8">Ingress controller installed (AWS Load Balancer Controller)</ac>
+    <ac id="9">Pod Security Standards enforced (baseline for dev/staging, restricted for production)</ac>
+    <ac id="10">Cluster logging enabled to CloudWatch</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Kubernetes Architecture</section>
+        <snippet>EKS chosen for managed control plane. Justification: Epic 4 Playwright pool requires dynamic container lifecycle, job scheduling, pod autoscaling, pre-warming.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Kubernetes SWOT Analysis</section>
+        <snippet>Strengths: HPA for 100+ concurrent runners, namespace isolation. Threats: Security misconfiguration, resource starvation. Mitigations: PSS, quotas, training.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Kubernetes Resource Definitions</section>
+        <snippet>Namespace structure: dev, staging, production, playwright-pool, monitoring. YAML manifests provided for namespace creation.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-0-infrastructure.md</path>
+        <title>Epic 0: Infrastructure Foundation</title>
+        <section>Story 0.3</section>
+        <snippet>Kubernetes Cluster Provisioning with EKS, node groups, RBAC, ingress controller. Dependencies: Story 0.2 (VPC).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Container Orchestration</section>
+        <snippet>Kubernetes selected for container orchestration. Namespace per environment with multi-tenant apps in production namespace with schema isolation.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-1-cloud-account-iam-setup.md</path>
+        <title>Story 0.1: Cloud Account &amp; IAM Setup</title>
+        <section>IAM Roles</section>
+        <snippet>Prerequisite: IAM roles for EKS cluster creation and IRSA (IAM Roles for Service Accounts).</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-2-vpc-network-configuration.md</path>
+        <title>Story 0.2: VPC &amp; Network Configuration</title>
+        <section>Outputs</section>
+        <snippet>Prerequisite: private_subnet_ids for EKS nodes, k8s_nodes_security_group_id for cluster networking.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <note>Greenfield infrastructure - Stories 0.1 and 0.2 provide foundation but not yet implemented.</note>
+      <prerequisites>
+        <story id="0-1-cloud-account-iam-setup" status="ready-for-dev">
+          <provides>IAM roles, Terraform backend, IRSA capability</provides>
+        </story>
+        <story id="0-2-vpc-network-configuration" status="ready-for-dev">
+          <provides>VPC ID, private subnet IDs, K8s nodes security group ID</provides>
+        </story>
+      </prerequisites>
+      <expectedStructure>
+        <folder path="infrastructure/terraform/eks" purpose="EKS Terraform module" />
+        <file path="infrastructure/terraform/eks/main.tf" purpose="EKS cluster definition" />
+        <file path="infrastructure/terraform/eks/node-groups.tf" purpose="Node group configurations" />
+        <file path="infrastructure/terraform/eks/iam.tf" purpose="IRSA, cluster autoscaler IAM" />
+        <file path="infrastructure/terraform/eks/variables.tf" purpose="EKS variables" />
+        <file path="infrastructure/terraform/eks/outputs.tf" purpose="Cluster endpoint, OIDC provider ARN" />
+        <folder path="infrastructure/kubernetes/namespaces" purpose="Namespace YAML manifests" />
+        <file path="infrastructure/kubernetes/namespaces/namespaces.yaml" purpose="All namespace definitions with PSS labels" />
+        <folder path="infrastructure/kubernetes/rbac" purpose="RBAC definitions" />
+        <file path="infrastructure/kubernetes/rbac/roles.yaml" purpose="ClusterRoles" />
+        <file path="infrastructure/kubernetes/rbac/bindings.yaml" purpose="ClusterRoleBindings" />
+        <folder path="infrastructure/kubernetes/cluster-autoscaler" purpose="Cluster autoscaler Helm values" />
+        <folder path="infrastructure/kubernetes/metrics-server" purpose="Metrics server Helm values" />
+        <folder path="infrastructure/kubernetes/aws-load-balancer-controller" purpose="ALB controller Helm values" />
+        <file path="infrastructure/README.md" purpose="EKS architecture documentation" />
+      </expectedStructure>
+      <outputs description="Resources exported for downstream stories">
+        <output name="cluster_endpoint" consumers="0.7, 0.8-0.12 (CI/CD)" />
+        <output name="cluster_certificate_authority" consumers="kubeconfig generation" />
+        <output name="cluster_oidc_provider_arn" consumers="0.7 (Secret Management IRSA)" />
+        <output name="cluster_name" consumers="all K8s-dependent stories" />
+        <output name="node_security_group_id" consumers="0.4 (RDS), 0.5 (ElastiCache)" />
+      </outputs>
+    </code>
+
+    <dependencies>
+      <terraform>
+        <provider name="aws" version="~&gt; 5.0" />
+        <provider name="kubernetes" version="~&gt; 2.23" />
+        <provider name="helm" version="~&gt; 2.11" />
+      </terraform>
+      <terraformModules>
+        <module name="terraform-aws-modules/eks/aws" version="~&gt; 19.0" purpose="EKS cluster and node groups" />
+      </terraformModules>
+      <helmCharts>
+        <chart name="cluster-autoscaler" repo="https://kubernetes.github.io/autoscaler" version="~&gt; 9.29" />
+        <chart name="metrics-server" repo="https://kubernetes-sigs.github.io/metrics-server" version="~&gt; 3.11" />
+        <chart name="aws-load-balancer-controller" repo="https://aws.github.io/eks-charts" version="~&gt; 1.6" />
+      </helmCharts>
+      <tools>
+        <tool name="aws-cli" version="2.x" purpose="EKS cluster verification" />
+        <tool name="terraform" version="&gt;= 1.5.0" purpose="Infrastructure as Code" />
+        <tool name="kubectl" version="1.28+" purpose="Kubernetes management" />
+        <tool name="helm" version="3.x" purpose="Helm chart deployments" />
+        <tool name="eksctl" version="latest" purpose="Optional: EKS cluster creation alternative" />
+      </tools>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="Architecture">EKS version 1.28+ required, plan for annual upgrades</constraint>
+    <constraint source="Architecture">All nodes must be in private subnets (from Story 0.2)</constraint>
+    <constraint source="Security">IMDSv2 required on all nodes to prevent SSRF attacks</constraint>
+    <constraint source="Security">Pod Security Standards: restricted for production, baseline for others</constraint>
+    <constraint source="Security">RBAC follows least-privilege: developer read-only on prod, ci-cd staging-only</constraint>
+    <constraint source="Cost">Cluster autoscaler must respect node group min/max to prevent cost explosion</constraint>
+    <constraint source="Cost">Consider spot instances for playwright-pool (cost optimization)</constraint>
+    <constraint source="Performance">Resource quotas per namespace to prevent starvation</constraint>
+    <constraint source="Dependency">Story 0.1 (IAM) and Story 0.2 (VPC) must be complete first</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>AWS EKS API</name>
+      <kind>REST API (via Terraform aws provider)</kind>
+      <signature>aws_eks_cluster, aws_eks_node_group, aws_eks_addon</signature>
+      <path>infrastructure/terraform/eks/main.tf</path>
+    </interface>
+    <interface>
+      <name>Kubernetes API</name>
+      <kind>REST API (via kubectl and Terraform kubernetes provider)</kind>
+      <signature>Namespace, ClusterRole, ClusterRoleBinding, ConfigMap (aws-auth)</signature>
+      <path>infrastructure/kubernetes/</path>
+    </interface>
+    <interface>
+      <name>Helm API</name>
+      <kind>Package manager (via helm CLI and Terraform helm provider)</kind>
+      <signature>helm_release for cluster-autoscaler, metrics-server, aws-load-balancer-controller</signature>
+      <path>infrastructure/kubernetes/*/values.yaml</path>
+    </interface>
+    <interface>
+      <name>AWS IAM API (IRSA)</name>
+      <kind>REST API (via Terraform)</kind>
+      <signature>aws_iam_role, aws_iam_policy, aws_iam_openid_connect_provider</signature>
+      <path>infrastructure/terraform/eks/iam.tf</path>
+    </interface>
+    <interface>
+      <name>AWS CloudWatch Logs API</name>
+      <kind>REST API (EKS control plane logging)</kind>
+      <signature>Log group: /aws/eks/qualisys-eks/cluster</signature>
+      <path>Configured in EKS cluster resource</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Infrastructure testing follows acceptance test verification pattern using AWS CLI and kubectl commands. Each AC has explicit verification command. DevOps Lead executes verification. Integration test deploys hello-world service to staging and verifies accessibility via ingress.
+    </standards>
+    <locations>
+      <location>Manual verification via AWS Console, CLI, and kubectl</location>
+      <location>Terraform plan/apply output validation</location>
+      <location>kubectl commands for K8s resource verification</location>
+      <location>Helm status for chart deployments</location>
+    </locations>
+    <ideas>
+      <idea ac="1">aws eks describe-cluster --name qualisys-eks shows status=ACTIVE, version=1.28+</idea>
+      <idea ac="2">aws eks list-nodegroups shows general and playwright-pool; kubectl get nodes shows correct instance types</idea>
+      <idea ac="3">kubectl get namespaces shows dev, staging, production, playwright-pool, monitoring</idea>
+      <idea ac="4">kubectl auth can-i --as=developer create pods -n production returns "no"; --as=devops returns "yes"</idea>
+      <idea ac="5">kubectl config get-contexts shows qualisys-dev, qualisys-staging, qualisys-prod</idea>
+      <idea ac="6">kubectl get pods -n kube-system | grep cluster-autoscaler shows Running; test by deploying resource-hungry pod</idea>
+      <idea ac="7">kubectl top nodes returns CPU/memory metrics; kubectl top pods -A returns pod metrics</idea>
+      <idea ac="8">kubectl get ingressclass shows alb as default; test Ingress creates ALB</idea>
+      <idea ac="9">kubectl get ns production -o yaml shows pod-security.kubernetes.io/enforce=restricted label</idea>
+      <idea ac="10">CloudWatch Log Group /aws/eks/qualisys-eks/cluster contains api, audit, authenticator logs</idea>
+      <idea ac="integration">Deploy nginx to staging, create Ingress, curl ALB endpoint returns 200</idea>
+      <idea ac="autoscale">Deploy 10 replicas with high resource requests, verify cluster-autoscaler adds nodes</idea>
+      <idea ac="pss">Deploy privileged pod to production, verify rejected by PSS</idea>
+    </ideas>
+  </tests>
+</story-context>

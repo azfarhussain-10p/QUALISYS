@@ -1,0 +1,463 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>0</epicId>
+    <storyId>17</storyId>
+    <title>Test Reporting Dashboard</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-01-24</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/0-17-test-reporting-dashboard.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>QA Lead</asA>
+    <iWant>a test reporting dashboard</iWant>
+    <soThat>I can track test trends, flakiness, and coverage over time</soThat>
+    <tasks>
+      <task id="1" name="Allure Server Deployment" acs="1,6">
+        <subtask>1.1-1.6 K8s deployment, PVC storage, ingress, SSL, authentication</subtask>
+      </task>
+      <task id="2" name="CI/CD Integration" acs="7">
+        <subtask>2.1-2.6 Jest/Playwright Allure reporters, workflow upload steps</subtask>
+      </task>
+      <task id="3" name="Test Trend Dashboards" acs="2,3,10">
+        <subtask>3.1-3.5 Pass/fail trends, execution time, build history, landing page</subtask>
+      </task>
+      <task id="4" name="Flaky Test Detection" acs="4">
+        <subtask>4.1-4.5 Retry tracking, flaky identification rules, notifications</subtask>
+      </task>
+      <task id="5" name="Coverage Integration" acs="5">
+        <subtask>5.1-5.5 Coverage upload, Codecov integration, badges, trends</subtask>
+      </task>
+      <task id="6" name="Data Retention and Filtering" acs="8,9">
+        <subtask>6.1-6.5 90-day retention policy, cleanup CronJob, suite filtering</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">Test reporting tool configured (Allure Server)</ac>
+    <ac id="2">Dashboard shows test pass/fail trends (last 30 days)</ac>
+    <ac id="3">Dashboard shows test execution time trends</ac>
+    <ac id="4">Dashboard identifies flaky tests (tests that fail intermittently)</ac>
+    <ac id="5">Dashboard shows code coverage trends (line, branch, function)</ac>
+    <ac id="6">Dashboard accessible to team at https://reports.qualisys.io</ac>
+    <ac id="7">Test results automatically published from CI/CD pipeline</ac>
+    <ac id="8">Historical test data retained for 90 days</ac>
+    <ac id="9">Dashboard supports filtering by test suite (unit, integration, E2E)</ac>
+    <ac id="10">Dashboard shows latest build status and quick summary</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Test Infrastructure</section>
+        <snippet>Test reporting dashboard for QA Lead visibility. Track test trends, flakiness, coverage over time. Allure Server or Codecov integration. 90-day data retention.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-0-infrastructure.md</path>
+        <title>Epic 0: Infrastructure Foundation</title>
+        <section>Story 0.17</section>
+        <snippet>Test Reporting Dashboard: Allure/ReportPortal/Codecov. Pass/fail trends, execution time, flaky test identification, coverage trends. Accessible at reports.qualisys.io.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Testing Strategy</section>
+        <snippet>Test reporting infrastructure provides visibility into test health. Trend analysis enables pattern identification. Flaky detection improves test reliability.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-16-ci-cd-test-pipeline-integration.md</path>
+        <title>Story 0.16: CI/CD Test Pipeline Integration</title>
+        <section>Test Results</section>
+        <snippet>Prerequisite: CI/CD pipeline generates JUnit XML and coverage reports. Story 0.17 consumes these results for dashboard visualization.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <note>Test reporting dashboard builds on Story 0.16 CI/CD test pipeline infrastructure.</note>
+      <prerequisites>
+        <story id="0-16-ci-cd-test-pipeline-integration" status="ready-for-dev">
+          <provides>JUnit XML test results, coverage reports, parallel test execution</provides>
+        </story>
+        <story id="0-13-load-balancer-ingress-configuration" status="ready-for-dev">
+          <provides>NGINX Ingress Controller, cert-manager, SSL certificates</provides>
+        </story>
+      </prerequisites>
+      <expectedStructure>
+        <folder path="k8s/test-infrastructure" purpose="Allure Server Kubernetes manifests" />
+        <file path="k8s/test-infrastructure/allure-deployment.yaml" purpose="Allure Server deployment" />
+        <file path="k8s/test-infrastructure/allure-pvc.yaml" purpose="Persistent volume claims" />
+        <file path="k8s/test-infrastructure/allure-ingress.yaml" purpose="Ingress with SSL" />
+        <file path="k8s/test-infrastructure/allure-cleanup-cronjob.yaml" purpose="90-day retention cleanup" />
+        <file path="jest.config.js" purpose="Updated with Allure reporter" />
+        <file path="playwright.config.ts" purpose="Updated with Allure reporter" />
+        <file path="codecov.yml" purpose="Codecov configuration" />
+        <file path=".github/workflows/pr-checks.yml" purpose="Updated with Allure upload" />
+      </expectedStructure>
+      <outputs description="Test reporting infrastructure">
+        <output name="Allure Server" consumers="QA Lead, developers, CI/CD" />
+        <output name="Test trend dashboards" consumers="QA Lead, PM" />
+        <output name="Flaky test reports" consumers="Developers, QA" />
+        <output name="Coverage trends" consumers="Tech Lead, developers" />
+      </outputs>
+      <allureDeploymentTemplate>
+        <![CDATA[
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: allure-server
+  namespace: test-infrastructure
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: allure-server
+  template:
+    metadata:
+      labels:
+        app: allure-server
+    spec:
+      containers:
+        - name: allure-server
+          image: frankescobar/allure-docker-service:2.21.0
+          ports:
+            - containerPort: 5050
+          env:
+            - name: CHECK_RESULTS_EVERY_SECONDS
+              value: "30"
+            - name: KEEP_HISTORY
+              value: "25"
+            - name: KEEP_HISTORY_LATEST
+              value: "10"
+          volumeMounts:
+            - name: allure-results
+              mountPath: /app/allure-results
+            - name: allure-reports
+              mountPath: /app/default-reports
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /allure-docker-service/version
+              port: 5050
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /allure-docker-service/version
+              port: 5050
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      volumes:
+        - name: allure-results
+          persistentVolumeClaim:
+            claimName: allure-results-pvc
+        - name: allure-reports
+          persistentVolumeClaim:
+            claimName: allure-reports-pvc
+        ]]>
+      </allureDeploymentTemplate>
+      <allurePvcTemplate>
+        <![CDATA[
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: allure-results-pvc
+  namespace: test-infrastructure
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: allure-reports-pvc
+  namespace: test-infrastructure
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3
+  resources:
+    requests:
+      storage: 50Gi
+        ]]>
+      </allurePvcTemplate>
+      <allureIngressTemplate>
+        <![CDATA[
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: allure-server-ingress
+  namespace: test-infrastructure
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: allure-basic-auth
+    nginx.ingress.kubernetes.io/auth-realm: "Allure Reports - Authentication Required"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - reports.qualisys.io
+      secretName: allure-tls
+  rules:
+    - host: reports.qualisys.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: allure-server
+                port:
+                  number: 5050
+        ]]>
+      </allureIngressTemplate>
+      <cleanupCronJobTemplate>
+        <![CDATA[
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: allure-cleanup
+  namespace: test-infrastructure
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: cleanup
+              image: alpine:3.18
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  find /app/allure-results -type f -mtime +90 -delete
+                  find /app/default-reports -type d -mtime +90 -exec rm -rf {} +
+              volumeMounts:
+                - name: allure-results
+                  mountPath: /app/allure-results
+                - name: allure-reports
+                  mountPath: /app/default-reports
+          restartPolicy: OnFailure
+          volumes:
+            - name: allure-results
+              persistentVolumeClaim:
+                claimName: allure-results-pvc
+            - name: allure-reports
+              persistentVolumeClaim:
+                claimName: allure-reports-pvc
+        ]]>
+      </cleanupCronJobTemplate>
+      <jestAllureConfig>
+        <![CDATA[
+// jest.config.js additions
+module.exports = {
+  reporters: [
+    'default',
+    ['jest-junit', { outputDirectory: './test-results' }],
+    ['jest-allure', {
+      outputDir: 'allure-results',
+      disableWebdriverStepsReporting: true,
+      disableWebdriverScreenshotsReporting: false,
+    }],
+  ],
+  setupFilesAfterEnv: ['jest-allure/dist/setup'],
+};
+        ]]>
+      </jestAllureConfig>
+      <playwrightAllureConfig>
+        <![CDATA[
+// playwright.config.ts additions
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  reporter: [
+    ['html', { outputFolder: 'playwright-report' }],
+    ['junit', { outputFile: 'test-results/e2e/junit.xml' }],
+    ['allure-playwright', {
+      outputFolder: 'allure-results',
+      suiteTitle: 'E2E Tests',
+    }],
+  ],
+});
+        ]]>
+      </playwrightAllureConfig>
+      <workflowUploadStep>
+        <![CDATA[
+  publish-allure-report:
+    needs: [unit-tests, integration-tests, e2e-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          path: allure-results
+
+      - name: Merge Allure results
+        run: |
+          mkdir -p merged-allure-results
+          find allure-results -name "*.json" -exec cp {} merged-allure-results/ \;
+          find allure-results -name "*.txt" -exec cp {} merged-allure-results/ \;
+
+      - name: Upload to Allure Server
+        run: |
+          curl -X POST \
+            -H "Content-Type: multipart/form-data" \
+            -F "results=@merged-allure-results" \
+            "https://reports.qualisys.io/allure-docker-service/send-results?project_id=qualisys"
+
+      - name: Generate Allure Report
+        run: |
+          curl -X GET \
+            "https://reports.qualisys.io/allure-docker-service/generate-report?project_id=qualisys"
+        ]]>
+      </workflowUploadStep>
+      <codecovConfig>
+        <![CDATA[
+# codecov.yml
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 2%
+    patch:
+      default:
+        target: 80%
+
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: true
+
+flags:
+  unit:
+    paths:
+      - src/
+    carryforward: true
+  integration:
+    paths:
+      - src/
+    carryforward: true
+        ]]>
+      </codecovConfig>
+    </code>
+
+    <dependencies>
+      <npm>
+        <package name="jest-allure" version="^0.1.3" purpose="Allure reporter for Jest" />
+        <package name="allure-playwright" version="^2.9.0" purpose="Allure reporter for Playwright" />
+        <package name="allure-commandline" version="^2.24.0" purpose="Allure CLI for local reports" />
+      </npm>
+      <kubernetes>
+        <resource name="Deployment" purpose="Allure Server container" />
+        <resource name="Service" purpose="Internal service endpoint" />
+        <resource name="Ingress" purpose="External HTTPS access" />
+        <resource name="PersistentVolumeClaim" purpose="Test results and reports storage" />
+        <resource name="CronJob" purpose="90-day retention cleanup" />
+        <resource name="Secret" purpose="Basic auth credentials" />
+      </kubernetes>
+      <docker>
+        <image name="frankescobar/allure-docker-service" version="2.21.0" purpose="Allure Server" />
+        <image name="alpine" version="3.18" purpose="Cleanup job" />
+      </docker>
+      <external>
+        <service name="Codecov" purpose="Coverage trend tracking and PR comments" />
+      </external>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="Accessibility">Dashboard must be accessible at https://reports.qualisys.io</constraint>
+    <constraint source="Retention" critical="true">Test data retained for exactly 90 days, then auto-deleted</constraint>
+    <constraint source="Security">Authentication required for dashboard access</constraint>
+    <constraint source="Performance">Dashboard must load within 3 seconds</constraint>
+    <constraint source="Storage">PVC must accommodate 90 days of test results (estimate 50GB)</constraint>
+    <constraint source="Integration">Must integrate with Jest and Playwright Allure reporters</constraint>
+    <constraint source="Dependency">Story 0.16 (CI/CD Test Pipeline) must be complete</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>Allure Server API</name>
+      <kind>REST API</kind>
+      <signature>POST /allure-docker-service/send-results?project_id={id}</signature>
+      <path>https://reports.qualisys.io</path>
+    </interface>
+    <interface>
+      <name>Allure Report Generation</name>
+      <kind>REST API</kind>
+      <signature>GET /allure-docker-service/generate-report?project_id={id}</signature>
+      <path>https://reports.qualisys.io</path>
+    </interface>
+    <interface>
+      <name>Allure Dashboard UI</name>
+      <kind>Web UI</kind>
+      <signature>GET /allure-docker-service/projects/{id}/reports/latest</signature>
+      <path>https://reports.qualisys.io</path>
+    </interface>
+    <interface>
+      <name>Codecov API</name>
+      <kind>REST API (via GitHub Action)</kind>
+      <signature>Upload coverage via codecov/codecov-action</signature>
+      <path>.github/workflows/pr-checks.yml</path>
+    </interface>
+    <interface>
+      <name>Jest Allure Reporter</name>
+      <kind>Node.js module</kind>
+      <signature>jest-allure reporter in jest.config.js</signature>
+      <path>jest.config.js</path>
+    </interface>
+    <interface>
+      <name>Playwright Allure Reporter</name>
+      <kind>Node.js module</kind>
+      <signature>allure-playwright reporter in playwright.config.ts</signature>
+      <path>playwright.config.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Test reporting dashboard validation includes deployment verification, data upload testing, dashboard functionality, and retention policy execution. QA Lead verifies dashboard usability.
+    </standards>
+    <locations>
+      <location>Allure Server deployment in test-infrastructure namespace</location>
+      <location>CI/CD workflow with Allure upload steps</location>
+      <location>Dashboard UI at https://reports.qualisys.io</location>
+    </locations>
+    <ideas>
+      <idea ac="1">kubectl get pods -n test-infrastructure shows allure-server running</idea>
+      <idea ac="2">Dashboard displays pass/fail trend chart with 30-day data points</idea>
+      <idea ac="3">Execution time chart shows duration for each test run</idea>
+      <idea ac="4">Flaky test list shows tests with retry counts greater than 0</idea>
+      <idea ac="5">Coverage section shows line, branch, function percentages over time</idea>
+      <idea ac="6">curl https://reports.qualisys.io returns 200 (with auth)</idea>
+      <idea ac="7">After PR merge, new test results appear in dashboard within 5 minutes</idea>
+      <idea ac="8">Data older than 90 days is not visible in dashboard</idea>
+      <idea ac="9">Suite filter dropdown shows unit, integration, E2E options</idea>
+      <idea ac="10">Landing page shows latest build status with pass rate percentage</idea>
+      <idea ac="pvc">kubectl get pvc -n test-infrastructure shows allure PVCs bound</idea>
+      <idea ac="ingress">kubectl get ingress -n test-infrastructure shows allure-server-ingress with TLS</idea>
+      <idea ac="cronjob">kubectl get cronjob -n test-infrastructure shows allure-cleanup scheduled</idea>
+      <idea ac="codecov">Codecov dashboard shows coverage trends for qualisys repo</idea>
+    </ideas>
+  </tests>
+</story-context>

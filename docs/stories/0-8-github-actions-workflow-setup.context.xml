@@ -1,0 +1,308 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>0</epicId>
+    <storyId>8</storyId>
+    <title>GitHub Actions Workflow Setup</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-01-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/0-8-github-actions-workflow-setup.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>DevOps Engineer</asA>
+    <iWant>configure GitHub Actions workflows for CI/CD automation</iWant>
+    <soThat>we can automate builds, tests, and deployments on every PR and merge to main</soThat>
+    <tasks>
+      <task id="1" name="Repository Configuration" acs="5,8">
+        <subtask>1.1-1.7 Configure secrets, branch protection for workflows</subtask>
+      </task>
+      <task id="2" name="GitHub Environments Setup" acs="9">
+        <subtask>2.1-2.5 Create staging/production environments with protection rules</subtask>
+      </task>
+      <task id="3" name="Reusable Workflows" acs="10">
+        <subtask>3.1-3.4 Create reusable-build, reusable-test, reusable-deploy workflows</subtask>
+      </task>
+      <task id="4" name="PR Checks Workflow" acs="1,4,7">
+        <subtask>4.1-4.9 Create pr-checks.yml with lint, format, type-check, tests</subtask>
+      </task>
+      <task id="5" name="Deploy Staging Workflow" acs="2,7">
+        <subtask>5.1-5.6 Create deploy-staging.yml triggered on push to main</subtask>
+      </task>
+      <task id="6" name="Deploy Production Workflow" acs="3,7,9">
+        <subtask>6.1-6.7 Create deploy-production.yml with manual trigger and approval</subtask>
+      </task>
+      <task id="7" name="Documentation &amp; Validation" acs="6,all">
+        <subtask>7.1-7.5 Add status badges, test workflows, document architecture</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">PR checks workflow created: .github/workflows/pr-checks.yml</ac>
+    <ac id="2">Deploy staging workflow created: .github/workflows/deploy-staging.yml</ac>
+    <ac id="3">Deploy production workflow created: .github/workflows/deploy-production.yml</ac>
+    <ac id="4">PR checks workflow runs: lint, format, type-check, unit tests, integration tests</ac>
+    <ac id="5">GitHub Actions secrets configured: KUBECONFIG, AWS credentials, ECR registry</ac>
+    <ac id="6">Workflow status badges added to README</ac>
+    <ac id="7">Workflow permissions follow least-privilege: read-all default, write only when needed</ac>
+    <ac id="8">Branch protection: workflow file changes require DevOps Lead approval</ac>
+    <ac id="9">GitHub Environments configured: staging, production with protection rules</ac>
+    <ac id="10">Reusable workflows created for common steps (build, test, deploy)</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>CI/CD Pipeline Sequence</section>
+        <snippet>PR checks → build Docker image → post PR comment → deploy to staging (on merge) → deploy to production (manual approval). GitHub Actions with GitHub Environments protection.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>GitHub Workflow Security</section>
+        <snippet>Workflows use least-privilege permissions (read-all default). Branch protection rules require DevOps Lead approval for .github/workflows/*.yml changes.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>APIs and Interfaces</section>
+        <snippet>GitHub API for repository cloning, PR comments, workflow triggers. GitHub App (read-only) authentication.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-0-infrastructure.md</path>
+        <title>Epic 0: Infrastructure Foundation</title>
+        <section>Story 0.8</section>
+        <snippet>GitHub Actions Workflow Setup with PR checks, staging auto-deploy, production manual deploy. Dependencies: Story 0.3 (K8s), Story 0.6 (ECR).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>System Architecture</title>
+        <section>CI/CD Architecture</section>
+        <snippet>GitHub Actions for automated builds, tests, deployments. Staging auto-deploy on main merge. Production requires manual approval gate.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-1-cloud-account-iam-setup.md</path>
+        <title>Story 0.1: Cloud Account &amp; IAM Setup</title>
+        <section>IAM Roles</section>
+        <snippet>Prerequisite: CI/CD IAM user credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY) for GitHub Actions.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-3-kubernetes-cluster-provisioning.md</path>
+        <title>Story 0.3: Kubernetes Cluster Provisioning</title>
+        <section>kubectl Access</section>
+        <snippet>Prerequisite: kubeconfig for GitHub Actions to deploy to Kubernetes cluster.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-6-container-registry.md</path>
+        <title>Story 0.6: Container Registry</title>
+        <section>IAM Policies</section>
+        <snippet>Prerequisite: ECR repository URLs and CI/CD push permissions for image builds.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <note>Greenfield CI/CD - Stories 0.1, 0.3, 0.6 provide credentials and targets (all ready-for-dev).</note>
+      <prerequisites>
+        <story id="0-1-cloud-account-iam-setup" status="ready-for-dev">
+          <provides>CI/CD IAM credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)</provides>
+        </story>
+        <story id="0-3-kubernetes-cluster-provisioning" status="ready-for-dev">
+          <provides>kubeconfig for K8s deployments</provides>
+        </story>
+        <story id="0-6-container-registry" status="ready-for-dev">
+          <provides>ECR repository URLs for image push</provides>
+        </story>
+      </prerequisites>
+      <expectedStructure>
+        <folder path=".github/workflows" purpose="GitHub Actions workflow files" />
+        <file path=".github/workflows/pr-checks.yml" purpose="PR validation workflow" />
+        <file path=".github/workflows/deploy-staging.yml" purpose="Staging auto-deployment" />
+        <file path=".github/workflows/deploy-production.yml" purpose="Production manual deployment" />
+        <file path=".github/workflows/reusable-build.yml" purpose="Reusable Docker build" />
+        <file path=".github/workflows/reusable-test.yml" purpose="Reusable test execution" />
+        <file path=".github/workflows/reusable-deploy.yml" purpose="Reusable K8s deployment" />
+        <file path=".github/CODEOWNERS" purpose="Require approval for workflow changes" />
+        <file path=".github/dependabot.yml" purpose="Keep actions up to date" />
+        <file path="README.md" purpose="CI/CD status badges" />
+        <file path="CONTRIBUTING.md" purpose="Workflow architecture documentation" />
+      </expectedStructure>
+      <outputs description="Workflows consumed by downstream stories">
+        <output name="pr-checks.yml" consumers="All PRs, Story 0.10 (test integration)" />
+        <output name="deploy-staging.yml" consumers="Story 0.11 (staging deployment)" />
+        <output name="deploy-production.yml" consumers="Story 0.12 (production deployment)" />
+        <output name="reusable-build.yml" consumers="Story 0.9 (Docker build)" />
+        <output name="reusable-test.yml" consumers="Story 0.10 (automated tests)" />
+        <output name="reusable-deploy.yml" consumers="Story 0.11, 0.12 (deployments)" />
+      </outputs>
+      <workflowTemplates>
+        <template name="pr-checks-structure">
+          <![CDATA[
+name: PR Checks
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+  pull-requests: write
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run linter
+        run: npm run lint
+          ]]>
+        </template>
+        <template name="deploy-staging-structure">
+          <![CDATA[
+name: Deploy Staging
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+jobs:
+  build-and-push:
+    uses: ./.github/workflows/reusable-build.yml
+  deploy:
+    needs: build-and-push
+    uses: ./.github/workflows/reusable-deploy.yml
+    with:
+      environment: staging
+          ]]>
+        </template>
+        <template name="deploy-production-structure">
+          <![CDATA[
+name: Deploy Production
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        required: true
+        description: 'Image tag to deploy'
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+jobs:
+  deploy:
+    environment: production
+    uses: ./.github/workflows/reusable-deploy.yml
+    with:
+      environment: production
+      image_tag: ${{ inputs.image_tag }}
+          ]]>
+        </template>
+      </workflowTemplates>
+      <secretsRequired>
+        <secret name="AWS_ACCESS_KEY_ID" source="Story 0.1 CI/CD IAM user" />
+        <secret name="AWS_SECRET_ACCESS_KEY" source="Story 0.1 CI/CD IAM user" />
+        <secret name="AWS_REGION" value="us-east-1" />
+        <secret name="KUBECONFIG_BASE64" source="Story 0.3 kubeconfig (base64)" />
+        <secret name="ECR_REGISTRY" source="Story 0.6 ECR URL" />
+        <secret name="SLACK_WEBHOOK_URL" source="Optional, Slack app" />
+      </secretsRequired>
+    </code>
+
+    <dependencies>
+      <tools>
+        <tool name="gh" version="2.x" purpose="GitHub CLI for secrets and environments" />
+        <tool name="git" version="2.x" purpose="Repository operations" />
+      </tools>
+      <githubActions>
+        <action name="actions/checkout" version="v4" purpose="Clone repository" />
+        <action name="actions/setup-node" version="v4" purpose="Node.js setup" />
+        <action name="actions/setup-python" version="v5" purpose="Python setup" />
+        <action name="docker/build-push-action" version="v5" purpose="Docker build and push" />
+        <action name="aws-actions/configure-aws-credentials" version="v4" purpose="AWS authentication" />
+        <action name="aws-actions/amazon-ecr-login" version="v2" purpose="ECR login" />
+        <action name="codecov/codecov-action" version="v3" purpose="Coverage upload" />
+      </githubActions>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="Security" critical="true">All workflows must have explicit permissions: blocks (least-privilege)</constraint>
+    <constraint source="Security" critical="true">Workflow file changes require DevOps Lead approval via CODEOWNERS</constraint>
+    <constraint source="Security">Never log or expose secrets in workflow output</constraint>
+    <constraint source="Security">Production deploys require environment approval (DevOps Lead + Tech Lead)</constraint>
+    <constraint source="Performance">PR workflows use concurrency groups to cancel outdated runs</constraint>
+    <constraint source="Maintainability">Common steps extracted to reusable workflows</constraint>
+    <constraint source="Dependency">Story 0.1 (IAM), 0.3 (K8s), 0.6 (ECR) must be complete for credentials</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>GitHub Actions API</name>
+      <kind>YAML workflow definitions</kind>
+      <signature>on: triggers, jobs: definitions, steps: actions</signature>
+      <path>.github/workflows/*.yml</path>
+    </interface>
+    <interface>
+      <name>GitHub Environments API</name>
+      <kind>REST API (via gh CLI or web UI)</kind>
+      <signature>gh api repos/{owner}/{repo}/environments</signature>
+      <path>Repository settings</path>
+    </interface>
+    <interface>
+      <name>GitHub Secrets API</name>
+      <kind>REST API (via gh CLI)</kind>
+      <signature>gh secret set, gh secret list</signature>
+      <path>Repository settings</path>
+    </interface>
+    <interface>
+      <name>Reusable Workflows</name>
+      <kind>GitHub Actions workflow_call</kind>
+      <signature>uses: ./.github/workflows/reusable-*.yml</signature>
+      <path>.github/workflows/reusable-*.yml</path>
+    </interface>
+    <interface>
+      <name>AWS CLI (in workflows)</name>
+      <kind>CLI commands in workflow steps</kind>
+      <signature>aws ecr get-login-password, aws eks update-kubeconfig</signature>
+      <path>Used in reusable workflows</path>
+    </interface>
+    <interface>
+      <name>kubectl (in workflows)</name>
+      <kind>CLI commands in workflow steps</kind>
+      <signature>kubectl set image, kubectl rollout status</signature>
+      <path>Used in reusable-deploy.yml</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      CI/CD testing follows workflow validation pattern. Create test PRs to trigger workflows. Verify job execution, permissions, and outputs. DevOps Lead validates workflow security configuration.
+    </standards>
+    <locations>
+      <location>GitHub Actions tab for workflow run history</location>
+      <location>GitHub repository settings for secrets and environments</location>
+      <location>PR comments for test results</location>
+    </locations>
+    <ideas>
+      <idea ac="1">File .github/workflows/pr-checks.yml exists with on: pull_request trigger</idea>
+      <idea ac="2">File .github/workflows/deploy-staging.yml exists with on: push to main trigger</idea>
+      <idea ac="3">File .github/workflows/deploy-production.yml exists with on: workflow_dispatch trigger</idea>
+      <idea ac="4">Create test PR, verify lint, format, type-check, test jobs all run and pass</idea>
+      <idea ac="5">gh secret list shows AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, KUBECONFIG_BASE64, ECR_REGISTRY</idea>
+      <idea ac="6">README.md contains ![CI](workflow-badge-url) status badges</idea>
+      <idea ac="7">All workflow files have permissions: block with minimal required permissions</idea>
+      <idea ac="8">.github/CODEOWNERS contains /.github/workflows/ @devops-lead</idea>
+      <idea ac="9">gh api repos/{owner}/{repo}/environments shows staging and production environments</idea>
+      <idea ac="10">Files exist: reusable-build.yml, reusable-test.yml, reusable-deploy.yml</idea>
+      <idea ac="pr-test">Create PR with intentional lint error, verify workflow fails</idea>
+      <idea ac="staging-test">Merge to main, verify deploy-staging workflow triggers and succeeds</idea>
+      <idea ac="production-test">Trigger workflow_dispatch, verify approval gate appears before deployment</idea>
+      <idea ac="concurrency">Create two PRs rapidly, verify first workflow cancelled when second starts</idea>
+      <idea ac="secrets">Attempt to echo secret in workflow, verify masked in logs</idea>
+    </ideas>
+  </tests>
+</story-context>

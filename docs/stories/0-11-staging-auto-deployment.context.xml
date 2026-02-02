@@ -1,0 +1,383 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>0</epicId>
+    <storyId>11</storyId>
+    <title>Staging Auto-Deployment</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-01-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/0-11-staging-auto-deployment.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Developer</asA>
+    <iWant>code merged to main to automatically deploy to staging</iWant>
+    <soThat>we can test in a production-like environment with zero manual intervention</soThat>
+    <tasks>
+      <task id="1" name="Deploy Staging Workflow" acs="1,8">
+        <subtask>1.1-1.5 Create deploy-staging.yml with AWS/EKS auth, optimize for speed</subtask>
+      </task>
+      <task id="2" name="Kubernetes Deployment Configuration" acs="2,3,9,10">
+        <subtask>2.1-2.6 Create deployment manifests with rolling update, resource limits, quotas</subtask>
+      </task>
+      <task id="3" name="Health Check Configuration" acs="4,5">
+        <subtask>3.1-3.5 Implement /health and /ready endpoints, configure probes, rollback</subtask>
+      </task>
+      <task id="4" name="Slack Notification Integration" acs="6">
+        <subtask>4.1-4.5 Configure Slack webhook, success/failure notifications with URLs</subtask>
+      </task>
+      <task id="5" name="Staging Domain Configuration" acs="7">
+        <subtask>5.1-5.5 DNS record, Ingress, SSL certificate, HTTPS redirect</subtask>
+      </task>
+      <task id="6" name="Validation and Documentation" acs="all">
+        <subtask>6.1-6.5 Test deployment, verify rollback, document in CONTRIBUTING.md</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">On main branch merge, workflow triggers automatic deployment to staging</ac>
+    <ac id="2">Deployment updates Kubernetes deployment with new image tag</ac>
+    <ac id="3">Rolling update strategy ensures zero-downtime deployment</ac>
+    <ac id="4">Health checks verify deployment success (readiness/liveness probes)</ac>
+    <ac id="5">Deployment rollback on failed health checks (automatic)</ac>
+    <ac id="6">Slack notification sent on deployment (success/failure with link)</ac>
+    <ac id="7">Staging environment accessible at https://staging.qualisys.dev</ac>
+    <ac id="8">Deployment time less than 2 minutes from merge to running pods</ac>
+    <ac id="9">Deployment manifest uses image from ECR with Git SHA tag</ac>
+    <ac id="10">Staging namespace has appropriate resource limits configured</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>CI/CD Pipeline Sequence</section>
+        <snippet>Deploy to staging (Story 0.11): kubectl set image deployment/qualisys-api. Rolling update (zero-downtime). Health check verification. Slack notification. Deployment time less than 2 minutes from merge.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Reliability/Availability</section>
+        <snippet>Zero-Downtime Deployments: Kubernetes rolling updates maxUnavailable=0, maxSurge=1. Health checks: Readiness probe (/ready), liveness probe (/health). Deployment rollback on failed health checks.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-0-infrastructure.md</path>
+        <title>Epic 0: Infrastructure Foundation</title>
+        <section>Story 0.11</section>
+        <snippet>Staging Auto-Deployment with automatic deployment on main merge, rolling update strategy, health checks, Slack notifications, staging.qualisys.dev domain.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Deployment Strategy</section>
+        <snippet>Continuous deployment to staging on main branch merge. Rolling updates for zero-downtime. Health probes for automatic failure detection. Staging environment mirrors production configuration.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-8-github-actions-workflow-setup.md</path>
+        <title>Story 0.8: GitHub Actions Workflow Setup</title>
+        <section>Deploy Staging Workflow</section>
+        <snippet>Prerequisite: deploy-staging.yml workflow structure, GitHub Environments, secrets configuration for AWS and Kubernetes access.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-9-docker-build-automation.md</path>
+        <title>Story 0.9: Docker Build Automation</title>
+        <section>Image Tagging Strategy</section>
+        <snippet>Prerequisite: Docker images tagged with Git SHA pushed to ECR. Images available for deployment reference.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <note>Deployment infrastructure - Stories 0.3, 0.8, 0.9, 0.13 provide foundation.</note>
+      <prerequisites>
+        <story id="0-3-kubernetes-cluster-provisioning" status="ready-for-dev">
+          <provides>EKS cluster with staging namespace, RBAC for CI/CD</provides>
+        </story>
+        <story id="0-6-container-registry" status="ready-for-dev">
+          <provides>ECR repositories with tagged images</provides>
+        </story>
+        <story id="0-8-github-actions-workflow-setup" status="ready-for-dev">
+          <provides>GitHub Actions infrastructure, environments, secrets</provides>
+        </story>
+        <story id="0-9-docker-build-automation" status="ready-for-dev">
+          <provides>Docker images with Git SHA tags</provides>
+        </story>
+        <story id="0-13-load-balancer-ingress-configuration" status="backlog">
+          <provides>Ingress controller, SSL termination (can deploy without initially)</provides>
+        </story>
+      </prerequisites>
+      <expectedStructure>
+        <file path=".github/workflows/deploy-staging.yml" purpose="Staging deployment workflow" />
+        <folder path="kubernetes/staging" purpose="Staging Kubernetes manifests" />
+        <file path="kubernetes/staging/deployment.yaml" purpose="API and Web deployments" />
+        <file path="kubernetes/staging/service.yaml" purpose="Kubernetes services" />
+        <file path="kubernetes/staging/ingress.yaml" purpose="Ingress configuration" />
+        <file path="kubernetes/staging/resource-quota.yaml" purpose="Namespace quotas" />
+        <file path="api/src/health.ts" purpose="Health check endpoints" />
+        <file path="CONTRIBUTING.md" purpose="Updated with deployment documentation" />
+      </expectedStructure>
+      <outputs description="Staging deployment infrastructure">
+        <output name="deploy-staging.yml" consumers="GitHub Actions, DevOps team" />
+        <output name="staging namespace" consumers="Story 0.12 (production patterns)" />
+        <output name="health endpoints" consumers="Kubernetes probes, monitoring" />
+      </outputs>
+      <workflowTemplate>
+        <![CDATA[
+name: Deploy to Staging
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name qualisys-cluster --region us-east-1
+
+      - name: Deploy API to staging
+        run: |
+          kubectl set image deployment/qualisys-api \
+            qualisys-api=${{ secrets.ECR_REGISTRY }}/qualisys-api:${{ github.sha }} \
+            -n staging
+          kubectl rollout status deployment/qualisys-api -n staging --timeout=120s
+
+      - name: Deploy Web to staging
+        run: |
+          kubectl set image deployment/qualisys-web \
+            qualisys-web=${{ secrets.ECR_REGISTRY }}/qualisys-web:${{ github.sha }} \
+            -n staging
+          kubectl rollout status deployment/qualisys-web -n staging --timeout=120s
+
+      - name: Notify Slack
+        if: always()
+        uses: slackapi/slack-github-action@v1
+        with:
+          channel-id: ${{ secrets.SLACK_DEPLOY_CHANNEL }}
+          slack-message: |
+            ${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *Staging Deployment ${{ job.status }}*
+            • Commit: `${{ github.sha }}`
+            • URL: https://staging.qualisys.dev
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        ]]>
+      </workflowTemplate>
+      <deploymentTemplate>
+        <![CDATA[
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qualisys-api
+  namespace: staging
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: qualisys-api
+  template:
+    spec:
+      containers:
+        - name: qualisys-api
+          image: ${ECR_REGISTRY}/qualisys-api:${GIT_SHA}
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+        ]]>
+      </deploymentTemplate>
+      <healthCheckTemplate>
+        <![CDATA[
+// /health - liveness probe
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// /ready - readiness probe
+app.get('/ready', async (req, res) => {
+  try {
+    await db.query('SELECT 1');
+    await redis.ping();
+    res.status(200).json({ status: 'ready' });
+  } catch (error) {
+    res.status(503).json({ status: 'not ready', error: error.message });
+  }
+});
+        ]]>
+      </healthCheckTemplate>
+      <ingressTemplate>
+        <![CDATA[
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: staging-ingress
+  namespace: staging
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  tls:
+    - hosts:
+        - staging.qualisys.dev
+      secretName: staging-tls
+  rules:
+    - host: staging.qualisys.dev
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: qualisys-api
+                port:
+                  number: 3000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: qualisys-web
+                port:
+                  number: 3000
+        ]]>
+      </ingressTemplate>
+    </code>
+
+    <dependencies>
+      <githubActions>
+        <action name="actions/checkout" version="v4" purpose="Clone repository" />
+        <action name="aws-actions/configure-aws-credentials" version="v4" purpose="OIDC AWS auth" />
+        <action name="aws-actions/amazon-ecr-login" version="v2" purpose="ECR authentication" />
+        <action name="slackapi/slack-github-action" version="v1" purpose="Slack notifications" />
+      </githubActions>
+      <kubernetes>
+        <resource name="Deployment" purpose="API and Web workloads" />
+        <resource name="Service" purpose="Internal networking" />
+        <resource name="Ingress" purpose="External traffic routing" />
+        <resource name="ResourceQuota" purpose="Namespace limits" />
+      </kubernetes>
+      <secrets>
+        <secret name="AWS_STAGING_ROLE_ARN" purpose="OIDC role for AWS access" />
+        <secret name="ECR_REGISTRY" purpose="ECR registry URL" />
+        <secret name="SLACK_BOT_TOKEN" purpose="Slack API authentication" />
+        <secret name="SLACK_DEPLOY_CHANNEL" purpose="Deployment notifications channel" />
+      </secrets>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="Performance" critical="true">Deployment time must be less than 2 minutes from merge to running</constraint>
+    <constraint source="Availability" critical="true">Zero-downtime: maxUnavailable=0 during rolling update</constraint>
+    <constraint source="Reliability">Automatic rollback on failed health checks</constraint>
+    <constraint source="Security">OIDC federation for AWS access (no long-lived credentials)</constraint>
+    <constraint source="Security">HTTPS enforced with SSL redirect</constraint>
+    <constraint source="Cost">Resource quotas prevent runaway staging usage</constraint>
+    <constraint source="Dependency">Stories 0.3, 0.6, 0.8, 0.9 must be complete for full functionality</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>GitHub Actions Workflow Trigger</name>
+      <kind>GitHub Events</kind>
+      <signature>on: push: branches: [main]</signature>
+      <path>.github/workflows/deploy-staging.yml</path>
+    </interface>
+    <interface>
+      <name>AWS OIDC Federation</name>
+      <kind>IAM / STS</kind>
+      <signature>aws-actions/configure-aws-credentials with role-to-assume</signature>
+      <path>.github/workflows/deploy-staging.yml</path>
+    </interface>
+    <interface>
+      <name>kubectl Deployment API</name>
+      <kind>Kubernetes API</kind>
+      <signature>kubectl set image deployment/{name} {container}={image} -n staging</signature>
+      <path>.github/workflows/deploy-staging.yml</path>
+    </interface>
+    <interface>
+      <name>Kubernetes Health Probes</name>
+      <kind>HTTP endpoints</kind>
+      <signature>GET /health (liveness), GET /ready (readiness)</signature>
+      <path>api/src/health.ts</path>
+    </interface>
+    <interface>
+      <name>Slack Webhook API</name>
+      <kind>REST API</kind>
+      <signature>POST notification with deployment status, commit SHA, URL</signature>
+      <path>.github/workflows/deploy-staging.yml</path>
+    </interface>
+    <interface>
+      <name>Ingress Controller</name>
+      <kind>Kubernetes Ingress</kind>
+      <signature>staging.qualisys.dev routes to qualisys-api and qualisys-web services</signature>
+      <path>kubernetes/staging/ingress.yaml</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Staging deployment testing validates workflow execution, zero-downtime updates, health checks, rollback behavior, and notifications. DevOps Lead verifies deployment patterns. Integration test deploys sample change and monitors availability.
+    </standards>
+    <locations>
+      <location>GitHub Actions tab for workflow execution logs</location>
+      <location>kubectl commands for deployment verification</location>
+      <location>Slack channel for notification verification</location>
+      <location>Browser for staging URL accessibility</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Merge PR to main, verify deploy-staging workflow triggers within 30 seconds</idea>
+      <idea ac="2">kubectl get deployment -n staging shows new image tag after deployment</idea>
+      <idea ac="3">During deployment, curl staging.qualisys.dev continues responding (zero-downtime)</idea>
+      <idea ac="4">kubectl describe deployment shows healthy readiness and liveness probes</idea>
+      <idea ac="5">Deploy with failing /ready endpoint, verify automatic rollback to previous version</idea>
+      <idea ac="6">Check Slack channel for deployment notification with commit SHA and URL</idea>
+      <idea ac="7">Browser navigates to https://staging.qualisys.dev, sees application</idea>
+      <idea ac="8">GitHub Actions summary shows workflow completed in less than 2 minutes</idea>
+      <idea ac="9">kubectl describe pod shows image from ECR with Git SHA tag</idea>
+      <idea ac="10">kubectl describe resourcequota -n staging shows configured limits</idea>
+      <idea ac="rollback">kubectl rollout undo successfully reverts to previous deployment</idea>
+      <idea ac="ssl">curl -I staging.qualisys.dev shows HTTPS redirect and valid certificate</idea>
+      <idea ac="concurrent">Two merges in quick succession both deploy successfully</idea>
+    </ideas>
+  </tests>
+</story-context>

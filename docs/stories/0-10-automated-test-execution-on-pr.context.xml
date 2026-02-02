@@ -1,0 +1,326 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>0</epicId>
+    <storyId>10</storyId>
+    <title>Automated Test Execution on PR</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-01-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/0-10-automated-test-execution-on-pr.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Developer</asA>
+    <iWant>tests to run automatically on every PR with coverage reporting</iWant>
+    <soThat>we catch bugs before merging to main and maintain code quality standards</soThat>
+    <tasks>
+      <task id="1" name="Test Framework Configuration" acs="1,5">
+        <subtask>1.1-1.5 Configure Jest/Vitest, integration tests, Playwright, parallel execution</subtask>
+      </task>
+      <task id="2" name="Unit Test Job" acs="1,3,5,9">
+        <subtask>2.1-2.5 Add unit-tests job with matrix, coverage, artifacts</subtask>
+      </task>
+      <task id="3" name="Integration Test Job" acs="1,5,10">
+        <subtask>3.1-3.5 Add integration-tests job with PostgreSQL service container</subtask>
+      </task>
+      <task id="4" name="E2E Test Job" acs="1,5">
+        <subtask>4.1-4.5 Add e2e-tests job with Playwright, critical paths only</subtask>
+      </task>
+      <task id="5" name="PR Comment and Reporting" acs="2,6,8">
+        <subtask>5.1-5.5 Configure test reporter, PR comments, Codecov integration</subtask>
+      </task>
+      <task id="6" name="Flaky Test Handling" acs="7">
+        <subtask>6.1-6.5 Configure retry logic for Jest, Playwright, integration tests</subtask>
+      </task>
+      <task id="7" name="Branch Protection &amp; Validation" acs="4,all">
+        <subtask>7.1-7.5 Configure branch protection, require status checks, document</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">PR checks workflow runs all test suites: unit, integration, E2E subset</ac>
+    <ac id="2">Test results posted as PR comment with pass/fail status</ac>
+    <ac id="3">Coverage report shows line coverage percentage (target: 80%)</ac>
+    <ac id="4">PR cannot merge if tests fail (branch protection rule)</ac>
+    <ac id="5">Test execution time less than 10 minutes total (parallelized)</ac>
+    <ac id="6">Failed tests show clear error messages and stack traces</ac>
+    <ac id="7">Flaky test detection: retry failed tests 3x before marking failed</ac>
+    <ac id="8">Coverage report uploaded to Codecov or similar service</ac>
+    <ac id="9">Test matrix includes multiple Node.js/Python versions</ac>
+    <ac id="10">Integration tests use test database from Story 0.14</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>CI/CD Pipeline Sequence</section>
+        <snippet>PR checks workflow runs: lint, format, type-check, unit tests, integration tests. Coverage report shows 80%+. PR comment posted with results.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Test Infrastructure</section>
+        <snippet>Test execution time less than 10 minutes. Parallelize tests using Jest --maxWorkers or pytest-xdist. Flaky test detection with retry 3x.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-0-infrastructure.md</path>
+        <title>Epic 0: Infrastructure Foundation</title>
+        <section>Story 0.10</section>
+        <snippet>Automated Test Execution on PR with unit tests, integration tests, E2E subset. Coverage target 80%. Branch protection requires tests pass.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Testing Strategy</section>
+        <snippet>Test pyramid: unit tests (80% coverage), integration tests (API, database), E2E tests (critical paths). Shift-left testing with PR quality gates.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-8-github-actions-workflow-setup.md</path>
+        <title>Story 0.8: GitHub Actions Workflow Setup</title>
+        <section>PR Checks Workflow</section>
+        <snippet>Prerequisite: pr-checks.yml workflow structure with jobs for lint, test. This story adds test job configurations.</snippet>
+      </doc>
+      <doc>
+        <path>docs/test-design-system.md</path>
+        <title>Test Design System</title>
+        <section>Test Strategy</section>
+        <snippet>2,080 total tests planned. Unit tests for business logic, integration tests for API, E2E tests for user journeys.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <note>Test infrastructure - Story 0.8 provides workflow foundation, Story 0.14 provides test database.</note>
+      <prerequisites>
+        <story id="0-8-github-actions-workflow-setup" status="ready-for-dev">
+          <provides>pr-checks.yml workflow, reusable-test.yml</provides>
+        </story>
+        <story id="0-14-test-database-provisioning" status="backlog">
+          <provides>Test database for integration tests (can use service container initially)</provides>
+        </story>
+      </prerequisites>
+      <expectedStructure>
+        <folder path="api/__tests__/unit" purpose="API unit tests" />
+        <folder path="api/__tests__/integration" purpose="API integration tests" />
+        <folder path="web/__tests__/unit" purpose="Web component tests" />
+        <folder path="e2e/tests/critical" purpose="Critical path E2E tests" />
+        <folder path="e2e/tests/full" purpose="Full E2E suite (nightly)" />
+        <file path="jest.config.js" purpose="Jest configuration with coverage" />
+        <file path="playwright.config.ts" purpose="Playwright configuration" />
+        <file path=".github/workflows/pr-checks.yml" purpose="Updated with test jobs" />
+        <file path="CONTRIBUTING.md" purpose="Testing workflow documentation" />
+      </expectedStructure>
+      <outputs description="Test infrastructure for quality gates">
+        <output name="test-results.xml" consumers="PR comment, test dashboard" />
+        <output name="coverage/lcov.info" consumers="Codecov, coverage badge" />
+        <output name="playwright-report/" consumers="Artifact storage, debugging" />
+      </outputs>
+      <testJobTemplates>
+        <template name="unit-tests-job">
+          <![CDATA[
+unit-tests:
+  runs-on: ubuntu-latest
+  strategy:
+    matrix:
+      node-version: [18, 20]
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    - run: npm ci
+    - run: npm test -- --coverage --maxWorkers=4
+    - uses: codecov/codecov-action@v3
+      with:
+        files: ./coverage/lcov.info
+          ]]>
+        </template>
+        <template name="integration-tests-job">
+          <![CDATA[
+integration-tests:
+  runs-on: ubuntu-latest
+  services:
+    postgres:
+      image: postgres:15
+      env:
+        POSTGRES_DB: qualisys_test
+        POSTGRES_USER: test_user
+        POSTGRES_PASSWORD: test_password
+      options: >-
+        --health-cmd pg_isready
+        --health-interval 10s
+        --health-timeout 5s
+        --health-retries 5
+      ports:
+        - 5432:5432
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+    - run: npm ci
+    - run: npm run db:migrate:test
+    - run: npm run test:integration
+          ]]>
+        </template>
+        <template name="e2e-tests-job">
+          <![CDATA[
+e2e-tests:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+    - run: npm ci
+    - run: npx playwright install --with-deps chromium
+    - run: npm run test:e2e:critical
+      timeout-minutes: 5
+    - uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: playwright-report
+        path: playwright-report/
+        retention-days: 7
+          ]]>
+        </template>
+      </testJobTemplates>
+      <jestConfig>
+        <![CDATA[
+module.exports = {
+  collectCoverage: true,
+  coverageThreshold: {
+    global: {
+      branches: 70,
+      functions: 80,
+      lines: 80,
+      statements: 80
+    }
+  },
+  coverageReporters: ['text', 'lcov', 'cobertura'],
+  coveragePathIgnorePatterns: ['/node_modules/', '/__tests__/', '/dist/'],
+  testMatch: ['**/__tests__/**/*.test.[jt]s?(x)'],
+  maxWorkers: '50%',
+  retryTimes: process.env.CI ? 3 : 0
+};
+        ]]>
+      </jestConfig>
+      <playwrightConfig>
+        <![CDATA[
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './e2e/tests',
+  timeout: 30000,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 2 : undefined,
+  reporter: [
+    ['html'],
+    ['junit', { outputFile: 'results.xml' }]
+  ],
+  use: {
+    headless: true,
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure'
+  }
+});
+        ]]>
+      </playwrightConfig>
+    </code>
+
+    <dependencies>
+      <npm>
+        <package name="jest" version="^29.0.0" purpose="Unit test framework" />
+        <package name="@playwright/test" version="^1.40.0" purpose="E2E test framework" />
+        <package name="supertest" version="^6.0.0" purpose="API integration testing" />
+        <package name="@types/jest" version="^29.0.0" purpose="Jest TypeScript types" dev="true" />
+      </npm>
+      <githubActions>
+        <action name="actions/checkout" version="v4" purpose="Clone repository" />
+        <action name="actions/setup-node" version="v4" purpose="Node.js setup with caching" />
+        <action name="codecov/codecov-action" version="v3" purpose="Coverage upload" />
+        <action name="dorny/test-reporter" version="v1" purpose="PR test comments" />
+        <action name="actions/upload-artifact" version="v3" purpose="Test artifact storage" />
+      </githubActions>
+      <services>
+        <service name="postgres:15" purpose="Integration test database" />
+      </services>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="Performance" critical="true">Total test execution must be less than 10 minutes</constraint>
+    <constraint source="Quality">Unit test coverage must be at least 80%</constraint>
+    <constraint source="Quality">All tests must pass before PR can merge (branch protection)</constraint>
+    <constraint source="Reliability">Flaky tests retry 3 times before marking as failed</constraint>
+    <constraint source="Scope">E2E tests on PR limited to critical paths only (5-10 tests)</constraint>
+    <constraint source="Security">Test database isolated from production data</constraint>
+    <constraint source="Dependency">Story 0.8 (GitHub Actions) must be complete for workflow</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>Jest Test Runner</name>
+      <kind>CLI / Node.js</kind>
+      <signature>npm test -- --coverage --maxWorkers=4</signature>
+      <path>jest.config.js</path>
+    </interface>
+    <interface>
+      <name>Playwright Test Runner</name>
+      <kind>CLI / Node.js</kind>
+      <signature>npx playwright test --project=chromium</signature>
+      <path>playwright.config.ts</path>
+    </interface>
+    <interface>
+      <name>Codecov API</name>
+      <kind>REST API (via GitHub Action)</kind>
+      <signature>Upload lcov.info to Codecov for coverage tracking</signature>
+      <path>.github/workflows/pr-checks.yml</path>
+    </interface>
+    <interface>
+      <name>GitHub Branch Protection API</name>
+      <kind>REST API / GitHub UI</kind>
+      <signature>Require status checks: unit-tests, integration-tests, e2e-tests</signature>
+      <path>Repository settings</path>
+    </interface>
+    <interface>
+      <name>GitHub PR Comments API</name>
+      <kind>REST API (via dorny/test-reporter)</kind>
+      <signature>Post test summary as PR comment</signature>
+      <path>.github/workflows/pr-checks.yml</path>
+    </interface>
+    <interface>
+      <name>PostgreSQL Service Container</name>
+      <kind>Docker container in GitHub Actions</kind>
+      <signature>postgres:15 with health checks</signature>
+      <path>.github/workflows/pr-checks.yml</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Test infrastructure testing validates workflow execution, coverage reporting, and branch protection. Create test PRs to verify all components work together. DevOps Lead and QA Lead validate configuration.
+    </standards>
+    <locations>
+      <location>GitHub Actions tab for workflow execution</location>
+      <location>PR comments for test results</location>
+      <location>Codecov dashboard for coverage tracking</location>
+      <location>Repository settings for branch protection</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Create PR, verify unit-tests, integration-tests, e2e-tests jobs all execute</idea>
+      <idea ac="2">Check PR conversation for test summary comment with pass/fail counts</idea>
+      <idea ac="3">Codecov dashboard shows coverage percentage, badge in README works</idea>
+      <idea ac="4">Create PR with failing test, verify merge button disabled</idea>
+      <idea ac="5">GitHub Actions summary shows total time less than 10 minutes</idea>
+      <idea ac="6">Intentionally fail a test, verify stack trace in PR comment</idea>
+      <idea ac="7">Create flaky test (random fail), verify it retries and eventually passes or fails after 3 attempts</idea>
+      <idea ac="8">Check Codecov dashboard shows coverage history for repository</idea>
+      <idea ac="9">Workflow logs show matrix jobs for Node.js 18 and 20</idea>
+      <idea ac="10">Integration tests connect to postgres service container, migrations run</idea>
+      <idea ac="parallel">Compare serial vs parallel test execution time, verify improvement</idea>
+      <idea ac="artifacts">Download playwright-report artifact on failure, verify screenshots exist</idea>
+      <idea ac="protection">As non-admin, verify cannot merge without required checks passing</idea>
+      <idea ac="coverage-fail">Set coverage threshold to 99%, verify build fails when not met</idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -1,0 +1,101 @@
+# AWS Load Balancer Controller Helm Values
+# Story: 0-3 Kubernetes Cluster Provisioning
+# AC: 8 - Ingress controller installed (AWS Load Balancer Controller)
+# Tasks: 8.1, 8.2, 8.3
+#
+# Chart: eks/aws-load-balancer-controller (~> 1.6)
+# Repo: https://aws.github.io/eks-charts
+#
+# Install command:
+#   helm repo add eks https://aws.github.io/eks-charts
+#   helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+#     -n kube-system \
+#     -f values.yaml
+
+clusterName: qualisys-eks
+
+# Task 8.2 - Service account with IRSA
+serviceAccount:
+  create: true
+  name: aws-load-balancer-controller
+  annotations:
+    # Replace with actual role ARN from Terraform output
+    eks.amazonaws.com/role-arn: "arn:aws:iam::<ACCOUNT_ID>:role/qualisys-alb-controller"
+
+# Task 8.3 - Configure default IngressClass
+createIngressClassResource: true
+ingressClass: alb
+
+# High availability - 2 replicas
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+# VPC configuration
+vpcId: ""  # Auto-detected from instance metadata
+
+# Region
+region: us-east-1
+
+# Enable pod readiness gates for ALB target groups
+enablePodReadinessGateInject: true
+
+# Enable shield (if available)
+enableShield: false
+
+# Enable WAF (if available)
+enableWaf: false
+enableWafv2: false
+
+# Pod disruption budget
+podDisruptionBudget:
+  maxUnavailable: 1
+
+# Run on general nodes
+nodeSelector:
+  node-type: general
+
+# Tolerations (none needed - runs on general nodes)
+tolerations: []
+
+# Anti-affinity for HA
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: aws-load-balancer-controller
+          topologyKey: kubernetes.io/hostname
+
+# =============================================================================
+# Ingress Annotations Reference (Task 8.5)
+# =============================================================================
+# Common annotations for Ingress resources:
+#
+# SSL termination:
+#   alb.ingress.kubernetes.io/scheme: internet-facing
+#   alb.ingress.kubernetes.io/certificate-arn: <ACM_CERT_ARN>
+#   alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+#   alb.ingress.kubernetes.io/ssl-redirect: "443"
+#
+# Target type (IP mode for EKS):
+#   alb.ingress.kubernetes.io/target-type: ip
+#
+# Health checks:
+#   alb.ingress.kubernetes.io/healthcheck-path: /health
+#   alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
+#   alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
+#
+# Subnets (auto-discovered via tags or explicit):
+#   alb.ingress.kubernetes.io/subnets: <PUBLIC_SUBNET_IDS>
+#
+# Security groups:
+#   alb.ingress.kubernetes.io/security-groups: <ALB_SG_ID>

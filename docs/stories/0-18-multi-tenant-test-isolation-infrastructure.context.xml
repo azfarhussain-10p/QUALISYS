@@ -1,0 +1,200 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>0</epicId>
+    <storyId>18</storyId>
+    <title>Multi-Tenant Test Isolation Infrastructure</title>
+    <status>drafted</status>
+    <generatedAt>2026-01-24</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/0-18-multi-tenant-test-isolation-infrastructure.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>QA Engineer</asA>
+    <iWant>multi-tenant test isolation mechanisms</iWant>
+    <soThat>tests don't leak data across tenant boundaries</soThat>
+    <tasks>
+      <task id="1" name="Tenant Provisioning Utilities" acs="1,9,10">
+        <subtask>1.1 Create createTestTenant(tenantId?) utility function</subtask>
+        <subtask>1.2 Implement schema creation with all required tables</subtask>
+        <subtask>1.3 Apply RLS policies to tenant schema</subtask>
+        <subtask>1.4 Create seed data insertion for test tenant</subtask>
+        <subtask>1.5 Optimize provisioning for less than 5 second completion</subtask>
+        <subtask>1.6 Document utility usage in README</subtask>
+      </task>
+      <task id="2" name="Tenant Cleanup Utilities" acs="2">
+        <subtask>2.1 Create cleanupTestTenant(tenantId) utility function</subtask>
+        <subtask>2.2 Implement cascading delete of all tenant data</subtask>
+        <subtask>2.3 Drop tenant schema completely after tests</subtask>
+        <subtask>2.4 Implement transaction rollback strategy for faster cleanup</subtask>
+        <subtask>2.5 Add cleanup verification (confirm schema removed)</subtask>
+      </task>
+      <task id="3" name="Tenant Context Management" acs="3,7">
+        <subtask>3.1 Create TenantContext class/module</subtask>
+        <subtask>3.2 Implement setCurrentTenant(tenantId) database session config</subtask>
+        <subtask>3.3 Create Jest beforeEach/afterEach hooks for tenant setup/teardown</subtask>
+        <subtask>3.4 Create pytest fixtures for tenant context management</subtask>
+        <subtask>3.5 Add tenant context validation (reject operations without context)</subtask>
+        <subtask>3.6 Implement tenant isolation decorator for test functions</subtask>
+      </task>
+      <task id="4" name="RLS Isolation Verification Tests" acs="4,5,6">
+        <subtask>4.1 Create test: Tenant A SELECT on Tenant B data returns empty</subtask>
+        <subtask>4.2 Create test: Tenant A UPDATE on Tenant B data fails</subtask>
+        <subtask>4.3 Create test: Tenant A DELETE on Tenant B data fails</subtask>
+        <subtask>4.4 Create test: RLS bypass attempt fails with permission denied</subtask>
+        <subtask>4.5 Create test: Direct schema access without context blocked</subtask>
+        <subtask>4.6 Run isolation tests on STAGING database (not just test DB)</subtask>
+      </task>
+      <task id="5" name="Parallel Test Execution Support" acs="8">
+        <subtask>5.1 Implement unique tenant ID generation (UUID per test worker)</subtask>
+        <subtask>5.2 Configure Jest workers with isolated tenant schemas</subtask>
+        <subtask>5.3 Configure pytest-xdist with isolated tenant schemas</subtask>
+        <subtask>5.4 Create conflict detection test (5 parallel suites)</subtask>
+        <subtask>5.5 Document parallel test configuration</subtask>
+      </task>
+      <task id="6" name="Testing and Validation" acs="all">
+        <subtask>6.1 Run full isolation test suite</subtask>
+        <subtask>6.2 Verify tests pass in CI/CD pipeline</subtask>
+        <subtask>6.3 Performance test provisioning time</subtask>
+        <subtask>6.4 Verify parallel test isolation</subtask>
+        <subtask>6.5 Sign-off from QA Lead on isolation mechanisms</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">Test tenant provisioning script creates isolated tenant schemas</criterion>
+    <criterion id="AC2">Test cleanup hooks delete tenant data after test completion</criterion>
+    <criterion id="AC3">Tenant context management library enforces tenant scope in tests</criterion>
+    <criterion id="AC4">Isolation verification test: Tenant A cannot query Tenant B data</criterion>
+    <criterion id="AC5">Isolation verification test: Tenant A cannot modify Tenant B data</criterion>
+    <criterion id="AC6">RLS policies block cross-tenant access (SET LOCAL row_security = off fails)</criterion>
+    <criterion id="AC7">Test framework configured to run tests in isolated tenant contexts</criterion>
+    <criterion id="AC8">Parallel test execution uses separate tenant schemas (no conflicts)</criterion>
+    <criterion id="AC9">Tenant provisioning completes in less than 5 seconds</criterion>
+    <criterion id="AC10">Test utilities documented with usage examples</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Security Threat Model - RLS Bypass Prevention</section>
+        <snippet>Story 0.18 AC8: RLS bypass test (SET LOCAL fails). Isolation verification tests pass on STAGING database.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-0-infrastructure.md</path>
+        <title>Epic 0: Infrastructure Foundation</title>
+        <section>Story 0.18: Multi-Tenant Test Isolation</section>
+        <snippet>Test tenant provisioning, cleanup hooks, tenant context management, isolation verification tests, parallel test support.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Multi-Tenant Architecture</section>
+        <snippet>Schema-per-tenant design with RLS defense-in-depth. PostgreSQL 15+ with Row-Level Security policies enforcing tenant isolation.</snippet>
+      </doc>
+      <doc>
+        <path>docs/test-design-system.md</path>
+        <title>Test Design System</title>
+        <section>Tenant Isolation Testing</section>
+        <snippet>2,080 tests require tenant isolation. Integration tests must verify cross-tenant data access is blocked.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>docs/stories/0-14-test-database-provisioning.md</path>
+        <kind>story</kind>
+        <symbol>Test Database Setup</symbol>
+        <reason>Dependency: Test database with RLS enabled required for isolation tests</reason>
+      </file>
+      <file>
+        <path>docs/stories/0-15-test-data-factories-seeding.md</path>
+        <kind>story</kind>
+        <symbol>Test Data Factories</symbol>
+        <reason>Dependency: Seed data for isolation tests</reason>
+      </file>
+      <file>
+        <path>docs/stories/0-4-postgresql-multi-tenant-database.md</path>
+        <kind>story</kind>
+        <symbol>PostgreSQL Multi-Tenant Database</symbol>
+        <reason>Dependency: RLS policies and tenant schemas foundation</reason>
+      </file>
+    </code>
+    <dependencies>
+      <node>
+        <package name="pg" version="^8.11.0">PostgreSQL client for Node.js</package>
+        <package name="uuid" version="^9.0.0">UUID generation for tenant IDs</package>
+        <package name="jest" version="^29.0.0">Test framework</package>
+      </node>
+      <python>
+        <package name="asyncpg" version="^0.29.0">Async PostgreSQL client</package>
+        <package name="pytest" version="^8.0.0">Test framework</package>
+        <package name="pytest-asyncio" version="^0.23.0">Async test support</package>
+        <package name="pytest-xdist" version="^3.5.0">Parallel test execution</package>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="database">PostgreSQL 15+ with Row-Level Security enabled</constraint>
+    <constraint type="isolation">Schema-per-tenant strategy (not just WHERE tenant_id filtering)</constraint>
+    <constraint type="security">app_user role must have NO SUPERUSER and NO BYPASSRLS privileges</constraint>
+    <constraint type="performance">Tenant provisioning must complete in less than 5 seconds</constraint>
+    <constraint type="testing">Each test worker gets unique tenant schema for parallel execution</constraint>
+    <constraint type="cleanup">Tenant schemas must be dropped after test completion</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>createTestTenant</name>
+      <kind>function</kind>
+      <signature>createTestTenant(pool: Pool, tenantId?: string): Promise&lt;TestTenant&gt;</signature>
+      <path>src/test-utils/tenant-isolation.ts</path>
+    </interface>
+    <interface>
+      <name>cleanupTestTenant</name>
+      <kind>function</kind>
+      <signature>cleanupTestTenant(pool: Pool, tenantId: string): Promise&lt;void&gt;</signature>
+      <path>src/test-utils/tenant-isolation.ts</path>
+    </interface>
+    <interface>
+      <name>setTenantContext</name>
+      <kind>function</kind>
+      <signature>setTenantContext(client: PoolClient, tenantId: string): Promise&lt;void&gt;</signature>
+      <path>src/test-utils/tenant-isolation.ts</path>
+    </interface>
+    <interface>
+      <name>TestTenant</name>
+      <kind>interface</kind>
+      <signature>interface TestTenant { tenantId: string; schemaName: string; cleanup: () => Promise&lt;void&gt;; }</signature>
+      <path>src/test-utils/tenant-isolation.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Tests use Jest for TypeScript and pytest for Python. Integration tests require test database connection.
+      Tenant isolation tests must run with real database (not mocks). Each test gets isolated tenant schema
+      created in beforeEach and cleaned up in afterEach. Parallel tests use UUID-based tenant IDs to prevent conflicts.
+    </standards>
+    <locations>
+      <location>tests/integration/tenant-isolation.test.ts</location>
+      <location>tests/conftest.py</location>
+      <location>src/test-utils/*.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="AC1">Test that createTestTenant creates schema with all expected tables</idea>
+      <idea ac="AC2">Test that cleanup removes schema and all data</idea>
+      <idea ac="AC3">Test that operations without tenant context are rejected</idea>
+      <idea ac="AC4">Test cross-tenant SELECT returns empty result set</idea>
+      <idea ac="AC5">Test cross-tenant UPDATE/DELETE affects 0 rows</idea>
+      <idea ac="AC6">Test SET LOCAL row_security = off throws permission denied</idea>
+      <idea ac="AC7">Test Jest/pytest fixtures properly set tenant context</idea>
+      <idea ac="AC8">Test 5 parallel test suites with no data conflicts</idea>
+      <idea ac="AC9">Benchmark tenant provisioning time is under 5 seconds</idea>
+      <idea ac="AC10">Verify README documents all test utilities</idea>
+    </ideas>
+  </tests>
+</story-context>

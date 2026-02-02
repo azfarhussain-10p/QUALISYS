@@ -1,0 +1,225 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>0</epicId>
+    <storyId>1</storyId>
+    <title>Cloud Account &amp; IAM Setup</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-01-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/0-1-cloud-account-iam-setup.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>DevOps Engineer</asA>
+    <iWant>set up the AWS cloud account with proper IAM policies and infrastructure state management</iWant>
+    <soThat>we have secure, least-privilege access for all services and can safely manage infrastructure as code</soThat>
+    <tasks>
+      <task id="1" name="AWS Account Setup" acs="1">
+        <subtask>1.1 Confirm existing AWS organization account OR create new account</subtask>
+        <subtask>1.2 Enable AWS Organizations if using multiple accounts</subtask>
+        <subtask>1.3 Configure account alias for easier identification</subtask>
+        <subtask>1.4 Enable AWS Cost Explorer for cost visibility</subtask>
+      </task>
+      <task id="2" name="IAM Roles &amp; Policies" acs="2,3,5">
+        <subtask>2.1 Create QualisysDevOpsAdmin role with admin access</subtask>
+        <subtask>2.2 Create QualisysDeveloper role with deploy permissions</subtask>
+        <subtask>2.3 Create QualisysCICD role with staging-only deploy</subtask>
+        <subtask>2.4 Create service account for EKS cluster management</subtask>
+        <subtask>2.5 Create service account for RDS administration</subtask>
+        <subtask>2.6 Create service account for ElastiCache management</subtask>
+        <subtask>2.7 Create service account for ECR image push/pull</subtask>
+        <subtask>2.8 Document all IAM policies in infrastructure README</subtask>
+      </task>
+      <task id="3" name="MFA Enforcement" acs="4">
+        <subtask>3.1 Enable MFA requirement in IAM account settings</subtask>
+        <subtask>3.2 Create IAM policy denying actions without MFA</subtask>
+        <subtask>3.3 Apply MFA policy to all human user roles</subtask>
+        <subtask>3.4 Verify login fails without MFA token</subtask>
+      </task>
+      <task id="4" name="Credential Management" acs="6">
+        <subtask>4.1 Create 1Password vault for QUALISYS infrastructure</subtask>
+        <subtask>4.2 Store AWS access keys in 1Password (never in Git)</subtask>
+        <subtask>4.3 Update .gitignore with credential patterns</subtask>
+        <subtask>4.4 Audit git history for any committed credentials</subtask>
+      </task>
+      <task id="5" name="Terraform State Backend" acs="7">
+        <subtask>5.1 Create S3 bucket qualisys-terraform-state with versioning</subtask>
+        <subtask>5.2 Enable server-side encryption (AES-256) on S3 bucket</subtask>
+        <subtask>5.3 Create DynamoDB table terraform-state-lock</subtask>
+        <subtask>5.4 Configure bucket policy restricting access to DevOps role</subtask>
+        <subtask>5.5 Create backend.tf configuration file</subtask>
+        <subtask>5.6 Run terraform init to verify backend connectivity</subtask>
+      </task>
+      <task id="6" name="Cost Monitoring &amp; Alerts" acs="8,10">
+        <subtask>6.1 Create AWS Budget with $500 threshold</subtask>
+        <subtask>6.2 Create AWS Budget with $1000 threshold</subtask>
+        <subtask>6.3 Create AWS Budget with $2000 threshold</subtask>
+        <subtask>6.4 Configure budget anomaly detection at 150% forecast</subtask>
+        <subtask>6.5 Set up SNS topic for budget alerts</subtask>
+      </task>
+      <task id="7" name="Audit Logging" acs="9">
+        <subtask>7.1 Create S3 bucket qualisys-cloudtrail-logs</subtask>
+        <subtask>7.2 Enable CloudTrail for all regions</subtask>
+        <subtask>7.3 Configure 90-day log retention lifecycle policy</subtask>
+        <subtask>7.4 Verify trail is logging</subtask>
+      </task>
+      <task id="8" name="Validation &amp; Documentation" acs="all">
+        <subtask>8.1 Run acceptance test: Login with each role</subtask>
+        <subtask>8.2 Run acceptance test: Attempt MFA bypass</subtask>
+        <subtask>8.3 Run acceptance test: terraform init with backend</subtask>
+        <subtask>8.4 Update infrastructure README</subtask>
+        <subtask>8.5 Create troubleshooting guide</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">AWS account configured (existing org account or new account created)</ac>
+    <ac id="2">IAM roles created: DevOps (admin), Developer (deploy), CI/CD (staging only)</ac>
+    <ac id="3">Service accounts created for EKS, RDS, ElastiCache, ECR with least-privilege</ac>
+    <ac id="4">MFA enforced for all human users</ac>
+    <ac id="5">IAM policies documented in README with justification</ac>
+    <ac id="6">Access keys/credentials stored in 1Password (NOT in Git)</ac>
+    <ac id="7">Terraform remote state backend: S3 + DynamoDB locking</ac>
+    <ac id="8">AWS Budget alerts at $500, $1000, $2000 thresholds</ac>
+    <ac id="9">CloudTrail enabled with logs to S3, 90-day retention</ac>
+    <ac id="10">Budget anomaly detection at 150% forecast threshold</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Cloud Platform Decision</section>
+        <snippet>AWS selected via Decision Matrix (7.85/10 weighted score) based on team expertise, managed services quality, and documentation.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Security Threat Model</section>
+        <snippet>Red Team analysis identified 6 attack vectors. Story 0.1 mitigates: Stolen AWS Credentials (MFA, CloudTrail), Cost Explosion (Budget alerts), Terraform State Corruption (S3 versioning + DynamoDB locking).</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Data Models and Contracts</section>
+        <snippet>Terraform remote state backend uses S3 with versioning + DynamoDB table for state locking. Key: qualisys-terraform-state bucket, terraform-state-lock table.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Multi-Tenant Architecture</section>
+        <snippet>Schema-per-tenant PostgreSQL with RLS. IAM roles must NOT have SUPERUSER or BYPASSRLS privileges per Red Team findings.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-0-infrastructure.md</path>
+        <title>Epic 0: Infrastructure Foundation</title>
+        <section>Story 0.1</section>
+        <snippet>Cloud Account &amp; IAM Setup - foundation for all QUALISYS infrastructure. Enables Story 0.2+ which depend on IAM roles and Terraform state.</snippet>
+      </doc>
+      <doc>
+        <path>docs/planning/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>NFR-SEC1</section>
+        <snippet>Security-first approach with least-privilege IAM, MFA enforcement, and audit logging from Day 1.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <!-- Greenfield project - no existing code artifacts -->
+      <note>This is the first infrastructure story. No existing Terraform, application code, or CI/CD workflows exist yet.</note>
+      <expectedStructure>
+        <folder path="infrastructure/terraform" purpose="Terraform IaC files" />
+        <folder path="infrastructure/terraform/iam" purpose="IAM roles and policies" />
+        <folder path="infrastructure/terraform/monitoring" purpose="Budget and CloudTrail config" />
+        <file path="infrastructure/terraform/backend.tf" purpose="S3 + DynamoDB state backend" />
+        <file path="infrastructure/terraform/providers.tf" purpose="AWS provider configuration" />
+        <file path="infrastructure/terraform/variables.tf" purpose="Environment variables" />
+        <file path="infrastructure/README.md" purpose="IAM documentation" />
+        <file path=".gitignore" purpose="Credential exclusion patterns" />
+      </expectedStructure>
+    </code>
+
+    <dependencies>
+      <terraform>
+        <provider name="aws" version="~&gt; 5.0" />
+        <provider name="random" version="~&gt; 3.0" purpose="unique naming" />
+      </terraform>
+      <tools>
+        <tool name="aws-cli" version="2.x" purpose="AWS API interactions" />
+        <tool name="terraform" version="&gt;= 1.5.0" purpose="Infrastructure as Code" />
+        <tool name="1password-cli" version="2.x" purpose="Credential management" optional="true" />
+        <tool name="git-secrets" purpose="Credential scanning" optional="true" />
+      </tools>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="Red Team Analysis">Service accounts must NOT have RDS superuser or BYPASSRLS privileges</constraint>
+    <constraint source="Red Team Analysis">CI/CD role cannot read secrets, cannot exec into pods, staging namespace only</constraint>
+    <constraint source="Pre-mortem">DynamoDB locking is CRITICAL to prevent concurrent Terraform state modifications</constraint>
+    <constraint source="Architecture">All infrastructure must be defined as code (Terraform) for reproducibility</constraint>
+    <constraint source="Security">No secrets in Git - use AWS Secrets Manager or 1Password</constraint>
+    <constraint source="Security">MFA required for all human IAM users</constraint>
+    <constraint source="Cost Control">Budget alerts mandatory to prevent cost explosion</constraint>
+    <constraint source="Audit">CloudTrail logging required for compliance and incident response</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>AWS IAM API</name>
+      <kind>REST API (via Terraform aws provider)</kind>
+      <signature>aws_iam_role, aws_iam_policy, aws_iam_role_policy_attachment</signature>
+      <path>infrastructure/terraform/iam/roles.tf</path>
+    </interface>
+    <interface>
+      <name>AWS S3 API</name>
+      <kind>REST API (via Terraform aws provider)</kind>
+      <signature>aws_s3_bucket, aws_s3_bucket_versioning, aws_s3_bucket_server_side_encryption_configuration</signature>
+      <path>infrastructure/terraform/backend.tf</path>
+    </interface>
+    <interface>
+      <name>AWS DynamoDB API</name>
+      <kind>REST API (via Terraform aws provider)</kind>
+      <signature>aws_dynamodb_table (terraform-state-lock)</signature>
+      <path>infrastructure/terraform/backend.tf</path>
+    </interface>
+    <interface>
+      <name>AWS Budgets API</name>
+      <kind>REST API (via Terraform aws provider)</kind>
+      <signature>aws_budgets_budget, aws_sns_topic</signature>
+      <path>infrastructure/terraform/monitoring/budgets.tf</path>
+    </interface>
+    <interface>
+      <name>AWS CloudTrail API</name>
+      <kind>REST API (via Terraform aws provider)</kind>
+      <signature>aws_cloudtrail, aws_s3_bucket (logs)</signature>
+      <path>infrastructure/terraform/monitoring/cloudtrail.tf</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Infrastructure testing follows acceptance test verification pattern. Each AC has explicit verification command (AWS CLI or Terraform). DevOps Lead executes all verification commands manually. Integration test validates end-to-end: create test VPC → terraform plan → terraform apply → verify state in S3.
+    </standards>
+    <locations>
+      <location>Manual verification via AWS Console and CLI</location>
+      <location>Terraform plan/apply output validation</location>
+      <location>Future: infrastructure/tests/ for automated Terraform tests (terratest)</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Verify AWS Console login successful with configured account</idea>
+      <idea ac="2">Run aws iam list-roles and verify QualisysDevOpsAdmin, QualisysDeveloper, QualisysCICD exist</idea>
+      <idea ac="3">Run aws iam list-service-specific-credentials for EKS, RDS, ElastiCache, ECR</idea>
+      <idea ac="4">Attempt AWS action without MFA, verify access denied</idea>
+      <idea ac="5">Review infrastructure/README.md contains IAM policy documentation</idea>
+      <idea ac="6">Verify .gitignore contains credential patterns; run git-secrets scan</idea>
+      <idea ac="7">Run terraform init in fresh directory, verify S3 backend connects</idea>
+      <idea ac="8">Check AWS Budgets console shows 3 budget alerts configured</idea>
+      <idea ac="9">Run aws cloudtrail describe-trails, verify trail active with S3 destination</idea>
+      <idea ac="10">Check AWS Budgets shows anomaly detection enabled</idea>
+      <idea ac="integration">Create test VPC resource → terraform apply → verify state file in S3 bucket</idea>
+    </ideas>
+  </tests>
+</story-context>

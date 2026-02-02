@@ -1,0 +1,247 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>0</epicId>
+    <storyId>2</storyId>
+    <title>VPC &amp; Network Configuration</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-01-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/0-2-vpc-network-configuration.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>DevOps Engineer</asA>
+    <iWant>configure VPC with proper network segmentation</iWant>
+    <soThat>we have secure network isolation between environments and services</soThat>
+    <tasks>
+      <task id="1" name="VPC Creation" acs="1">
+        <subtask>1.1 Create VPC with CIDR 10.0.0.0/16 via Terraform</subtask>
+        <subtask>1.2 Enable DNS hostnames and DNS resolution</subtask>
+        <subtask>1.3 Tag VPC with Name: qualisys-vpc, Environment: all</subtask>
+      </task>
+      <task id="2" name="Subnet Configuration" acs="2">
+        <subtask>2.1 Create public subnets: 10.0.1.0/24 (AZ-a), 10.0.2.0/24 (AZ-b)</subtask>
+        <subtask>2.2 Create private subnets: 10.0.10.0/24 (AZ-a), 10.0.11.0/24 (AZ-b)</subtask>
+        <subtask>2.3 Create database subnets: 10.0.20.0/24 (AZ-a), 10.0.21.0/24 (AZ-b)</subtask>
+        <subtask>2.4 Tag subnets with Name, Environment, Type</subtask>
+        <subtask>2.5 Enable auto-assign public IP for public subnets only</subtask>
+      </task>
+      <task id="3" name="Internet Gateway" acs="3">
+        <subtask>3.1 Create Internet Gateway</subtask>
+        <subtask>3.2 Attach IGW to VPC</subtask>
+        <subtask>3.3 Tag IGW with Name: qualisys-igw</subtask>
+      </task>
+      <task id="4" name="NAT Gateways" acs="4">
+        <subtask>4.1 Allocate Elastic IP for NAT Gateway in AZ-a</subtask>
+        <subtask>4.2 Allocate Elastic IP for NAT Gateway in AZ-b</subtask>
+        <subtask>4.3 Create NAT Gateway in public subnet AZ-a</subtask>
+        <subtask>4.4 Create NAT Gateway in public subnet AZ-b</subtask>
+        <subtask>4.5 Tag NAT Gateways with Name and AZ</subtask>
+      </task>
+      <task id="5" name="Route Tables" acs="5">
+        <subtask>5.1 Create public route table: 0.0.0.0/0 → IGW</subtask>
+        <subtask>5.2 Create private route table AZ-a: 0.0.0.0/0 → NAT-a</subtask>
+        <subtask>5.3 Create private route table AZ-b: 0.0.0.0/0 → NAT-b</subtask>
+        <subtask>5.4 Create database route table: local only (no internet route)</subtask>
+        <subtask>5.5 Associate route tables with corresponding subnets</subtask>
+      </task>
+      <task id="6" name="Security Groups" acs="6">
+        <subtask>6.1 Create ALB-SG: inbound 80/443 from 0.0.0.0/0</subtask>
+        <subtask>6.2 Create K8s-Nodes-SG: inbound from ALB-SG, inter-node communication</subtask>
+        <subtask>6.3 Create RDS-SG: inbound 5432 from K8s-Nodes-SG only</subtask>
+        <subtask>6.4 Create ElastiCache-SG: inbound 6379 from K8s-Nodes-SG only</subtask>
+        <subtask>6.5 Document security group rules in README</subtask>
+      </task>
+      <task id="7" name="Network ACLs" acs="7">
+        <subtask>7.1 Create NACL for public subnets</subtask>
+        <subtask>7.2 Create NACL for private subnets</subtask>
+        <subtask>7.3 Create NACL for database subnets</subtask>
+        <subtask>7.4 Associate NACLs with corresponding subnets</subtask>
+      </task>
+      <task id="8" name="VPC Flow Logs" acs="8">
+        <subtask>8.1 Create CloudWatch Log Group</subtask>
+        <subtask>8.2 Create IAM role for VPC Flow Logs</subtask>
+        <subtask>8.3 Enable VPC Flow Logs</subtask>
+        <subtask>8.4 Set log retention to 30 days</subtask>
+      </task>
+      <task id="9" name="Validation &amp; Documentation" acs="all">
+        <subtask>9.1 Verify subnet connectivity</subtask>
+        <subtask>9.2 Test private subnet → internet via NAT</subtask>
+        <subtask>9.3 Test database subnet isolation</subtask>
+        <subtask>9.4 Update README with network diagram</subtask>
+        <subtask>9.5 Document CIDR allocations</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">VPC created with CIDR block 10.0.0.0/16</ac>
+    <ac id="2">Subnets created: Public (2 AZs), Private (2 AZs), Database (2 AZs) - total 6 subnets</ac>
+    <ac id="3">Internet Gateway attached to VPC, associated with public subnets</ac>
+    <ac id="4">NAT Gateway in each AZ for private subnet internet access</ac>
+    <ac id="5">Route tables configured: public → IGW, private → NAT, database → no internet</ac>
+    <ac id="6">Security groups created: ALB-SG, K8s-Nodes-SG, RDS-SG, ElastiCache-SG</ac>
+    <ac id="7">Network ACLs configured for additional security layer</ac>
+    <ac id="8">VPC Flow Logs enabled to CloudWatch for network traffic monitoring</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Services and Modules - Networking</section>
+        <snippet>AWS VPC: CIDR 10.0.0.0/16, 3 subnet types (public/private/database), 2 AZs. Network segmentation, security groups, isolation.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Workflows and Sequencing</section>
+        <snippet>Story 0.2 (VPC) is dependency for Stories 0.3 (Kubernetes), 0.4 (PostgreSQL), 0.5 (Redis), 0.13 (Load Balancer). Critical path foundation.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Cloud Provider APIs</section>
+        <snippet>AWS EC2 API used for VPC, subnets, security groups. Accessed via Terraform aws provider with IAM role (DevOps).</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-0-infrastructure.md</path>
+        <title>Epic 0: Infrastructure Foundation</title>
+        <section>Story 0.2</section>
+        <snippet>VPC &amp; Network Configuration with multi-AZ setup, private subnets for K8s and databases, security groups for ALB, nodes, RDS, ElastiCache.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Infrastructure</section>
+        <snippet>Network segmentation provides defense-in-depth. Database tier isolated from public internet. All inter-service traffic via security groups.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-1-cloud-account-iam-setup.md</path>
+        <title>Story 0.1: Cloud Account &amp; IAM Setup</title>
+        <section>Terraform Backend</section>
+        <snippet>Prerequisite story. Provides S3 + DynamoDB backend for Terraform state, IAM roles for infrastructure provisioning.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <note>Greenfield infrastructure - Story 0.1 artifacts expected but not yet implemented.</note>
+      <prerequisite>
+        <story>0-1-cloud-account-iam-setup</story>
+        <status>ready-for-dev</status>
+        <provides>Terraform backend (S3 + DynamoDB), IAM roles, .gitignore</provides>
+      </prerequisite>
+      <expectedStructure>
+        <folder path="infrastructure/terraform/vpc" purpose="VPC Terraform module" />
+        <file path="infrastructure/terraform/vpc/main.tf" purpose="VPC, subnets, IGW" />
+        <file path="infrastructure/terraform/vpc/nat.tf" purpose="NAT Gateways, Elastic IPs" />
+        <file path="infrastructure/terraform/vpc/routes.tf" purpose="Route tables, associations" />
+        <file path="infrastructure/terraform/vpc/security-groups.tf" purpose="Security group definitions" />
+        <file path="infrastructure/terraform/vpc/nacls.tf" purpose="Network ACLs" />
+        <file path="infrastructure/terraform/vpc/flow-logs.tf" purpose="VPC Flow Logs" />
+        <file path="infrastructure/terraform/vpc/variables.tf" purpose="VPC variables" />
+        <file path="infrastructure/terraform/vpc/outputs.tf" purpose="Subnet IDs, SG IDs for downstream stories" />
+        <file path="infrastructure/README.md" purpose="Network architecture documentation" />
+      </expectedStructure>
+      <outputs description="Resources exported for downstream stories">
+        <output name="vpc_id" consumers="0.3, 0.4, 0.5, 0.6, 0.13" />
+        <output name="public_subnet_ids" consumers="0.13 (ALB)" />
+        <output name="private_subnet_ids" consumers="0.3 (EKS nodes)" />
+        <output name="database_subnet_ids" consumers="0.4 (RDS), 0.5 (ElastiCache)" />
+        <output name="alb_security_group_id" consumers="0.13" />
+        <output name="k8s_nodes_security_group_id" consumers="0.3" />
+        <output name="rds_security_group_id" consumers="0.4" />
+        <output name="elasticache_security_group_id" consumers="0.5" />
+      </outputs>
+    </code>
+
+    <dependencies>
+      <terraform>
+        <provider name="aws" version="~&gt; 5.0" />
+      </terraform>
+      <terraformModules>
+        <module name="terraform-aws-modules/vpc/aws" version="~&gt; 5.0" purpose="Optional: community VPC module" optional="true" />
+      </terraformModules>
+      <tools>
+        <tool name="aws-cli" version="2.x" purpose="Verification commands" />
+        <tool name="terraform" version="&gt;= 1.5.0" purpose="Infrastructure as Code" />
+      </tools>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="Architecture">CIDR 10.0.0.0/16 - do not change without architect approval</constraint>
+    <constraint source="Architecture">Multi-AZ mandatory - use 2 AZs minimum for HA</constraint>
+    <constraint source="Architecture">Database subnets must have NO internet route (isolated tier)</constraint>
+    <constraint source="Security">Security groups must use SG-to-SG references, not IP-based rules</constraint>
+    <constraint source="Security">No SSH access from 0.0.0.0/0 - use bastion or Systems Manager Session Manager</constraint>
+    <constraint source="Cost">NAT Gateways cost ~$32/month each - 2 required for HA (~$64/month)</constraint>
+    <constraint source="Compliance">VPC Flow Logs required for audit trail (NFR-16)</constraint>
+    <constraint source="Dependency">Story 0.1 must be complete before starting (Terraform backend required)</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>AWS VPC API</name>
+      <kind>REST API (via Terraform aws provider)</kind>
+      <signature>aws_vpc, aws_subnet, aws_internet_gateway</signature>
+      <path>infrastructure/terraform/vpc/main.tf</path>
+    </interface>
+    <interface>
+      <name>AWS NAT Gateway API</name>
+      <kind>REST API (via Terraform aws provider)</kind>
+      <signature>aws_eip, aws_nat_gateway</signature>
+      <path>infrastructure/terraform/vpc/nat.tf</path>
+    </interface>
+    <interface>
+      <name>AWS Route Tables API</name>
+      <kind>REST API (via Terraform aws provider)</kind>
+      <signature>aws_route_table, aws_route, aws_route_table_association</signature>
+      <path>infrastructure/terraform/vpc/routes.tf</path>
+    </interface>
+    <interface>
+      <name>AWS Security Groups API</name>
+      <kind>REST API (via Terraform aws provider)</kind>
+      <signature>aws_security_group, aws_security_group_rule</signature>
+      <path>infrastructure/terraform/vpc/security-groups.tf</path>
+    </interface>
+    <interface>
+      <name>AWS Network ACLs API</name>
+      <kind>REST API (via Terraform aws provider)</kind>
+      <signature>aws_network_acl, aws_network_acl_rule</signature>
+      <path>infrastructure/terraform/vpc/nacls.tf</path>
+    </interface>
+    <interface>
+      <name>AWS VPC Flow Logs API</name>
+      <kind>REST API (via Terraform aws provider)</kind>
+      <signature>aws_flow_log, aws_cloudwatch_log_group</signature>
+      <path>infrastructure/terraform/vpc/flow-logs.tf</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Infrastructure testing follows acceptance test verification pattern using AWS CLI commands. Each AC has explicit verification command. DevOps Lead executes verification. Integration tests validate connectivity: public subnet → internet, private subnet → internet via NAT, database subnet isolation.
+    </standards>
+    <locations>
+      <location>Manual verification via AWS Console and CLI</location>
+      <location>Terraform plan/apply output validation</location>
+      <location>Connectivity tests from EC2 instances in each subnet tier</location>
+    </locations>
+    <ideas>
+      <idea ac="1">aws ec2 describe-vpcs --filters "Name=cidr,Values=10.0.0.0/16" returns 1 VPC</idea>
+      <idea ac="2">aws ec2 describe-subnets --filters "Name=vpc-id,Values=vpc-xxx" returns 6 subnets</idea>
+      <idea ac="3">aws ec2 describe-internet-gateways shows IGW attached to VPC</idea>
+      <idea ac="4">aws ec2 describe-nat-gateways shows 2 NAT gateways in available state</idea>
+      <idea ac="5">aws ec2 describe-route-tables shows correct routes per subnet type</idea>
+      <idea ac="6">aws ec2 describe-security-groups shows ALB-SG, K8s-Nodes-SG, RDS-SG, ElastiCache-SG</idea>
+      <idea ac="7">aws ec2 describe-network-acls shows custom NACLs associated with subnets</idea>
+      <idea ac="8">aws ec2 describe-flow-logs shows active flow log for VPC</idea>
+      <idea ac="connectivity-public">Launch t2.micro in public subnet, verify internet access via curl</idea>
+      <idea ac="connectivity-private">Launch t2.micro in private subnet, verify internet via NAT (curl succeeds)</idea>
+      <idea ac="connectivity-database">Launch t2.micro in database subnet, verify NO internet (curl fails/timeout)</idea>
+      <idea ac="sg-rules">From K8s-Nodes subnet, verify can connect to RDS-SG:5432, ElastiCache-SG:6379</idea>
+    </ideas>
+  </tests>
+</story-context>

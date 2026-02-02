@@ -1,0 +1,219 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>0</epicId>
+    <storyId>4</storyId>
+    <title>PostgreSQL Multi-Tenant Database</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-01-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/0-4-postgresql-multi-tenant-database.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>DevOps Engineer</asA>
+    <iWant>provision a PostgreSQL database with multi-tenant design</iWant>
+    <soThat>Epic 1 can implement schema-level tenant isolation for all organizations</soThat>
+    <tasks>
+      <task id="1" name="RDS Instance Provisioning" acs="1,2,3,5">
+        <subtask>1.1 Create RDS subnet group using database subnets</subtask>
+        <subtask>1.2 Create RDS instance via Terraform with PostgreSQL 15+</subtask>
+        <subtask>1.3 Configure instance class per environment</subtask>
+        <subtask>1.4 Enable Multi-AZ for production</subtask>
+        <subtask>1.5 Enable storage encryption with KMS</subtask>
+        <subtask>1.6 Configure storage autoscaling</subtask>
+      </task>
+      <task id="2" name="Backup Configuration" acs="4">
+        <subtask>2.1 Set backup retention to 7 days</subtask>
+        <subtask>2.2 Configure backup window 03:00-04:00 UTC</subtask>
+        <subtask>2.3 Configure maintenance window</subtask>
+        <subtask>2.4 Enable deletion protection for prod</subtask>
+      </task>
+      <task id="3" name="Parameter Group Configuration" acs="6">
+        <subtask>3.1-3.6 Create and configure custom parameter group</subtask>
+        <subtask>3.7 Associate parameter group with RDS</subtask>
+      </task>
+      <task id="4" name="Security Configuration" acs="1,5">
+        <subtask>4.1-4.4 Security group, no public access, Performance Insights, Enhanced Monitoring</subtask>
+      </task>
+      <task id="5" name="Database Initialization" acs="7,8,10">
+        <subtask>5.1-5.2 Create qualisys_master database</subtask>
+        <subtask>5.3-5.5 Create app_user with NO SUPERUSER, NO BYPASSRLS</subtask>
+        <subtask>5.6 Test RLS capability</subtask>
+      </task>
+      <task id="6" name="Secrets Manager Integration" acs="9">
+        <subtask>6.1-6.4 Create secret, store connection string, configure rotation, IAM policy</subtask>
+      </task>
+      <task id="7" name="Validation &amp; Documentation" acs="all">
+        <subtask>7.1-7.5 Verification, connectivity test, documentation</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">PostgreSQL 15+ RDS instance created</ac>
+    <ac id="2">Instance class: db.t3.medium (dev/staging), db.r5.large (prod)</ac>
+    <ac id="3">Multi-AZ deployment enabled for production</ac>
+    <ac id="4">Automated backups configured (7-day retention, daily at 3 AM UTC)</ac>
+    <ac id="5">Encryption at rest enabled using AWS KMS</ac>
+    <ac id="6">Parameter group configured: max_connections=200, shared_buffers optimized</ac>
+    <ac id="7">Master database created: qualisys_master</ac>
+    <ac id="8">Database user app_user created with schema creation privileges (NO SUPERUSER, NO BYPASSRLS)</ac>
+    <ac id="9">Connection string stored in AWS Secrets Manager</ac>
+    <ac id="10">Row-Level Security (RLS) capability verified on master database</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Multi-Tenant Database Design</section>
+        <snippet>Schema-per-tenant selected via first principles analysis. Balances isolation (high), cost (medium), and operations (moderate). RLS as defense-in-depth.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>PostgreSQL Schema Structure</section>
+        <snippet>qualisys_master database with dynamic tenant schemas. app_user role with CREATE privilege, NO SUPERUSER, NO BYPASSRLS. RLS policies per tenant table.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Services and Modules</section>
+        <snippet>AWS RDS PostgreSQL 15+: db.t3.medium (dev), db.r5.large (prod), Multi-AZ, encrypted. Multi-tenant data storage with schema-per-tenant isolation.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-0-infrastructure.md</path>
+        <title>Epic 0: Infrastructure Foundation</title>
+        <section>Story 0.4</section>
+        <snippet>PostgreSQL Multi-Tenant Database with RLS, encryption, Secrets Manager integration. Dependencies: Story 0.2 (VPC with database subnets).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Multi-Tenant Architecture</section>
+        <snippet>Schema-per-tenant PostgreSQL with RLS. Each organization gets isolated schema. Prevents cross-tenant data access at database level.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-2-vpc-network-configuration.md</path>
+        <title>Story 0.2: VPC &amp; Network Configuration</title>
+        <section>Outputs</section>
+        <snippet>Prerequisite: database_subnet_ids (10.0.20.0/24, 10.0.21.0/24), rds_security_group_id (allows 5432 from K8s nodes only).</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <note>Greenfield infrastructure - Story 0.2 provides VPC foundation (ready-for-dev).</note>
+      <prerequisites>
+        <story id="0-2-vpc-network-configuration" status="ready-for-dev">
+          <provides>database_subnet_ids, rds_security_group_id</provides>
+        </story>
+      </prerequisites>
+      <expectedStructure>
+        <folder path="infrastructure/terraform/rds" purpose="RDS Terraform module" />
+        <file path="infrastructure/terraform/rds/main.tf" purpose="RDS instance definition" />
+        <file path="infrastructure/terraform/rds/parameter-group.tf" purpose="Custom parameter group" />
+        <file path="infrastructure/terraform/rds/subnet-group.tf" purpose="DB subnet group" />
+        <file path="infrastructure/terraform/rds/secrets.tf" purpose="Secrets Manager secret" />
+        <file path="infrastructure/terraform/rds/variables.tf" purpose="RDS variables" />
+        <file path="infrastructure/terraform/rds/outputs.tf" purpose="Endpoint, secret ARN" />
+        <file path="infrastructure/scripts/db-init.sql" purpose="Database initialization SQL" />
+        <file path="infrastructure/README.md" purpose="Database architecture documentation" />
+      </expectedStructure>
+      <outputs description="Resources exported for downstream stories">
+        <output name="db_endpoint" consumers="Epic 1, Story 0.14" />
+        <output name="db_secret_arn" consumers="Epic 1 (K8s pods via IRSA)" />
+        <output name="db_subnet_group_name" consumers="Story 0.14 (test database)" />
+        <output name="db_parameter_group_name" consumers="Story 0.14" />
+      </outputs>
+      <sqlTemplates>
+        <template name="create_database">CREATE DATABASE qualisys_master;</template>
+        <template name="create_app_user">CREATE ROLE app_user WITH LOGIN PASSWORD '...' NOSUPERUSER NOBYPASSRLS;</template>
+        <template name="grant_privileges">GRANT CREATE ON DATABASE qualisys_master TO app_user;</template>
+        <template name="verify_privileges">SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname='app_user';</template>
+        <template name="enable_rls">ALTER TABLE {schema}.{table} ENABLE ROW LEVEL SECURITY;</template>
+        <template name="create_rls_policy">CREATE POLICY tenant_isolation ON {schema}.{table} USING (tenant_id = current_setting('app.current_tenant')::uuid);</template>
+      </sqlTemplates>
+    </code>
+
+    <dependencies>
+      <terraform>
+        <provider name="aws" version="~&gt; 5.0" />
+        <provider name="postgresql" version="~&gt; 1.21" purpose="Database initialization" />
+      </terraform>
+      <terraformModules>
+        <module name="terraform-aws-modules/rds/aws" version="~&gt; 6.0" purpose="RDS instance" optional="true" />
+      </terraformModules>
+      <tools>
+        <tool name="aws-cli" version="2.x" purpose="RDS verification" />
+        <tool name="terraform" version="&gt;= 1.5.0" purpose="Infrastructure as Code" />
+        <tool name="psql" version="15+" purpose="Database connection and initialization" />
+      </tools>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="Red Team" critical="true">app_user must have NO SUPERUSER privilege</constraint>
+    <constraint source="Red Team" critical="true">app_user must have NO BYPASSRLS privilege</constraint>
+    <constraint source="Architecture">PostgreSQL 15+ required for latest RLS features</constraint>
+    <constraint source="Architecture">Schema-per-tenant design - do not use shared tables with tenant_id</constraint>
+    <constraint source="Security">RDS must be in database subnets only (no public access)</constraint>
+    <constraint source="Security">KMS encryption required for compliance (NFR-SEC1)</constraint>
+    <constraint source="Security">Connection string must be in Secrets Manager (never in code/config)</constraint>
+    <constraint source="Operations">Multi-AZ required for production (99.5% uptime SLA)</constraint>
+    <constraint source="Dependency">Story 0.2 (VPC) must be complete first</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>AWS RDS API</name>
+      <kind>REST API (via Terraform aws provider)</kind>
+      <signature>aws_db_instance, aws_db_subnet_group, aws_db_parameter_group</signature>
+      <path>infrastructure/terraform/rds/main.tf</path>
+    </interface>
+    <interface>
+      <name>AWS Secrets Manager API</name>
+      <kind>REST API (via Terraform aws provider)</kind>
+      <signature>aws_secretsmanager_secret, aws_secretsmanager_secret_version</signature>
+      <path>infrastructure/terraform/rds/secrets.tf</path>
+    </interface>
+    <interface>
+      <name>PostgreSQL Connection</name>
+      <kind>Database protocol (port 5432)</kind>
+      <signature>postgresql://app_user:${password}@${endpoint}:5432/qualisys_master?sslmode=require</signature>
+      <path>Stored in AWS Secrets Manager</path>
+    </interface>
+    <interface>
+      <name>AWS KMS API</name>
+      <kind>REST API (for encryption)</kind>
+      <signature>aws_kms_key (optional custom CMK) or default aws/rds key</signature>
+      <path>infrastructure/terraform/rds/main.tf</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Infrastructure testing follows acceptance test verification pattern using AWS CLI and psql commands. Each AC has explicit verification. DevOps Lead executes verification. Integration test validates connectivity from K8s pod and verifies RLS functionality.
+    </standards>
+    <locations>
+      <location>Manual verification via AWS Console, CLI, and psql</location>
+      <location>Terraform plan/apply output validation</location>
+      <location>psql commands for database verification</location>
+    </locations>
+    <ideas>
+      <idea ac="1">aws rds describe-db-instances shows EngineVersion starts with "15"</idea>
+      <idea ac="2">aws rds describe-db-instances shows DBInstanceClass matches environment</idea>
+      <idea ac="3">aws rds describe-db-instances shows MultiAZ=true for production</idea>
+      <idea ac="4">aws rds describe-db-instances shows BackupRetentionPeriod=7, PreferredBackupWindow=03:00-04:00</idea>
+      <idea ac="5">aws rds describe-db-instances shows StorageEncrypted=true</idea>
+      <idea ac="6">aws rds describe-db-parameters shows max_connections=200, shared_buffers configured</idea>
+      <idea ac="7">psql -c "\l" shows qualisys_master database</idea>
+      <idea ac="8">psql -c "SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname='app_user'" returns (f,f)</idea>
+      <idea ac="9">aws secretsmanager get-secret-value --secret-id qualisys/database/connection returns valid JSON</idea>
+      <idea ac="10">psql as app_user: CREATE TABLE test(id int); ALTER TABLE test ENABLE ROW LEVEL SECURITY; succeeds</idea>
+      <idea ac="connectivity">kubectl run psql-test --rm -it --image=postgres:15 -- psql "$CONNECTION_STRING" -c "SELECT 1"</idea>
+      <idea ac="isolation">Verify connection fails from public internet (telnet endpoint 5432 times out)</idea>
+      <idea ac="rls-test">Create test schema, table, RLS policy; verify app_user respects policy</idea>
+    </ideas>
+  </tests>
+</story-context>

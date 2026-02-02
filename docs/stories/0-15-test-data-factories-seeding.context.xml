@@ -1,0 +1,362 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context" v="1.0">
+  <metadata>
+    <epicId>0</epicId>
+    <storyId>15</storyId>
+    <title>Test Data Factories and Seeding</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-01-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/0-15-test-data-factories-seeding.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>QA Engineer</asA>
+    <iWant>test data factories to generate realistic test data</iWant>
+    <soThat>tests are consistent, repeatable, and reflect real-world scenarios</soThat>
+    <tasks>
+      <task id="1" name="Factory Library Setup" acs="1">
+        <subtask>1.1-1.5 Install Faker.js, create factory structure, TypeScript types</subtask>
+      </task>
+      <task id="2" name="Core Entity Factories" acs="2,3,4">
+        <subtask>2.1-2.5 Create User, Organization, Project, Team factories with overrides</subtask>
+      </task>
+      <task id="3" name="Testing Entity Factories" acs="5,6">
+        <subtask>3.1-3.5 Create TestCase, TestSuite, TestExecution, Evidence, Defect factories</subtask>
+      </task>
+      <task id="4" name="Association Support" acs="8">
+        <subtask>4.1-4.5 Implement relationship helpers, composite factories, transactions</subtask>
+      </task>
+      <task id="5" name="Seed Script" acs="7,9">
+        <subtask>5.1-5.6 Create idempotent seed script with 3 tenants, 10 users, 5 projects</subtask>
+      </task>
+      <task id="6" name="Documentation" acs="10">
+        <subtask>6.1-6.5 Document factory usage, seed data structure, reset process</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">Test data factory library configured (Faker.js)</ac>
+    <ac id="2">User factory creates users with roles (admin, member, viewer)</ac>
+    <ac id="3">Organization factory creates orgs with tenant schemas</ac>
+    <ac id="4">Project factory creates projects with configurations</ac>
+    <ac id="5">Test case factory creates test cases with steps</ac>
+    <ac id="6">Test execution factory creates execution records</ac>
+    <ac id="7">Seed script creates baseline test data (3 tenants, 10 users, 5 projects)</ac>
+    <ac id="8">Factories support associations (user belongs to organization)</ac>
+    <ac id="9">Seed script is idempotent (can run multiple times safely)</ac>
+    <ac id="10">Seed data documented in README</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-specs/tech-spec-epic-0.md</path>
+        <title>Epic 0 Technical Specification</title>
+        <section>Test Infrastructure</section>
+        <snippet>Test data factories configured (Faker.js or Factory Bot). Seed data script creates baseline test data. Factories support associations.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-0-infrastructure.md</path>
+        <title>Epic 0: Infrastructure Foundation</title>
+        <section>Story 0.15</section>
+        <snippet>Test Data Factories and Seeding: Factory library, core entity factories, seed script with 3 tenants, 10 users, 5 projects. Idempotent seeding.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Testing Strategy</section>
+        <snippet>Test data management through factories for consistent, repeatable test data. Factories respect multi-tenant boundaries.</snippet>
+      </doc>
+      <doc>
+        <path>docs/test-design-system.md</path>
+        <title>Test Design System</title>
+        <section>Test Data Management</section>
+        <snippet>Factory pattern for test data generation. Seed scripts provide baseline data. Idempotent operations for CI/CD compatibility.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/0-14-test-database-provisioning.md</path>
+        <title>Story 0.14: Test Database Provisioning</title>
+        <section>Database Structure</section>
+        <snippet>Prerequisite: Test database with tenant schemas. Factories insert data into test tenant schemas.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <note>Test data factories build on Story 0.14 test database infrastructure.</note>
+      <prerequisites>
+        <story id="0-14-test-database-provisioning" status="ready-for-dev">
+          <provides>Test database, test tenant schemas, connection configuration</provides>
+        </story>
+      </prerequisites>
+      <expectedStructure>
+        <folder path="factories" purpose="Test data factories" />
+        <file path="factories/index.ts" purpose="Factory exports" />
+        <file path="factories/UserFactory.ts" purpose="User entity factory" />
+        <file path="factories/OrganizationFactory.ts" purpose="Organization entity factory" />
+        <file path="factories/ProjectFactory.ts" purpose="Project entity factory" />
+        <file path="factories/TestCaseFactory.ts" purpose="Test case entity factory" />
+        <file path="factories/TestExecutionFactory.ts" purpose="Test execution factory" />
+        <file path="factories/helpers.ts" purpose="Association and utility helpers" />
+        <file path="scripts/seed.ts" purpose="Main seed script" />
+        <file path="types/entities.ts" purpose="TypeScript entity types" />
+        <file path="CONTRIBUTING.md" purpose="Updated with factory/seed docs" />
+      </expectedStructure>
+      <outputs description="Test data generation infrastructure">
+        <output name="Factory classes" consumers="Integration tests, E2E tests" />
+        <output name="Seed script" consumers="CI/CD pipeline, local development" />
+        <output name="Baseline test data" consumers="Story 0.16, 0.18, Epic 1-5 tests" />
+      </outputs>
+      <factoryTemplates>
+        <template name="UserFactory">
+          <![CDATA[
+import { faker } from '@faker-js/faker';
+import { User, UserRole } from '../types';
+
+interface UserFactoryOptions {
+  organizationId?: string;
+  role?: UserRole;
+  email?: string;
+  isActive?: boolean;
+}
+
+export class UserFactory {
+  static create(options: UserFactoryOptions = {}): User {
+    return {
+      id: faker.string.uuid(),
+      email: options.email ?? faker.internet.email(),
+      firstName: faker.person.firstName(),
+      lastName: faker.person.lastName(),
+      role: options.role ?? 'member',
+      organizationId: options.organizationId ?? faker.string.uuid(),
+      isActive: options.isActive ?? true,
+      createdAt: faker.date.past(),
+      updatedAt: new Date(),
+    };
+  }
+
+  static createMany(count: number, options: UserFactoryOptions = {}): User[] {
+    return Array.from({ length: count }, () => this.create(options));
+  }
+
+  static async createAndSave(db: Database, options: UserFactoryOptions = {}): Promise<User> {
+    const user = this.create(options);
+    await db.users.insert(user);
+    return user;
+  }
+}
+          ]]>
+        </template>
+        <template name="OrganizationFactory">
+          <![CDATA[
+import { faker } from '@faker-js/faker';
+import { Organization } from '../types';
+
+interface OrganizationFactoryOptions {
+  name?: string;
+  plan?: 'free' | 'pro' | 'enterprise';
+  tenantId?: string;
+}
+
+export class OrganizationFactory {
+  static create(options: OrganizationFactoryOptions = {}): Organization {
+    const tenantId = options.tenantId ?? faker.string.uuid();
+    return {
+      id: faker.string.uuid(),
+      name: options.name ?? faker.company.name(),
+      slug: faker.helpers.slugify(options.name ?? faker.company.name()).toLowerCase(),
+      tenantId,
+      schemaName: `tenant_${tenantId.replace(/-/g, '_').substring(0, 8)}`,
+      plan: options.plan ?? 'free',
+      settings: {
+        maxUsers: options.plan === 'enterprise' ? 100 : options.plan === 'pro' ? 25 : 5,
+        maxProjects: options.plan === 'enterprise' ? 50 : options.plan === 'pro' ? 10 : 2,
+      },
+      createdAt: faker.date.past(),
+      updatedAt: new Date(),
+    };
+  }
+}
+          ]]>
+        </template>
+        <template name="TestCaseFactory">
+          <![CDATA[
+import { faker } from '@faker-js/faker';
+import { TestCase, TestStep } from '../types';
+
+interface TestCaseFactoryOptions {
+  projectId?: string;
+  stepsCount?: number;
+  priority?: 'low' | 'medium' | 'high' | 'critical';
+}
+
+export class TestCaseFactory {
+  static create(options: TestCaseFactoryOptions = {}): TestCase {
+    const stepsCount = options.stepsCount ?? faker.number.int({ min: 3, max: 10 });
+    return {
+      id: faker.string.uuid(),
+      projectId: options.projectId ?? faker.string.uuid(),
+      title: faker.lorem.sentence(),
+      description: faker.lorem.paragraph(),
+      priority: options.priority ?? faker.helpers.arrayElement(['low', 'medium', 'high', 'critical']),
+      status: 'active',
+      steps: this.createSteps(stepsCount),
+      tags: faker.helpers.arrayElements(['smoke', 'regression', 'e2e', 'api', 'ui'], 2),
+      createdAt: faker.date.past(),
+      updatedAt: new Date(),
+    };
+  }
+
+  private static createSteps(count: number): TestStep[] {
+    return Array.from({ length: count }, (_, i) => ({
+      id: faker.string.uuid(),
+      order: i + 1,
+      action: faker.lorem.sentence(),
+      expectedResult: faker.lorem.sentence(),
+    }));
+  }
+}
+          ]]>
+        </template>
+      </factoryTemplates>
+      <seedScriptTemplate>
+        <![CDATA[
+// scripts/seed.ts
+import { Pool } from 'pg';
+import { UserFactory, OrganizationFactory, ProjectFactory, TestCaseFactory } from '../factories';
+
+const pool = new Pool({ connectionString: process.env.TEST_DATABASE_URL });
+
+const SEED_TENANTS = [
+  { id: '11111111-1111-1111-1111-111111111111', name: 'Acme Corp' },
+  { id: '22222222-2222-2222-2222-222222222222', name: 'Globex Inc' },
+  { id: '33333333-3333-3333-3333-333333333333', name: 'Initech LLC' },
+];
+
+async function seed(): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    for (const tenant of SEED_TENANTS) {
+      const org = OrganizationFactory.create({ name: tenant.name, tenantId: tenant.id });
+
+      // Idempotent upsert
+      await client.query(`
+        INSERT INTO organizations (id, name, slug, tenant_id, schema_name, plan, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (tenant_id) DO UPDATE SET name = EXCLUDED.name, updated_at = NOW()
+      `, [org.id, org.name, org.slug, org.tenantId, org.schemaName, org.plan, org.createdAt]);
+
+      await client.query(`CREATE SCHEMA IF NOT EXISTS ${org.schemaName}`);
+
+      // Create users, projects, test cases...
+    }
+
+    await client.query('COMMIT');
+    console.log('Seed completed: 3 tenants, 9 users, 5 projects, 25 test cases');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+    await pool.end();
+  }
+}
+
+seed().catch(e => { console.error(e); process.exit(1); });
+        ]]>
+      </seedScriptTemplate>
+      <packageJsonScripts>
+        <![CDATA[
+{
+  "scripts": {
+    "db:seed": "ts-node scripts/seed.ts",
+    "db:seed:test": "TEST_DATABASE_URL=$TEST_DATABASE_URL ts-node scripts/seed.ts",
+    "db:fresh": "npm run db:reset:test && npm run db:migrate:test && npm run db:seed:test",
+    "test:with-seed": "npm run db:fresh && npm run test:integration"
+  }
+}
+        ]]>
+      </packageJsonScripts>
+    </code>
+
+    <dependencies>
+      <npm>
+        <package name="@faker-js/faker" version="^8.0.0" purpose="Realistic fake data generation" />
+        <package name="pg" version="^8.0.0" purpose="PostgreSQL client for seed script" />
+        <package name="@types/pg" version="^8.0.0" purpose="TypeScript types" dev="true" />
+        <package name="ts-node" version="^10.0.0" purpose="Run TypeScript scripts" dev="true" />
+      </npm>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="Consistency">Factories must return properly typed objects</constraint>
+    <constraint source="Consistency">Seed data must be deterministic with fixed UUIDs for key entities</constraint>
+    <constraint source="Idempotency" critical="true">Seed script must be safe to run multiple times</constraint>
+    <constraint source="Performance">Seed script must complete in less than 60 seconds</constraint>
+    <constraint source="Isolation">Factory data must respect tenant schema boundaries</constraint>
+    <constraint source="Integrity">Associations must maintain referential integrity</constraint>
+    <constraint source="Dependency">Story 0.14 (Test Database) must be complete</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>Factory API</name>
+      <kind>TypeScript class</kind>
+      <signature>Factory.create(options?): Entity</signature>
+      <path>factories/*.ts</path>
+    </interface>
+    <interface>
+      <name>Factory Batch API</name>
+      <kind>TypeScript class</kind>
+      <signature>Factory.createMany(count, options?): Entity[]</signature>
+      <path>factories/*.ts</path>
+    </interface>
+    <interface>
+      <name>Factory Persist API</name>
+      <kind>TypeScript class</kind>
+      <signature>Factory.createAndSave(db, options?): Promise&lt;Entity&gt;</signature>
+      <path>factories/*.ts</path>
+    </interface>
+    <interface>
+      <name>Seed CLI</name>
+      <kind>npm script</kind>
+      <signature>npm run db:seed:test</signature>
+      <path>scripts/seed.ts</path>
+    </interface>
+    <interface>
+      <name>Fresh Database CLI</name>
+      <kind>npm script</kind>
+      <signature>npm run db:fresh (reset + migrate + seed)</signature>
+      <path>package.json</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Factory testing validates data generation, type correctness, and association integrity. Seed testing validates idempotency and baseline data creation. QA Lead verifies test data coverage.
+    </standards>
+    <locations>
+      <location>Unit tests for individual factories</location>
+      <location>Integration tests using factory-generated data</location>
+      <location>Seed script execution verification</location>
+    </locations>
+    <ideas>
+      <idea ac="1">package.json includes @faker-js/faker dependency</idea>
+      <idea ac="2">UserFactory.create({ role: 'admin' }) returns user with role='admin'</idea>
+      <idea ac="3">OrganizationFactory.create() returns org with tenantId and schemaName</idea>
+      <idea ac="4">ProjectFactory.create({ organizationId }) returns project with correct FK</idea>
+      <idea ac="5">TestCaseFactory.create({ stepsCount: 5 }) returns test case with 5 steps</idea>
+      <idea ac="6">TestExecutionFactory.create({ status: 'failed' }) includes errorMessage</idea>
+      <idea ac="7">After npm run db:seed:test, query returns 3 orgs, 9 users, 5 projects</idea>
+      <idea ac="8">Creating user with organizationId links to correct organization</idea>
+      <idea ac="9">Run db:seed:test twice, verify no duplicate records created</idea>
+      <idea ac="10">CONTRIBUTING.md includes factory usage examples and seed data description</idea>
+      <idea ac="types">TypeScript compiler accepts all factory return values</idea>
+      <idea ac="fresh">npm run db:fresh completes successfully and data is queryable</idea>
+      <idea ac="performance">Seed script completes in less than 60 seconds</idea>
+    </ideas>
+  </tests>
+</story-context>
