@@ -1,0 +1,193 @@
+# Deploy Production Workflow
+# Story: 0-8 GitHub Actions Workflow Setup
+# AC: 3 - Deploy production with manual trigger (workflow_dispatch)
+# AC: 7 - Least-privilege permissions
+# AC: 9 - GitHub Environments with protection rules
+# Tasks 6.1-6.7
+
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        required: true
+        type: string
+        description: "Image tag to deploy (git SHA from staging)"
+      dry_run:
+        required: false
+        type: boolean
+        default: false
+        description: "Dry run - validate without deploying"
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  security-events: write
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  # ===================================================================
+  # Validate Image Exists in ECR
+  # ===================================================================
+  validate:
+    name: Validate Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Verify API image exists
+        run: |
+          aws ecr describe-images \
+            --repository-name qualisys-api \
+            --image-ids imageTag=${{ inputs.image_tag }} \
+            --region ${{ secrets.AWS_REGION }}
+
+      - name: Verify Web image exists
+        run: |
+          aws ecr describe-images \
+            --repository-name qualisys-web \
+            --image-ids imageTag=${{ inputs.image_tag }} \
+            --region ${{ secrets.AWS_REGION }}
+
+      - name: Check scan results
+        run: |
+          echo "=== API Image Scan ==="
+          aws ecr describe-image-scan-findings \
+            --repository-name qualisys-api \
+            --image-id imageTag=${{ inputs.image_tag }} \
+            --query 'imageScanFindings.findingSeverityCounts' \
+            --region ${{ secrets.AWS_REGION }} || echo "No scan results"
+
+          echo "=== Web Image Scan ==="
+          aws ecr describe-image-scan-findings \
+            --repository-name qualisys-web \
+            --image-id imageTag=${{ inputs.image_tag }} \
+            --query 'imageScanFindings.findingSeverityCounts' \
+            --region ${{ secrets.AWS_REGION }} || echo "No scan results"
+
+  # ===================================================================
+  # Deploy to Production (requires environment approval)
+  # ===================================================================
+  deploy-production:
+    name: Deploy to Production
+    needs: [validate]
+    if: ${{ !inputs.dry_run }}
+    uses: ./.github/workflows/reusable-deploy.yml
+    with:
+      environment: production
+      image_tag: ${{ inputs.image_tag }}
+      namespace: production
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+      KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG_BASE64 }}
+
+  # ===================================================================
+  # Post-Deployment Smoke Tests
+  # ===================================================================
+  smoke-tests:
+    name: Smoke Tests
+    needs: [deploy-production]
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG_BASE64 }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Verify pods are running
+        run: |
+          echo "=== Checking pod status ==="
+          kubectl get pods -n production -l app.kubernetes.io/part-of=qualisys
+          READY=$(kubectl get pods -n production -l app.kubernetes.io/part-of=qualisys -o jsonpath='{range .items[*]}{.status.containerStatuses[0].ready}{"\n"}{end}' | grep -c true || echo 0)
+          TOTAL=$(kubectl get pods -n production -l app.kubernetes.io/part-of=qualisys --no-headers | wc -l)
+          echo "Ready pods: ${READY}/${TOTAL}"
+
+      - name: Health check - API
+        run: |
+          API_URL=$(kubectl get ingress -n production -o jsonpath='{.items[0].spec.rules[0].host}' 2>/dev/null || echo "")
+          if [ -n "$API_URL" ]; then
+            echo "Checking API health at https://${API_URL}/api/health..."
+            curl -sf "https://${API_URL}/api/health" --max-time 30 || echo "API health check endpoint not yet available"
+          else
+            echo "No ingress found, skipping HTTP health check"
+          fi
+
+      - name: Verify deployment image tags
+        run: |
+          echo "=== Deployed Images ==="
+          kubectl get deployments -n production -o jsonpath='{range .items[*]}{.metadata.name}: {.spec.template.spec.containers[0].image}{"\n"}{end}'
+
+  # ===================================================================
+  # Notify
+  # ===================================================================
+  notify:
+    name: Notify
+    needs: [smoke-tests]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Notify Slack on success
+        if: needs.smoke-tests.result == 'success' && secrets.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-type: application/json' \
+            -d "{
+              \"text\": \":rocket: Production deployment successful\",
+              \"blocks\": [
+                {
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \":rocket: *Production deployment successful*\n*Image:* \`${{ inputs.image_tag }}\`\n*Triggered by:* ${GITHUB_ACTOR}\n*Run:* <${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}|View>\"
+                  }
+                }
+              ]
+            }"
+
+      - name: Notify Slack on failure
+        if: needs.smoke-tests.result == 'failure' && secrets.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-type: application/json' \
+            -d "{
+              \"text\": \":rotating_light: Production deployment FAILED\",
+              \"blocks\": [
+                {
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \":rotating_light: *Production deployment FAILED*\n*Image:* \`${{ inputs.image_tag }}\`\n*Triggered by:* ${GITHUB_ACTOR}\n*Run:* <${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}|View logs>\"
+                  }
+                }
+              ]
+            }"

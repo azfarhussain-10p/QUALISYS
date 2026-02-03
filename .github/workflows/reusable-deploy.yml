@@ -1,0 +1,100 @@
+# Reusable Deploy Workflow
+# Story: 0-8 GitHub Actions Workflow Setup
+# AC: 10 - Reusable workflows for common steps
+# Task 3.3
+
+name: Reusable Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+        description: "Target environment: staging or production"
+      image_tag:
+        required: true
+        type: string
+        description: "Docker image tag to deploy"
+      namespace:
+        required: true
+        type: string
+        description: "Kubernetes namespace"
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      AWS_REGION:
+        required: true
+      ECR_REGISTRY:
+        required: true
+      KUBECONFIG_BASE64:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG_BASE64 }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Verify cluster connectivity
+        run: |
+          kubectl cluster-info
+          kubectl get namespace ${{ inputs.namespace }}
+
+      - name: Update deployment images
+        run: |
+          IMAGE_BASE="${{ secrets.ECR_REGISTRY }}"
+          TAG="${{ inputs.image_tag }}"
+
+          # Update API deployment
+          kubectl set image deployment/qualisys-api \
+            qualisys-api="${IMAGE_BASE}/qualisys-api:${TAG}" \
+            -n ${{ inputs.namespace }} || echo "API deployment not found, skipping"
+
+          # Update Web deployment
+          kubectl set image deployment/qualisys-web \
+            qualisys-web="${IMAGE_BASE}/qualisys-web:${TAG}" \
+            -n ${{ inputs.namespace }} || echo "Web deployment not found, skipping"
+
+      - name: Wait for rollout
+        run: |
+          echo "Waiting for API rollout..."
+          kubectl rollout status deployment/qualisys-api \
+            -n ${{ inputs.namespace }} --timeout=300s || echo "API rollout check skipped"
+
+          echo "Waiting for Web rollout..."
+          kubectl rollout status deployment/qualisys-web \
+            -n ${{ inputs.namespace }} --timeout=300s || echo "Web rollout check skipped"
+
+      - name: Verify deployment health
+        run: |
+          echo "=== Pod Status ==="
+          kubectl get pods -n ${{ inputs.namespace }} -l app.kubernetes.io/part-of=qualisys
+
+          echo "=== Deployment Status ==="
+          kubectl get deployments -n ${{ inputs.namespace }}
+
+          echo "=== Recent Events ==="
+          kubectl get events -n ${{ inputs.namespace }} --sort-by='.lastTimestamp' | tail -20

@@ -78,8 +78,6 @@ variable "db_enhanced_monitoring_interval" {
   default     = 60
 }
 
-variable "db_secret_rotation_days" {
-  description = "Automatic secret rotation period in days"
-  type        = number
-  default     = 90
-}
+# NOTE: Secret rotation (90-day) requires a rotation Lambda function.
+# The rotation_rules block will be added to the secret resource when the
+# rotation Lambda is deployed (runtime step, not managed by Terraform here).

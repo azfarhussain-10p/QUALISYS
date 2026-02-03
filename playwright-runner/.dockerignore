@@ -1,0 +1,44 @@
+# Playwright Runner .dockerignore
+# Story: 0-9 Docker Build Automation
+# AC: 6, 11 - Exclude unnecessary files and secrets
+
+# Dependencies (reinstalled in build)
+node_modules/
+
+# Environment and secrets (NEVER bake into images)
+.env
+.env.*
+.env.local
+*.pem
+*.key
+secrets/
+credentials/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Previous test results (fresh run each time)
+test-results/
+playwright-report/
+blob-report/
+
+# Docker (avoid recursive context)
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Documentation
+*.md
+LICENSE
+docs/

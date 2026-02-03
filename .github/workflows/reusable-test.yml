@@ -1,0 +1,125 @@
+# Reusable Test Workflow
+# Story: 0-8 GitHub Actions Workflow Setup
+# AC: 10 - Reusable workflows for common steps
+# Task 3.2
+
+name: Reusable Test
+
+on:
+  workflow_call:
+    inputs:
+      test_type:
+        required: true
+        type: string
+        description: "Type of tests to run: unit, integration, e2e"
+      node_version:
+        required: false
+        type: string
+        default: "20"
+        description: "Node.js version"
+      python_version:
+        required: false
+        type: string
+        default: "3.12"
+        description: "Python version"
+      coverage_threshold:
+        required: false
+        type: number
+        default: 80
+        description: "Minimum coverage percentage"
+      upload_coverage:
+        required: false
+        type: boolean
+        default: false
+        description: "Upload coverage to Codecov"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run ${{ inputs.test_type }} tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: qualisys_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://test_user:test_password@localhost:5432/qualisys_test
+      REDIS_URL: redis://localhost:6379
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: "npm"
+
+      - name: Setup Python
+        if: inputs.test_type == 'integration' || inputs.test_type == 'e2e'
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+          cache: "pip"
+
+      - name: Install Node.js dependencies
+        run: npm ci
+
+      - name: Install Python dependencies
+        if: inputs.test_type == 'integration' || inputs.test_type == 'e2e'
+        run: pip install -r requirements.txt
+
+      - name: Run unit tests
+        if: inputs.test_type == 'unit'
+        run: npm test -- --coverage --coverageThreshold='{"global":{"branches":${{ inputs.coverage_threshold }},"functions":${{ inputs.coverage_threshold }},"lines":${{ inputs.coverage_threshold }}}}'
+
+      - name: Run integration tests
+        if: inputs.test_type == 'integration'
+        run: npm run test:integration
+
+      - name: Run E2E tests
+        if: inputs.test_type == 'e2e'
+        run: npm run test:e2e
+
+      - name: Upload coverage to Codecov
+        if: inputs.upload_coverage && inputs.test_type == 'unit'
+        uses: codecov/codecov-action@v3
+        with:
+          fail_ci_if_error: false
+          flags: ${{ inputs.test_type }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ inputs.test_type }}
+          path: |
+            coverage/
+            test-results/
+          retention-days: 14

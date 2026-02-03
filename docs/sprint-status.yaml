@@ -7,7 +7,7 @@
 # CONFIGURATION
 # ===================================================================
 generated: "2025-12-12"
-updated: "2026-02-01"
+updated: "2026-02-03"
 project: QUALISYS
 project_key: qualisys-ai-testing-platform
 tracking_system: file-system
@@ -42,7 +42,7 @@ mvp_summary:
   total_epics: 6
   total_stories: 100
   epics_completed: 0
-  stories_completed: 3
+  stories_completed: 10
   current_sprint: "Sprint 0 - Infrastructure Foundation"
   current_epic: "epic-0"
   blocking_items: []
@@ -64,13 +64,13 @@ development_status:
   0-1-cloud-account-iam-setup: done
   0-2-vpc-network-configuration: done
   0-3-kubernetes-cluster-provisioning: done
-  0-4-postgresql-multi-tenant-database: review
-  0-5-redis-caching-layer: ready-for-dev
-  0-6-container-registry: ready-for-dev
-  0-7-secret-management: ready-for-dev
-  0-8-github-actions-workflow-setup: ready-for-dev
-  0-9-docker-build-automation: ready-for-dev
-  0-10-automated-test-execution-on-pr: ready-for-dev
+  0-4-postgresql-multi-tenant-database: done
+  0-5-redis-caching-layer: done
+  0-6-container-registry: done
+  0-7-secret-management: done
+  0-8-github-actions-workflow-setup: done
+  0-9-docker-build-automation: done
+  0-10-automated-test-execution-on-pr: done
   0-11-staging-auto-deployment: ready-for-dev
   0-12-production-deployment-with-approval-gate: ready-for-dev
   0-13-load-balancer-ingress-configuration: ready-for-dev
@@ -271,7 +271,7 @@ sprint_queue:
 # ===================================================================
 metrics:
   epics:
-    epic-0: { total: 22, backlog: 0, drafted: 0, ready: 18, in_progress: 0, review: 1, done: 3 }
+    epic-0: { total: 22, backlog: 0, drafted: 0, ready: 12, in_progress: 0, review: 0, done: 10 }
     epic-1: { total: 13, backlog: 11, drafted: 1, ready: 1, in_progress: 0, review: 0, done: 0 }
     epic-2: { total: 18, backlog: 18, drafted: 0, ready: 0, in_progress: 0, review: 0, done: 0 }
     epic-3: { total: 15, backlog: 15, drafted: 0, ready: 0, in_progress: 0, review: 0, done: 0 }
@@ -282,8 +282,8 @@ metrics:
     mvp_stories: 100
     post_mvp_stories: 8
     total_stories: 108
-    completed: 3
-    completion_percentage: 3
+    completed: 10
+    completion_percentage: 10
 
 # ===================================================================
 # CHANGELOG
@@ -477,3 +477,55 @@ changelog:
     action: "Story 0-3-kubernetes-cluster-provisioning done"
     by: "DEV Agent (Amelia)"
     notes: "Story approved after code review re-review. 13 files created, 3 modified. All 10 ACs implemented. Status: review → done."
+  - date: "2026-02-02"
+    action: "Story 0-4-postgresql-multi-tenant-database done"
+    by: "DEV Agent (Amelia)"
+    notes: "Story approved after code review re-review. 6 files created, 1 modified. All 10 ACs implemented. Status: review → done."
+  - date: "2026-02-02"
+    action: "Story 0-5-redis-caching-layer implemented"
+    by: "DEV Agent (Amelia)"
+    notes: "5 ElastiCache files created, README updated. All 10 ACs implemented. Tasks 1-2 reused VPC resources. Status: in-progress → review."
+  - date: "2026-02-02"
+    action: "Story 0-5-redis-caching-layer done"
+    by: "DEV Agent (Amelia)"
+    notes: "Story approved after code review. 1 LOW finding fixed (keyspace events). 5 files created, 1 modified. Status: review → done."
+  - date: "2026-02-02"
+    action: "Story 0-6-container-registry implemented"
+    by: "DEV Agent (Amelia)"
+    notes: "4 ECR files created, README updated. All 10 ACs implemented. IAM policies reused from Stories 0.1/0.3. Status: in-progress → review."
+  - date: "2026-02-02"
+    action: "Story 0-6-container-registry done"
+    by: "DEV Agent (Amelia)"
+    notes: "Story approved after code review. 0 findings. 4 files created, 1 modified. Status: review → done."
+  - date: "2026-02-03"
+    action: "Story 0-7-secret-management implemented"
+    by: "DEV Agent (Amelia)"
+    notes: "10 files created (5 Terraform, 5 K8s), README updated. All 12 ACs implemented. DB/Redis secrets reused from Stories 0.4/0.5. Status: in-progress → review."
+  - date: "2026-02-03"
+    action: "Story 0-7-secret-management done"
+    by: "DEV Agent (Amelia)"
+    notes: "Story approved after code review. 2 LOW findings fixed (JWT comment, EventBridge detail-type). 10 files created, 1 modified. Status: review → done."
+  - date: "2026-02-03"
+    action: "Story 0-8-github-actions-workflow-setup implemented"
+    by: "DEV Agent (Amelia)"
+    notes: "8 files created (6 workflows, CODEOWNERS, dependabot.yml), README updated. All 10 ACs implemented. Tasks 1-2 (secrets, environments) documented as post-apply setup. Status: ready-for-dev → review."
+  - date: "2026-02-03"
+    action: "Story 0-8-github-actions-workflow-setup done"
+    by: "DEV Agent (Amelia)"
+    notes: "Story approved after code review. 2 LOW findings fixed (kubectl --record deprecated, README badges). 8 files created, 2 modified. Status: review → done."
+  - date: "2026-02-03"
+    action: "Story 0-9-docker-build-automation implemented"
+    by: "DEV Agent (Amelia)"
+    notes: "6 files created (3 Dockerfiles, 3 .dockerignore), 3 modified (reusable-build.yml, deploy-staging.yml, README). All 12 ACs implemented. Status: ready-for-dev → review."
+  - date: "2026-02-03"
+    action: "Story 0-9-docker-build-automation done"
+    by: "DEV Agent (Amelia)"
+    notes: "Story approved after code review. 2 findings fixed (MEDIUM: security-events permission, LOW: Playwright browser install). 6 files created, 5 modified. Status: review → done."
+  - date: "2026-02-03"
+    action: "Story 0-10-automated-test-execution-on-pr implemented"
+    by: "DEV Agent (Amelia)"
+    notes: "3 files created (jest.config.js, playwright.config.ts, CONTRIBUTING.md), 4 modified (pr-checks.yml, README.md, infrastructure/README.md, story file). All 10 ACs implemented. Status: ready-for-dev → review."
+  - date: "2026-02-03"
+    action: "Story 0-10-automated-test-execution-on-pr done"
+    by: "DEV Agent (Amelia)"
+    notes: "Story approved after code review. 2 findings fixed (MEDIUM: missing Playwright --config flag, LOW: artifact upload condition). 3 files created, 4 modified. Status: review → done."

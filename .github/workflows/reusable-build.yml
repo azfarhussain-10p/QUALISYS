@@ -1,0 +1,150 @@
+# Reusable Build Workflow
+# Story: 0-8 GitHub Actions Workflow Setup (AC10)
+# Story: 0-9 Docker Build Automation (AC7, AC8, AC9, AC10, AC11, AC12)
+# Builds Docker images with BuildKit, pushes to ECR, runs Trivy scanning
+
+name: Reusable Build
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        required: true
+        type: string
+        description: "Service name matching ECR repository (qualisys-api, qualisys-web, playwright-runner)"
+      dockerfile_path:
+        required: false
+        type: string
+        default: "./Dockerfile"
+        description: "Path to the Dockerfile"
+      build_context:
+        required: false
+        type: string
+        default: "."
+        description: "Docker build context path"
+      trivy_severity:
+        required: false
+        type: string
+        default: "HIGH,CRITICAL"
+        description: "Trivy severity threshold (comma-separated)"
+      skip_trivy:
+        required: false
+        type: boolean
+        default: false
+        description: "Skip Trivy scanning (use for known-safe base images during development)"
+    outputs:
+      image_tag:
+        description: "The pushed image tag (git SHA)"
+        value: ${{ jobs.build-and-push.outputs.image_tag }}
+      full_image_uri:
+        description: "Full ECR image URI with tag"
+        value: ${{ jobs.build-and-push.outputs.full_image_uri }}
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      AWS_REGION:
+        required: true
+      ECR_REGISTRY:
+        required: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+      full_image_uri: ${{ steps.meta.outputs.full_image_uri }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set image metadata
+        id: meta
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          BRANCH=${GITHUB_REF_NAME//\//-}
+          IMAGE_TAG="${SHA}"
+          FULL_URI="${{ secrets.ECR_REGISTRY }}/${{ inputs.service_name }}:${IMAGE_TAG}"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "full_image_uri=${FULL_URI}" >> "$GITHUB_OUTPUT"
+          echo "branch_tag=${BRANCH}-${TIMESTAMP}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # BuildKit setup for improved caching (AC12)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build and push with BuildKit (AC4, AC7, AC8, AC12)
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ inputs.build_context }}
+          file: ${{ inputs.dockerfile_path }}
+          push: true
+          tags: |
+            ${{ secrets.ECR_REGISTRY }}/${{ inputs.service_name }}:${{ steps.meta.outputs.image_tag }}
+            ${{ secrets.ECR_REGISTRY }}/${{ inputs.service_name }}:${{ steps.meta.outputs.branch_tag }}
+          build-args: |
+            BUILD_SHA=${{ steps.meta.outputs.image_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Trivy vulnerability scanning (AC9, AC10)
+      - name: Run Trivy vulnerability scanner
+        if: ${{ !inputs.skip_trivy }}
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "${{ secrets.ECR_REGISTRY }}/${{ inputs.service_name }}:${{ steps.meta.outputs.image_tag }}"
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: ${{ inputs.trivy_severity }}
+          exit-code: "1"
+
+      # Trivy secret scanning (AC11)
+      - name: Run Trivy secret scanner
+        if: ${{ !inputs.skip_trivy }}
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "${{ secrets.ECR_REGISTRY }}/${{ inputs.service_name }}:${{ steps.meta.outputs.image_tag }}"
+          scanners: "secret"
+          exit-code: "1"
+
+      # Upload SARIF results to GitHub Security tab
+      - name: Upload Trivy scan results to GitHub Security
+        if: ${{ !inputs.skip_trivy && always() }}
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: "trivy-results.sarif"
+
+      # ECR native scan verification
+      - name: Verify ECR image scan
+        run: |
+          echo "Waiting for ECR scan to complete..."
+          aws ecr wait image-scan-complete \
+            --repository-name ${{ inputs.service_name }} \
+            --image-id imageTag=${{ steps.meta.outputs.image_tag }} \
+            --region ${{ secrets.AWS_REGION }} || true
+
+          echo "ECR scan findings:"
+          aws ecr describe-image-scan-findings \
+            --repository-name ${{ inputs.service_name }} \
+            --image-id imageTag=${{ steps.meta.outputs.image_tag }} \
+            --query 'imageScanFindings.findingSeverityCounts' \
+            --region ${{ secrets.AWS_REGION }} || echo "Scan not yet available"

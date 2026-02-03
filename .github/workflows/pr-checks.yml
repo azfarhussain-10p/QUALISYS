@@ -1,0 +1,384 @@
+# PR Checks Workflow
+# Story: 0-8 GitHub Actions Workflow Setup (base)
+# Story: 0-10 Automated Test Execution on PR (enhanced)
+# AC: 1 - All test suites run (unit, integration, E2E subset)
+# AC: 2 - Test results posted as PR comment
+# AC: 3 - Coverage report (80% target)
+# AC: 4 - Branch protection (tests must pass)
+# AC: 5 - Execution <10 minutes (parallelized)
+# AC: 6 - Failed tests show error messages and stack traces
+# AC: 7 - Flaky test retry (3x unit, 2x E2E)
+# AC: 8 - Coverage uploaded to Codecov
+# AC: 9 - Test matrix (Node.js 18, 20)
+# AC: 10 - Integration tests use test database
+
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ===================================================================
+  # Lint (ESLint + Ruff)
+  # ===================================================================
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: pip install ruff
+
+      - name: Run Ruff
+        run: ruff check .
+
+  # ===================================================================
+  # Format Check (Prettier + Black)
+  # ===================================================================
+  format-check:
+    name: Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check Prettier formatting
+        run: npx prettier --check .
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Black
+        run: pip install black
+
+      - name: Check Black formatting
+        run: black --check .
+
+  # ===================================================================
+  # Type Check (TypeScript + mypy)
+  # ===================================================================
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run mypy
+        run: mypy .
+
+  # ===================================================================
+  # Unit Tests (AC1, AC3, AC5, AC7, AC9)
+  # Matrix: Node.js 18 + 20 | Coverage collection | Retry 3x
+  # ===================================================================
+  unit-tests:
+    name: Unit Tests (Node ${{ matrix.node-version }})
+    needs: [lint, format-check, type-check]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["18", "20"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests with coverage
+        run: npm test -- --coverage --maxWorkers=4
+        env:
+          CI: "true"
+
+      - name: Upload coverage to Codecov (AC8)
+        if: matrix.node-version == '20'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: unit-tests
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results-node-${{ matrix.node-version }}
+          path: |
+            coverage/
+            test-results/
+          retention-days: 14
+
+      - name: Report unit test results (AC2, AC6)
+        if: always() && matrix.node-version == '20'
+        uses: dorny/test-reporter@v1
+        with:
+          name: Unit Test Results (Node ${{ matrix.node-version }})
+          path: test-results/junit.xml
+          reporter: jest-junit
+          fail-on-error: true
+
+  # ===================================================================
+  # Integration Tests (AC1, AC5, AC10)
+  # PostgreSQL + Redis service containers | Database migrations
+  # ===================================================================
+  integration-tests:
+    name: Integration Tests
+    needs: [lint, format-check, type-check]
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: qualisys_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://test_user:test_password@localhost:5432/qualisys_test
+      REDIS_URL: redis://localhost:6379
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run database migrations
+        run: npm run db:migrate:test
+
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          CI: "true"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: test-results/
+          retention-days: 14
+
+      - name: Report integration test results (AC2, AC6)
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Integration Test Results
+          path: test-results/junit.xml
+          reporter: jest-junit
+          fail-on-error: true
+
+  # ===================================================================
+  # E2E Tests — Critical Paths Only (AC1, AC5)
+  # Playwright with chromium | Retry 2x | Timeout 5 min
+  # ===================================================================
+  e2e-tests:
+    name: E2E Tests (Critical)
+    needs: [lint, format-check, type-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run critical path E2E tests
+        run: npx playwright test --config=e2e/playwright.config.ts --project=chromium-critical
+        timeout-minutes: 5
+        env:
+          CI: "true"
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 7
+
+      - name: Report E2E test results (AC2, AC6)
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: E2E Test Results (Critical)
+          path: e2e/test-results/e2e-results.xml
+          reporter: java-junit
+          fail-on-error: true
+
+  # ===================================================================
+  # PR Summary Comment (AC2, AC6)
+  # Posts a consolidated test summary on the PR
+  # ===================================================================
+  test-summary:
+    name: Test Summary
+    needs: [unit-tests, integration-tests, e2e-tests]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Post test summary comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const unitNode18 = '${{ needs.unit-tests.result }}';
+            const integration = '${{ needs.integration-tests.result }}';
+            const e2e = '${{ needs.e2e-tests.result }}';
+
+            const statusIcon = (s) => s === 'success' ? '✅' : s === 'skipped' ? '⏭️' : '❌';
+            const allPassed = unitNode18 === 'success' && integration === 'success' && e2e === 'success';
+
+            const body = [
+              '## Test Results Summary',
+              '',
+              '| Suite | Status |',
+              '|-------|--------|',
+              `| Unit Tests (Node 18 + 20) | ${statusIcon(unitNode18)} ${unitNode18} |`,
+              `| Integration Tests | ${statusIcon(integration)} ${integration} |`,
+              `| E2E Tests (Critical) | ${statusIcon(e2e)} ${e2e} |`,
+              '',
+              allPassed
+                ? '**✅ All checks passed!**'
+                : '**❌ Some checks failed.** Review the failing jobs above for details and stack traces.',
+              '',
+              '---',
+              `*Coverage report available on [Codecov](https://codecov.io/gh/${{ github.repository }})*`,
+              `*Run: [${context.runId}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})*`,
+            ].join('\n');
+
+            // Find existing bot comment to update (avoid spam)
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('## Test Results Summary')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

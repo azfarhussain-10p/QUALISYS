@@ -1,0 +1,12 @@
+# CODEOWNERS
+# Story: 0-8 GitHub Actions Workflow Setup
+# AC: 8 - Workflow file changes require DevOps Lead approval
+
+# GitHub Actions workflow files require DevOps Lead and Tech Lead approval
+/.github/workflows/ @devops-lead @tech-lead
+
+# GitHub configuration (CODEOWNERS, dependabot) require DevOps Lead approval
+/.github/ @devops-lead
+
+# Infrastructure changes require DevOps Lead and Architect approval
+/infrastructure/ @devops-lead @architect

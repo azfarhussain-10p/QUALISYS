@@ -17,7 +17,9 @@ resource "random_password" "db_master" {
 resource "random_password" "db_app_user" {
   length  = 32
   special = true
-  override_special = "!#$%^&*()-_=+[]{}|:,.<>?"
+  # Restricted to URI-safe special characters to avoid breaking connection_uri
+  # Excludes: @, #, %, ?, /, :, &, = (URI-reserved characters)
+  override_special = "-_~!*'()."
 }
 
 # =============================================================================

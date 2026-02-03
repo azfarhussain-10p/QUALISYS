@@ -1,0 +1,121 @@
+# Deploy Staging Workflow
+# Story: 0-8 GitHub Actions Workflow Setup
+# AC: 2 - Deploy staging on push to main
+# AC: 7 - Least-privilege permissions
+# Tasks 5.1-5.6
+
+name: Deploy Staging
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  security-events: write
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  # ===================================================================
+  # Build and Push API Image
+  # ===================================================================
+  build-api:
+    name: Build API
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      service_name: qualisys-api
+      dockerfile_path: ./api/Dockerfile
+      build_context: ./api
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+
+  # ===================================================================
+  # Build and Push Web Image
+  # ===================================================================
+  build-web:
+    name: Build Web
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      service_name: qualisys-web
+      dockerfile_path: ./web/Dockerfile
+      build_context: ./web
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+
+  # ===================================================================
+  # Deploy to Staging
+  # ===================================================================
+  deploy-staging:
+    name: Deploy to Staging
+    needs: [build-api, build-web]
+    uses: ./.github/workflows/reusable-deploy.yml
+    with:
+      environment: staging
+      image_tag: ${{ needs.build-api.outputs.image_tag }}
+      namespace: staging
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+      KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG_BASE64 }}
+
+  # ===================================================================
+  # Notify (Slack - optional)
+  # ===================================================================
+  notify:
+    name: Notify
+    needs: [deploy-staging]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Notify Slack on success
+        if: needs.deploy-staging.result == 'success' && secrets.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-type: application/json' \
+            -d "{
+              \"text\": \":white_check_mark: Staging deployment successful\",
+              \"blocks\": [
+                {
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \":white_check_mark: *Staging deployment successful*\n*Commit:* \`${GITHUB_SHA::7}\`\n*Branch:* \`${GITHUB_REF_NAME}\`\n*Actor:* ${GITHUB_ACTOR}\"
+                  }
+                }
+              ]
+            }"
+
+      - name: Notify Slack on failure
+        if: needs.deploy-staging.result == 'failure' && secrets.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-type: application/json' \
+            -d "{
+              \"text\": \":x: Staging deployment failed\",
+              \"blocks\": [
+                {
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \":x: *Staging deployment failed*\n*Commit:* \`${GITHUB_SHA::7}\`\n*Branch:* \`${GITHUB_REF_NAME}\`\n*Actor:* ${GITHUB_ACTOR}\n*Run:* <${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}|View logs>\"
+                  }
+                }
+              ]
+            }"

@@ -37,6 +37,8 @@
 -- NOCREATEROLE: cannot create new roles
 -- =============================================================================
 
+-- Create role idempotently inside DO block (without password — psql variables
+-- are NOT substituted inside dollar-quoted PL/pgSQL blocks)
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_user') THEN
@@ -45,15 +47,16 @@ BEGIN
       NOSUPERUSER
       NOBYPASSRLS
       NOCREATEDB
-      NOCREATEROLE
-      PASSWORD :app_user_password;
+      NOCREATEROLE;
     RAISE NOTICE 'Created role: app_user';
   ELSE
-    RAISE NOTICE 'Role app_user already exists, updating password';
-    ALTER ROLE app_user WITH PASSWORD :app_user_password;
+    RAISE NOTICE 'Role app_user already exists';
   END IF;
 END
 $$;
+
+-- Set password outside DO block where psql variable substitution works
+ALTER ROLE app_user WITH PASSWORD :app_user_password;
 
 -- =============================================================================
 -- Task 5.4: Grant app_user CREATE privilege on qualisys_master (AC8)
