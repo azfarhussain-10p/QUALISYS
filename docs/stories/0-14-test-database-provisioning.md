@@ -26,7 +26,7 @@ so that **tests don't interfere with development or staging data and can run in 
 ## Tasks / Subtasks
 
 - [ ] **Task 1: Test Database Creation** (AC: 1, 8)
-  - [ ] 1.1 Create qualisys_test database in RDS instance
+  - [ ] 1.1 Create qualisys_test database in managed PostgreSQL instance (RDS / Azure Flexible Server)
   - [ ] 1.2 Create test_user role with limited permissions
   - [ ] 1.3 Configure test_user with schema creation privileges
   - [ ] 1.4 Verify test_user is NOT superuser, NOT bypassrls
@@ -40,7 +40,7 @@ so that **tests don't interfere with development or staging data and can run in 
   - [ ] 2.5 Run isolation tests to verify RLS working
 
 - [ ] **Task 3: Connection Configuration** (AC: 2, 3, 6)
-  - [ ] 3.1 Store test database connection string in AWS Secrets Manager
+  - [ ] 3.1 Store test database connection string in secret store (AWS Secrets Manager / Azure Key Vault)
   - [ ] 3.2 Add TEST_DATABASE_URL to GitHub Actions secrets
   - [ ] 3.3 Configure Docker Compose to use test database
   - [ ] 3.4 Create .env.test template for local development
@@ -220,11 +220,15 @@ resetDatabase().catch(console.error);
 ### Connection String Format
 
 ```
-# Production/Staging (from Story 0.4)
+# Production/Staging — AWS (from Story 0.4)
 DATABASE_URL=postgresql://app_user:password@qualisys-db.cluster-xxx.us-east-1.rds.amazonaws.com:5432/qualisys_master
+# Production/Staging — Azure (from Story 0.4)
+# DATABASE_URL=postgresql://app_user:password@qualisys-db.postgres.database.azure.com:5432/qualisys_master
 
-# Test Database
+# Test Database — AWS
 TEST_DATABASE_URL=postgresql://test_user:password@qualisys-db.cluster-xxx.us-east-1.rds.amazonaws.com:5432/qualisys_test
+# Test Database — Azure
+# TEST_DATABASE_URL=postgresql://test_user:password@qualisys-db.postgres.database.azure.com:5432/qualisys_test
 
 # Local Development (Docker Compose)
 TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/qualisys_test
@@ -321,7 +325,7 @@ jobs:
 
 ### Dependencies
 
-- **Story 0.4** (PostgreSQL Database) - REQUIRED: RDS instance to host test database
+- **Story 0.4** (PostgreSQL Database) - REQUIRED: Managed PostgreSQL instance (RDS / Azure Flexible Server) to host test database
 - Outputs used by subsequent stories:
   - Story 0.10 (Automated Tests): Test database for integration tests
   - Story 0.15 (Test Data Factories): Database for seeding test data
@@ -374,3 +378,4 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 |------|--------|--------|
 | 2026-01-23 | SM Agent (Bob) | Story drafted from Epic 0 tech spec and epic file |
 | 2026-01-23 | SM Agent (Bob) | Context XML generated, status: drafted → ready-for-dev |
+| 2026-02-09 | PM Agent (John) | Multi-cloud course correction: generalized AWS-specific references to cloud-agnostic |

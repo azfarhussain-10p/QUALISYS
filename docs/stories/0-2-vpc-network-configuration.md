@@ -2,6 +2,8 @@
 
 Status: done
 
+> **Multi-Cloud Note (2026-02-09):** This story was originally implemented for AWS. The infrastructure has since been expanded to support Azure via the Two Roots architecture. AWS-specific references below (VPC, subnets, security groups, NAT Gateway) have Azure equivalents (VNet, subnets, NSGs, NAT Gateway) deployed under `infrastructure/terraform/azure/`. See `infrastructure/terraform/README.md` for the full service mapping.
+
 ## Story
 
 As a **DevOps Engineer**,

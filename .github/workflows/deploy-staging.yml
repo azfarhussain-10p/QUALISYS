@@ -2,7 +2,7 @@
 # Story: 0-8 GitHub Actions Workflow Setup
 # AC: 2 - Deploy staging on push to main
 # AC: 7 - Least-privilege permissions
-# Tasks 5.1-5.6
+# Supports both AWS and Azure via CLOUD_PROVIDER repository variable
 
 name: Deploy Staging
 
@@ -32,10 +32,16 @@ jobs:
       dockerfile_path: ./api/Dockerfile
       build_context: ./api
     secrets:
+      # AWS
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+      # Azure
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ACR_REGISTRY_NAME: ${{ secrets.ACR_REGISTRY_NAME }}
 
   # ===================================================================
   # Build and Push Web Image
@@ -48,10 +54,16 @@ jobs:
       dockerfile_path: ./web/Dockerfile
       build_context: ./web
     secrets:
+      # AWS
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+      # Azure
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ACR_REGISTRY_NAME: ${{ secrets.ACR_REGISTRY_NAME }}
 
   # ===================================================================
   # Deploy to Staging
@@ -65,11 +77,19 @@ jobs:
       image_tag: ${{ needs.build-api.outputs.image_tag }}
       namespace: staging
     secrets:
+      # AWS
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
       KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG_BASE64 }}
+      # Azure
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ACR_REGISTRY_NAME: ${{ secrets.ACR_REGISTRY_NAME }}
+      AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
+      AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
 
   # ===================================================================
   # Notify (Slack - optional)
@@ -94,7 +114,7 @@ jobs:
                   \"type\": \"section\",
                   \"text\": {
                     \"type\": \"mrkdwn\",
-                    \"text\": \":white_check_mark: *Staging deployment successful*\n*Commit:* \`${GITHUB_SHA::7}\`\n*Branch:* \`${GITHUB_REF_NAME}\`\n*Actor:* ${GITHUB_ACTOR}\"
+                    \"text\": \":white_check_mark: *Staging deployment successful*\n*Cloud:* \`${{ vars.CLOUD_PROVIDER }}\`\n*Commit:* \`${GITHUB_SHA::7}\`\n*Branch:* \`${GITHUB_REF_NAME}\`\n*Actor:* ${GITHUB_ACTOR}\"
                   }
                 }
               ]
@@ -114,7 +134,7 @@ jobs:
                   \"type\": \"section\",
                   \"text\": {
                     \"type\": \"mrkdwn\",
-                    \"text\": \":x: *Staging deployment failed*\n*Commit:* \`${GITHUB_SHA::7}\`\n*Branch:* \`${GITHUB_REF_NAME}\`\n*Actor:* ${GITHUB_ACTOR}\n*Run:* <${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}|View logs>\"
+                    \"text\": \":x: *Staging deployment failed*\n*Cloud:* \`${{ vars.CLOUD_PROVIDER }}\`\n*Commit:* \`${GITHUB_SHA::7}\`\n*Branch:* \`${GITHUB_REF_NAME}\`\n*Actor:* ${GITHUB_ACTOR}\n*Run:* <${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}|View logs>\"
                   }
                 }
               ]

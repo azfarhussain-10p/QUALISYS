@@ -4,8 +4,9 @@
     <storyId>19</storyId>
     <title>Monitoring Infrastructure (Prometheus + Grafana)</title>
     <status>drafted</status>
-    <generatedAt>2026-01-24</generatedAt>
+    <generatedAt>2026-02-09</generatedAt>
     <generator>BMAD Story Context Workflow</generator>
+    <multiCloudNote>Context regenerated for multi-cloud (AWS + Azure) Two Roots architecture</multiCloudNote>
     <sourceStoryPath>docs/stories/0-19-monitoring-infrastructure-prometheus-grafana.md</sourceStoryPath>
   </metadata>
 
@@ -44,7 +45,7 @@
         <subtask>4.5 Create database performance dashboard</subtask>
         <subtask>4.6 Configure Grafana ingress with SSL</subtask>
         <subtask>4.7 Set up OAuth or basic authentication</subtask>
-        <subtask>4.8 Configure admin password in Secrets Manager</subtask>
+        <subtask>4.8 Configure admin password in secret store (Secrets Manager / Key Vault)</subtask>
       </task>
       <task id="5" name="Alerting Rules" acs="9,10,11,12">
         <subtask>5.1 Create PrometheusRule for pod crash loop alert</subtask>

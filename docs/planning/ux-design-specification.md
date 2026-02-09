@@ -9,7 +9,7 @@ _Generated using BMad Method - Create UX Design Workflow v1.0_
 
 QUALISYS is an AI-Powered Testing Platform serving 6 distinct user personas (Owner/Admin, PM/CSM, QA-Manual, QA-Automation, Dev, Viewer) across the complete testing lifecycle. The UX must make AI trustworthy, respect role-based workflows, and deliver instant value. This specification defines 6 critical user flows, visual foundation, and component strategy for MVP implementation.
 
-**Design Philosophy:** Professional testing co-pilot that transforms anxiety (broken tests, maintenance burden) into confidence (self-healing automation, comprehensive coverage). The UX balances complexity (8 AI agents, multi-role workflows) with simplicity (5-minute onboarding, role-optimized interfaces).
+**Design Philosophy:** Professional testing co-pilot that transforms anxiety (broken tests, maintenance burden) into confidence (self-healing automation, comprehensive coverage). The UX balances complexity (6 AI agents, multi-role workflows) with simplicity (5-minute onboarding, role-optimized interfaces).
 
 ---
 
@@ -189,21 +189,20 @@ QUALISYS is an AI-Powered Testing Platform serving 6 distinct user personas (Own
 - Action: "Next: Select AI Agents"
 
 **Step 4: Agent Selection (The Magic)**
-- Screen: Agent Cards displayed in grid (4 MVP agents shown)
-  - 🔍 Documentation Analyzer
-  - ✅ Manual Tester
-  - 🤖 Automation Tester
-  - 📋 Test Case Generator
+- Screen: Agent Cards displayed in grid (3 MVP agents shown)
+  - 📊 BAConsultant AI Agent
+  - 🧪 QAConsultant AI Agent
+  - 🤖 AutomationConsultant AI Agent
 - Each card: Icon, name, description, "~2-5 min" runtime
-- Pre-selected: "Recommended for First Project" (all 4 checked)
+- Pre-selected: "Recommended for First Project" (all 3 checked)
 - Or: "Use Recommended Pipeline" button (auto-selects sensible defaults)
-- Advanced: "Show 4 More Agents" expands to reveal Web Scraper, Log Reader, Security, Performance
+- Advanced: "Show 3 More Agents" expands to reveal AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent (Post-MVP)
 - Action: "Generate Tests" (primary CTA, large, green)
 
 **Step 5: Watch the Magic (Progress)**
 - Screen: Live progress dashboard
   - Agent status cards animate through: Queued → Running → Complete
-  - Progress bars per agent ("Documentation Analyzer: Analyzing... 47% (page 23 of 47)")
+  - Progress bars per agent ("BAConsultant AI Agent: Analyzing... 47% (page 23 of 47)")
   - Logs stream in real-time (expandable, not blocking)
 - Estimated time: "~3 minutes remaining"
 - When complete: Success animation + confetti 🎉
@@ -251,13 +250,13 @@ Each card shows:
 **Example Agent Card:**
 ```
 ┌─────────────────────────────────────┐
-│ 🔍 Documentation Analyzer           │
+│ 📊 BAConsultant AI Agent             │
 │                                     │
-│ Extracts requirements and builds   │
-│ test coverage matrix               │
+│ Analyzes requirements, detects     │
+│ gaps, builds coverage matrix       │
 │                                     │
-│ Inputs: PRD, SRS                   │
-│ Outputs: Coverage Matrix           │
+│ Inputs: PRD, SRS, RFP             │
+│ Outputs: Coverage Matrix, Stories  │
 │                                     │
 │ Est. Runtime: ~2-5 min             │
 │                                     │
@@ -266,12 +265,12 @@ Each card shows:
 ```
 
 **Quick Actions:**
-- "Use Recommended Pipeline" button: Auto-selects Documentation Analyzer + Test Case Generator + Automation Tester
+- "Use Recommended Pipeline" button: Auto-selects BAConsultant AI Agent + QAConsultant AI Agent + AutomationConsultant AI Agent
 - "Select All" / "Deselect All" toggles
 - "Run Sequential" (default) vs "Run in Parallel" (advanced)
 
 **Bottom Actions:**
-- "Run Selected Agents" (primary CTA, shows count: "Run 4 Agents")
+- "Run Selected Agents" (primary CTA, shows count: "Run 3 Agents")
 - "Save as Pipeline" (secondary) → Opens modal to name and save for reuse
 
 ---
@@ -287,20 +286,20 @@ Accessed via: "Advanced: Create Custom Pipeline" link
 
 **Example Pipeline Visual:**
 ```
-[Documentation Analyzer]
+[BAConsultant AI Agent]
          ↓
-    (Coverage Matrix)
+    (Coverage Matrix + Stories)
          ↓
    ┌─────┴─────┐
    ↓           ↓
-[Test Case] [Automation]
-Generator    Tester
+[QAConsultant] [AutomationConsultant]
+  AI Agent      AI Agent
    ↓           ↓
-(BDD Tests) (Playwright)
+(BDD/Checklists) (Playwright/Scripts)
 ```
 
 **Validation Rules:**
-- Red warning if incompatible: "Automation Tester requires output from Documentation Analyzer"
+- Red warning if incompatible: "AutomationConsultant AI Agent requires output from BAConsultant AI Agent"
 - Green checkmark when valid pipeline
 - Estimated total runtime shown: "Pipeline will take ~8-12 minutes"
 

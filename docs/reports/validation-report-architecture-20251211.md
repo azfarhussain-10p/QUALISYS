@@ -333,7 +333,7 @@ The architecture document is exceptionally comprehensive and implementation-read
 
 ✓ **PASS** - Not overengineered for actual requirements
 - Evidence: MVP scope reduction documented (Lines 862-886)
-  - Reduced from 8 agents to 4 for MVP (Line 864)
+  - Reduced from 8 agents to 3 for MVP: BAConsultant, QAConsultant, AutomationConsultant (Line 864)
   - Reduced from 5 integrations to 2 (JIRA + GitHub only) (Line 865)
   - Phase-based approach prevents premature optimization
   - Justification: "Accelerate market entry by 3 months while maintaining differentiation" (Line 868)

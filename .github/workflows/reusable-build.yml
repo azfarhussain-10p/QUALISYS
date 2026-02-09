@@ -1,7 +1,8 @@
 # Reusable Build Workflow
 # Story: 0-8 GitHub Actions Workflow Setup (AC10)
 # Story: 0-9 Docker Build Automation (AC7, AC8, AC9, AC10, AC11, AC12)
-# Builds Docker images with BuildKit, pushes to ECR, runs Trivy scanning
+# Builds Docker images with BuildKit, pushes to ECR/ACR, runs Trivy scanning
+# Supports both AWS (ECR) and Azure (ACR) via CLOUD_PROVIDER variable
 
 name: Reusable Build
 
@@ -11,7 +12,7 @@ on:
       service_name:
         required: true
         type: string
-        description: "Service name matching ECR repository (qualisys-api, qualisys-web, playwright-runner)"
+        description: "Service name matching container repository (qualisys-api, qualisys-web, playwright-runner)"
       dockerfile_path:
         required: false
         type: string
@@ -37,21 +38,32 @@ on:
         description: "The pushed image tag (git SHA)"
         value: ${{ jobs.build-and-push.outputs.image_tag }}
       full_image_uri:
-        description: "Full ECR image URI with tag"
+        description: "Full container image URI with tag"
         value: ${{ jobs.build-and-push.outputs.full_image_uri }}
     secrets:
+      # AWS secrets (required when CLOUD_PROVIDER=aws)
       AWS_ACCESS_KEY_ID:
-        required: true
+        required: false
       AWS_SECRET_ACCESS_KEY:
-        required: true
+        required: false
       AWS_REGION:
-        required: true
+        required: false
       ECR_REGISTRY:
-        required: true
+        required: false
+      # Azure secrets (required when CLOUD_PROVIDER=azure)
+      AZURE_CLIENT_ID:
+        required: false
+      AZURE_TENANT_ID:
+        required: false
+      AZURE_SUBSCRIPTION_ID:
+        required: false
+      ACR_REGISTRY_NAME:
+        required: false
 
 permissions:
   contents: read
   security-events: write
+  id-token: write
 
 jobs:
   build-and-push:
@@ -72,12 +84,22 @@ jobs:
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
           BRANCH=${GITHUB_REF_NAME//\//-}
           IMAGE_TAG="${SHA}"
-          FULL_URI="${{ secrets.ECR_REGISTRY }}/${{ inputs.service_name }}:${IMAGE_TAG}"
+
+          if [ "${{ vars.CLOUD_PROVIDER }}" = "azure" ]; then
+            REGISTRY="${{ secrets.ACR_REGISTRY_NAME }}.azurecr.io"
+          else
+            REGISTRY="${{ secrets.ECR_REGISTRY }}"
+          fi
+
+          FULL_URI="${REGISTRY}/${{ inputs.service_name }}:${IMAGE_TAG}"
           echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
           echo "full_image_uri=${FULL_URI}" >> "$GITHUB_OUTPUT"
           echo "branch_tag=${BRANCH}-${TIMESTAMP}" >> "$GITHUB_OUTPUT"
+          echo "registry=${REGISTRY}" >> "$GITHUB_OUTPUT"
 
+      # --- AWS Authentication ---
       - name: Configure AWS credentials
+        if: vars.CLOUD_PROVIDER == 'aws'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -85,13 +107,26 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Login to Amazon ECR
+        if: vars.CLOUD_PROVIDER == 'aws'
         uses: aws-actions/amazon-ecr-login@v2
 
-      # BuildKit setup for improved caching (AC12)
+      # --- Azure Authentication ---
+      - name: Login to Azure
+        if: vars.CLOUD_PROVIDER == 'azure'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to Azure Container Registry
+        if: vars.CLOUD_PROVIDER == 'azure'
+        run: az acr login --name ${{ secrets.ACR_REGISTRY_NAME }}
+
+      # --- Build (shared) ---
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Build and push with BuildKit (AC4, AC7, AC8, AC12)
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -99,42 +134,41 @@ jobs:
           file: ${{ inputs.dockerfile_path }}
           push: true
           tags: |
-            ${{ secrets.ECR_REGISTRY }}/${{ inputs.service_name }}:${{ steps.meta.outputs.image_tag }}
-            ${{ secrets.ECR_REGISTRY }}/${{ inputs.service_name }}:${{ steps.meta.outputs.branch_tag }}
+            ${{ steps.meta.outputs.registry }}/${{ inputs.service_name }}:${{ steps.meta.outputs.image_tag }}
+            ${{ steps.meta.outputs.registry }}/${{ inputs.service_name }}:${{ steps.meta.outputs.branch_tag }}
           build-args: |
             BUILD_SHA=${{ steps.meta.outputs.image_tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Trivy vulnerability scanning (AC9, AC10)
+      # --- Trivy Scanning (shared) ---
       - name: Run Trivy vulnerability scanner
         if: ${{ !inputs.skip_trivy }}
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "${{ secrets.ECR_REGISTRY }}/${{ inputs.service_name }}:${{ steps.meta.outputs.image_tag }}"
+          image-ref: "${{ steps.meta.outputs.registry }}/${{ inputs.service_name }}:${{ steps.meta.outputs.image_tag }}"
           format: "sarif"
           output: "trivy-results.sarif"
           severity: ${{ inputs.trivy_severity }}
           exit-code: "1"
 
-      # Trivy secret scanning (AC11)
       - name: Run Trivy secret scanner
         if: ${{ !inputs.skip_trivy }}
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "${{ secrets.ECR_REGISTRY }}/${{ inputs.service_name }}:${{ steps.meta.outputs.image_tag }}"
+          image-ref: "${{ steps.meta.outputs.registry }}/${{ inputs.service_name }}:${{ steps.meta.outputs.image_tag }}"
           scanners: "secret"
           exit-code: "1"
 
-      # Upload SARIF results to GitHub Security tab
       - name: Upload Trivy scan results to GitHub Security
         if: ${{ !inputs.skip_trivy && always() }}
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: "trivy-results.sarif"
 
-      # ECR native scan verification
+      # --- AWS-specific scan verification ---
       - name: Verify ECR image scan
+        if: vars.CLOUD_PROVIDER == 'aws'
         run: |
           echo "Waiting for ECR scan to complete..."
           aws ecr wait image-scan-complete \

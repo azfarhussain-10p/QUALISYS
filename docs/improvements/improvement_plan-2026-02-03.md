@@ -38,11 +38,13 @@ Translate the research and design decisions into **implementable platform capabi
 #### Requirements
 - Enforce mandatory approvals
 - Prevent downstream execution on failure
+- User stories require dual-review gate: internal team review + client review before release to QAConsultant
 
 #### Actions
 - Central orchestration service
 - Configurable gate rules per project
-- Audit logs for approvals
+- Dual-review workflow for user stories (Internal Review Done → Client Approved → Released)
+- Audit logs for approvals (both internal and client reviews tracked separately)
 
 ---
 

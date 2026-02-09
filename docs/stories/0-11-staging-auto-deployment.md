@@ -20,7 +20,7 @@ so that **we can test in a production-like environment with zero manual interven
 | AC6 | Slack notification sent on deployment (success/failure with link) | Slack channel receives notification with staging URL |
 | AC7 | Staging environment accessible at https://staging.qualisys.dev | Browser navigates to staging URL successfully |
 | AC8 | Deployment time <2 minutes from merge to running pods | GitHub Actions logs show total time <2 min |
-| AC9 | Deployment manifest uses image from ECR with Git SHA tag | kubectl describe deployment shows ECR image:sha |
+| AC9 | Deployment manifest uses image from container registry (ECR/ACR) with Git SHA tag | kubectl describe deployment shows registry image:sha |
 | AC10 | Staging namespace has appropriate resource limits configured | kubectl describe namespace shows resource quotas |
 
 ## Tasks / Subtasks
@@ -28,15 +28,15 @@ so that **we can test in a production-like environment with zero manual interven
 - [ ] **Task 1: Deploy Staging Workflow** (AC: 1, 8)
   - [ ] 1.1 Create `.github/workflows/deploy-staging.yml`
   - [ ] 1.2 Configure workflow trigger on push to main branch
-  - [ ] 1.3 Add job to authenticate with AWS ECR
-  - [ ] 1.4 Add job to configure kubectl with EKS cluster
+  - [ ] 1.3 Add job to authenticate with container registry (uses CLOUD_PROVIDER variable)
+  - [ ] 1.4 Add job to configure kubectl with Kubernetes cluster (uses CLOUD_PROVIDER variable)
   - [ ] 1.5 Optimize workflow for <2 minute execution
 
 - [ ] **Task 2: Kubernetes Deployment Configuration** (AC: 2, 3, 9, 10)
   - [ ] 2.1 Create deployment manifests for staging namespace
   - [ ] 2.2 Configure rolling update strategy (maxUnavailable=0, maxSurge=1)
   - [ ] 2.3 Set resource requests and limits (CPU, memory)
-  - [ ] 2.4 Configure image pull policy and ECR image reference
+  - [ ] 2.4 Configure image pull policy and container registry image reference
   - [ ] 2.5 Set replica count for staging (minimum 2 for HA)
   - [ ] 2.6 Configure namespace resource quotas
 
@@ -88,6 +88,11 @@ This story implements staging auto-deployment per the architecture document:
 - **SSL**: HTTPS enforced for staging environment
 
 ### Deployment Workflow
+
+> **Multi-Cloud Note**: The workflow YAML below shows the AWS variant.
+> The actual `.github/workflows/deploy-staging.yml` uses `vars.CLOUD_PROVIDER`
+> with conditional steps for AWS (EKS/ECR) and Azure (AKS/ACR).
+> See `infrastructure/terraform/README.md` for the Two Roots architecture.
 
 ```yaml
 # .github/workflows/deploy-staging.yml
@@ -183,7 +188,7 @@ spec:
     spec:
       containers:
         - name: qualisys-api
-          image: ${ECR_REGISTRY}/qualisys-api:${IMAGE_TAG}
+          image: ${CONTAINER_REGISTRY}/qualisys-api:${IMAGE_TAG}
           ports:
             - containerPort: 3000
           resources:
@@ -317,8 +322,8 @@ spec:
 
 ### Dependencies
 
-- **Story 0.3** (Kubernetes Cluster) - REQUIRED: EKS cluster with staging namespace
-- **Story 0.6** (Container Registry) - REQUIRED: ECR repository for images
+- **Story 0.3** (Kubernetes Cluster) - REQUIRED: Kubernetes cluster (EKS/AKS) with staging namespace
+- **Story 0.6** (Container Registry) - REQUIRED: Container registry (ECR/ACR) for images
 - **Story 0.8** (GitHub Actions) - REQUIRED: Workflow infrastructure
 - **Story 0.9** (Docker Build) - REQUIRED: Docker images to deploy
 - **Story 0.13** (Load Balancer) - REQUIRED: Ingress controller for routing
@@ -380,3 +385,4 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 |------|--------|--------|
 | 2026-01-23 | SM Agent (Bob) | Story drafted from Epic 0 tech spec and epic file |
 | 2026-01-23 | SM Agent (Bob) | Context XML generated, status: drafted → ready-for-dev |
+| 2026-02-09 | PM Agent (John) | Multi-cloud course correction: generalized AWS-specific references to cloud-agnostic |

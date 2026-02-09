@@ -1,0 +1,51 @@
+# Azure Workload Identity Bindings
+# QUALISYS Azure Infrastructure — mirrors AWS IRSA annotations
+# Binds Kubernetes service accounts to Azure Managed Identities
+#
+# IMPORTANT: Replace <EXTERNAL_SECRETS_CLIENT_ID> and <APP_WORKLOAD_CLIENT_ID>
+# with values from Terraform output:
+#   terraform output -raw external_secrets_identity_client_id
+#   terraform output -raw app_workload_identity_client_id
+
+# =============================================================================
+# ExternalSecrets Operator Service Account
+# Annotated for Workload Identity Federation
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: external-secrets-sa
+  namespace: external-secrets
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    azure.workload.identity/use: "true"
+  annotations:
+    azure.workload.identity/client-id: "<EXTERNAL_SECRETS_CLIENT_ID>"
+---
+# =============================================================================
+# Application Workload Service Account — Staging
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: qualisys-api
+  namespace: staging
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    azure.workload.identity/use: "true"
+  annotations:
+    azure.workload.identity/client-id: "<APP_WORKLOAD_CLIENT_ID>"
+---
+# =============================================================================
+# Application Workload Service Account — Production
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: qualisys-api
+  namespace: production
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    azure.workload.identity/use: "true"
+  annotations:
+    azure.workload.identity/client-id: "<APP_WORKLOAD_CLIENT_ID>"

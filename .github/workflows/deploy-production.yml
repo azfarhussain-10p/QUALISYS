@@ -3,7 +3,7 @@
 # AC: 3 - Deploy production with manual trigger (workflow_dispatch)
 # AC: 7 - Least-privilege permissions
 # AC: 9 - GitHub Environments with protection rules
-# Tasks 6.1-6.7
+# Supports both AWS and Azure via CLOUD_PROVIDER repository variable
 
 name: Deploy Production
 
@@ -32,34 +32,36 @@ concurrency:
 
 jobs:
   # ===================================================================
-  # Validate Image Exists in ECR
+  # Validate Image Exists
   # ===================================================================
   validate:
     name: Validate Image
     runs-on: ubuntu-latest
     steps:
+      # --- AWS validation ---
       - name: Configure AWS credentials
+        if: vars.CLOUD_PROVIDER == 'aws'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Verify API image exists
+      - name: Verify images exist (AWS ECR)
+        if: vars.CLOUD_PROVIDER == 'aws'
         run: |
           aws ecr describe-images \
             --repository-name qualisys-api \
             --image-ids imageTag=${{ inputs.image_tag }} \
             --region ${{ secrets.AWS_REGION }}
 
-      - name: Verify Web image exists
-        run: |
           aws ecr describe-images \
             --repository-name qualisys-web \
             --image-ids imageTag=${{ inputs.image_tag }} \
             --region ${{ secrets.AWS_REGION }}
 
-      - name: Check scan results
+      - name: Check ECR scan results
+        if: vars.CLOUD_PROVIDER == 'aws'
         run: |
           echo "=== API Image Scan ==="
           aws ecr describe-image-scan-findings \
@@ -75,6 +77,32 @@ jobs:
             --query 'imageScanFindings.findingSeverityCounts' \
             --region ${{ secrets.AWS_REGION }} || echo "No scan results"
 
+      # --- Azure validation ---
+      - name: Login to Azure
+        if: vars.CLOUD_PROVIDER == 'azure'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify images exist (Azure ACR)
+        if: vars.CLOUD_PROVIDER == 'azure'
+        run: |
+          az acr repository show-tags \
+            --name ${{ secrets.ACR_REGISTRY_NAME }} \
+            --repository qualisys-api \
+            --query "[?contains(@, '${{ inputs.image_tag }}')]" \
+            --output tsv | grep -q "${{ inputs.image_tag }}" || \
+            (echo "API image tag not found" && exit 1)
+
+          az acr repository show-tags \
+            --name ${{ secrets.ACR_REGISTRY_NAME }} \
+            --repository qualisys-web \
+            --query "[?contains(@, '${{ inputs.image_tag }}')]" \
+            --output tsv | grep -q "${{ inputs.image_tag }}" || \
+            (echo "Web image tag not found" && exit 1)
+
   # ===================================================================
   # Deploy to Production (requires environment approval)
   # ===================================================================
@@ -88,11 +116,19 @@ jobs:
       image_tag: ${{ inputs.image_tag }}
       namespace: production
     secrets:
+      # AWS
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
       KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG_BASE64 }}
+      # Azure
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ACR_REGISTRY_NAME: ${{ secrets.ACR_REGISTRY_NAME }}
+      AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
+      AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
 
   # ===================================================================
   # Post-Deployment Smoke Tests
@@ -107,19 +143,40 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # --- AWS kubeconfig ---
       - name: Configure AWS credentials
+        if: vars.CLOUD_PROVIDER == 'aws'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Setup kubeconfig
+      - name: Setup kubeconfig (AWS)
+        if: vars.CLOUD_PROVIDER == 'aws'
         run: |
           mkdir -p $HOME/.kube
           echo "${{ secrets.KUBECONFIG_BASE64 }}" | base64 -d > $HOME/.kube/config
           chmod 600 $HOME/.kube/config
 
+      # --- Azure kubeconfig ---
+      - name: Login to Azure
+        if: vars.CLOUD_PROVIDER == 'azure'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup kubeconfig (Azure)
+        if: vars.CLOUD_PROVIDER == 'azure'
+        run: |
+          az aks get-credentials \
+            --resource-group ${{ secrets.AKS_RESOURCE_GROUP }} \
+            --name ${{ secrets.AKS_CLUSTER_NAME }} \
+            --overwrite-existing
+
+      # --- Shared smoke tests ---
       - name: Verify pods are running
         run: |
           echo "=== Checking pod status ==="
@@ -166,7 +223,7 @@ jobs:
                   \"type\": \"section\",
                   \"text\": {
                     \"type\": \"mrkdwn\",
-                    \"text\": \":rocket: *Production deployment successful*\n*Image:* \`${{ inputs.image_tag }}\`\n*Triggered by:* ${GITHUB_ACTOR}\n*Run:* <${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}|View>\"
+                    \"text\": \":rocket: *Production deployment successful*\n*Cloud:* \`${{ vars.CLOUD_PROVIDER }}\`\n*Image:* \`${{ inputs.image_tag }}\`\n*Triggered by:* ${GITHUB_ACTOR}\n*Run:* <${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}|View>\"
                   }
                 }
               ]
@@ -186,7 +243,7 @@ jobs:
                   \"type\": \"section\",
                   \"text\": {
                     \"type\": \"mrkdwn\",
-                    \"text\": \":rotating_light: *Production deployment FAILED*\n*Image:* \`${{ inputs.image_tag }}\`\n*Triggered by:* ${GITHUB_ACTOR}\n*Run:* <${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}|View logs>\"
+                    \"text\": \":rotating_light: *Production deployment FAILED*\n*Cloud:* \`${{ vars.CLOUD_PROVIDER }}\`\n*Image:* \`${{ inputs.image_tag }}\`\n*Triggered by:* ${GITHUB_ACTOR}\n*Run:* <${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}|View logs>\"
                   }
                 }
               ]

@@ -611,7 +611,7 @@ The shift from monthly → daily → continuous deployment created a **structura
    - QUALISYS's core feature aligns with highest market demand
 
 2. **Comprehensive Platform Approach**
-   - Multi-agent AI system (8 specialized agents) vs. point solutions
+   - Multi-agent AI system (6 specialized agents) vs. point solutions
    - Full lifecycle coverage (document ingestion → test generation → execution → reporting)
    - Unique combination: Document ingestion + DOM analysis + self-healing automation
 
@@ -634,7 +634,7 @@ The shift from monthly → daily → continuous deployment created a **structura
 
 2. **Unproven Technology Claims**
    - Self-healing effectiveness needs validation (market claims 40% reduction - can QUALISYS deliver?)
-   - Multi-agent orchestration complexity (8 agents = potential failure points, coordination overhead)
+   - Multi-agent orchestration complexity (6 agents = potential failure points, coordination overhead)
    - LLM reliability for test generation (code hallucination risk, security validation needed)
 
 3. **Resource Requirements**

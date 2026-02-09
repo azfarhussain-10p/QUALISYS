@@ -1,7 +1,7 @@
 # Reusable Deploy Workflow
 # Story: 0-8 GitHub Actions Workflow Setup
 # AC: 10 - Reusable workflows for common steps
-# Task 3.3
+# Supports both AWS (EKS) and Azure (AKS) via CLOUD_PROVIDER variable
 
 name: Reusable Deploy
 
@@ -21,19 +21,34 @@ on:
         type: string
         description: "Kubernetes namespace"
     secrets:
+      # AWS secrets (required when CLOUD_PROVIDER=aws)
       AWS_ACCESS_KEY_ID:
-        required: true
+        required: false
       AWS_SECRET_ACCESS_KEY:
-        required: true
+        required: false
       AWS_REGION:
-        required: true
+        required: false
       ECR_REGISTRY:
-        required: true
+        required: false
       KUBECONFIG_BASE64:
-        required: true
+        required: false
+      # Azure secrets (required when CLOUD_PROVIDER=azure)
+      AZURE_CLIENT_ID:
+        required: false
+      AZURE_TENANT_ID:
+        required: false
+      AZURE_SUBSCRIPTION_ID:
+        required: false
+      ACR_REGISTRY_NAME:
+        required: false
+      AKS_CLUSTER_NAME:
+        required: false
+      AKS_RESOURCE_GROUP:
+        required: false
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   deploy:
@@ -45,27 +60,57 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # --- AWS Authentication & Kubeconfig ---
       - name: Configure AWS credentials
+        if: vars.CLOUD_PROVIDER == 'aws'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Setup kubeconfig
+      - name: Setup kubeconfig (AWS)
+        if: vars.CLOUD_PROVIDER == 'aws'
         run: |
           mkdir -p $HOME/.kube
           echo "${{ secrets.KUBECONFIG_BASE64 }}" | base64 -d > $HOME/.kube/config
           chmod 600 $HOME/.kube/config
 
+      # --- Azure Authentication & Kubeconfig ---
+      - name: Login to Azure
+        if: vars.CLOUD_PROVIDER == 'azure'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup kubeconfig (Azure)
+        if: vars.CLOUD_PROVIDER == 'azure'
+        run: |
+          az aks get-credentials \
+            --resource-group ${{ secrets.AKS_RESOURCE_GROUP }} \
+            --name ${{ secrets.AKS_CLUSTER_NAME }} \
+            --overwrite-existing
+
+      # --- Shared deployment steps ---
       - name: Verify cluster connectivity
         run: |
           kubectl cluster-info
           kubectl get namespace ${{ inputs.namespace }}
 
+      - name: Set registry variable
+        id: registry
+        run: |
+          if [ "${{ vars.CLOUD_PROVIDER }}" = "azure" ]; then
+            echo "registry=${{ secrets.ACR_REGISTRY_NAME }}.azurecr.io" >> "$GITHUB_OUTPUT"
+          else
+            echo "registry=${{ secrets.ECR_REGISTRY }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Update deployment images
         run: |
-          IMAGE_BASE="${{ secrets.ECR_REGISTRY }}"
+          IMAGE_BASE="${{ steps.registry.outputs.registry }}"
           TAG="${{ inputs.image_tag }}"
 
           # Update API deployment

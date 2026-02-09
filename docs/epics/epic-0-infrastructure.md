@@ -59,7 +59,7 @@ Provision complete cloud infrastructure, CI/CD pipelines, test infrastructure, a
 
 ## Key Architectural Decisions
 
-**Cloud Platform:** AWS (confirmed 2026-01-22)
+**Cloud Platform:** AWS + Azure — Two Roots architecture (updated 2026-02-09)
 
 **Container Orchestration:** Kubernetes (EKS/GKE/AKS)
 - Namespace per environment (dev, staging, production)
@@ -845,3 +845,5 @@ As a DevOps Engineer, I want to provision all third-party service accounts and A
 ---
 
 _Epic 0 created by Bob (Scrum Master) on 2025-12-12 to address P0 CRITICAL gaps from Implementation Readiness Assessment._
+
+_2026-02-09: PM Agent (John) — Multi-cloud course correction: updated Cloud Platform to AWS + Azure (Two Roots architecture)._

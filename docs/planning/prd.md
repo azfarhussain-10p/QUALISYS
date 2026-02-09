@@ -12,7 +12,7 @@ QUALISYS is an **AI System Quality Assurance Platform** that revolutionizes soft
 
 **The Core Problem:** Software teams spend 40% of their time on manual testing activities, test automation scripts break constantly with UI changes requiring constant maintenance, and test coverage gaps lead to bugs escaping to production. The fundamental issue is that testing has not evolved to match modern development velocity - what development teams can build in days takes testing teams weeks to validate.
 
-QUALISYS transforms testing from a manual bottleneck into an intelligent, self-maintaining system. The platform ingests requirements documents (PRDs, SRS, RFPs), crawls application UI and APIs via Playwright, analyzes source code from repositories, and uses 8 specialized AI agents to automatically generate comprehensive test artifacts - from manual test checklists to automated Playwright/Puppeteer scripts. The breakthrough innovation is **self-healing test automation**: when application UI changes cause tests to fail, QUALISYS automatically detects the changes, proposes fixes, and updates test scripts - dramatically reducing maintenance burden.
+QUALISYS transforms testing from a manual bottleneck into an intelligent, self-maintaining system. The platform ingests requirements documents (PRDs, SRS, RFPs), crawls application UI and APIs via Playwright, analyzes source code from repositories, and uses 6 specialized AI agents (3 MVP + 3 Post-MVP) to automatically generate comprehensive test artifacts - from manual test checklists to automated Playwright/Puppeteer scripts. The breakthrough innovation is **self-healing test automation**: when application UI changes cause tests to fail, QUALISYS automatically detects the changes, proposes fixes, and updates test scripts - dramatically reducing maintenance burden.
 
 **Target Users:** Project Managers and Customer Success Managers (project oversight, SLA compliance), Manual Test Engineers (guided test execution with evidence capture), Automation Engineers (AI-generated scripts with self-healing capabilities), SRE/Platform Engineers (infrastructure monitoring and performance testing), Business Analysts and Product Owners (requirements traceability and test coverage visibility).
 
@@ -24,7 +24,7 @@ QUALISYS transforms testing from a manual bottleneck into an intelligent, self-m
 
 **QUALISYS combines three breakthrough capabilities that no existing solution offers together:**
 
-1. **Multi-Agent AI System**: 8 specialized AI agents (Documentation Analyzer, Manual Tester, Automation Tester, Web Scraper, AI Log Reader/Summarizer, Test Case Generator, Security Scanner Orchestrator, Performance/Load Agent) work in orchestrated pipelines - user-selectable workflows that adapt to project needs.
+1. **Multi-Agent AI System**: 6 specialized AI agents — MVP: BAConsultant AI Agent, QAConsultant AI Agent, AutomationConsultant AI Agent; Post-MVP: AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent — work in orchestrated pipelines with user-selectable workflows that adapt to project needs.
 
 2. **Self-Healing Test Automation**: When application changes break tests, QUALISYS doesn't just report failures - it automatically detects DOM changes, proposes patched selectors using multiple fallback strategies (CSS/XPath, text anchors, accessibility labels, visual anchors), and updates tests with versioned audit trails.
 
@@ -68,7 +68,7 @@ QUALISYS transforms testing from a manual bottleneck into an intelligent, self-m
 
 **QUALISYS Differentiation:**
 - **vs DeepEval:** Full testing lifecycle (not just evaluation), production monitoring, team collaboration
-- **vs Braintrust:** Multi-agent AI system (8 agents), self-healing automation, integration-first adoption
+- **vs Braintrust:** Multi-agent AI system (6 agents), self-healing automation, integration-first adoption
 - **vs Traditional Tools (Selenium, Cypress):** Built for AI systems from ground up, not bolt-on AI features
 
 **Strategic Positioning:** While competitors focus on "AI testing tools" or "LLM evaluation," QUALISYS creates the **"AI System Quality Assurance"** category - comprehensive QA for the non-deterministic era.
@@ -162,10 +162,9 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 - **DOM Crawler**: Playwright-based crawler to capture site map, pages, forms, dynamic flows, handle auth cookies
 
 **3. Multi-Agent Test Generation (MVP Agents)**
-- **Documentation Analyzer**: Requirements → coverage matrix
-- **Manual Tester**: Generate manual test checklists + exploratory test prompts
-- **Automation Tester**: Generate Playwright/Puppeteer scripts with smart locators
-- **Test Case Generator**: BDD/Gherkin scenarios + negative cases + boundary analysis
+- **BAConsultant AI Agent**: Requirements analysis, gap/ambiguity detection, coverage matrix, user story creation with quality scoring
+- **QAConsultant AI Agent**: Test strategy, manual test checklists, BDD/Gherkin scenarios, negative/boundary tests, checklist-driven testing (Smoke, Sanity, Integration, Regression, Usability, UAT), synthetic test data generation, sprint readiness validation
+- **AutomationConsultant AI Agent**: Playwright/Puppeteer/REST-Assured script generation, framework architecture (POM/Data-Driven/Hybrid), DOM crawling and application discovery, automation suite management, CI/CD integration
 - Agent Selection UI: User picks agents or orchestrates simple pipelines
 
 **4. Test Execution Infrastructure**
@@ -193,7 +192,7 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 - **Slack**: Notifications and basic ChatOps
 
 **NOT in MVP:**
-- ❌ Advanced AI agents (Web Scraper, Log Reader, Security Scanner, Performance Agent)
+- ❌ Post-MVP AI agents (AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent)
 - ❌ Full self-healing with ML-suggested selectors (basic rules-based only)
 - ❌ Advanced SLA monitoring with auto-alerts
 - ❌ Cost-per-test analytics
@@ -206,7 +205,7 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 ### Growth Features (Post-MVP, 3-6 months)
 
 **Phase 1: Complete Multi-Agent Suite**
-- Add remaining agents: Web Scraper, AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent
+- Add remaining agents: AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent
 - Agent pipeline orchestration: Create complex multi-step workflows
 - Agent performance metrics and optimization
 
@@ -467,12 +466,12 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 
 ### Test Artifact Generation
 
-- FR32: Documentation Analyzer agent generates requirements-to-test coverage matrix
-- FR33: Manual Tester agent generates manual test checklists with step-by-step instructions
-- FR34: Manual Tester agent generates exploratory testing prompts and scenarios
-- FR35: Automation Tester agent generates Playwright test scripts with smart locators
-- FR36: Test Case Generator agent creates BDD/Gherkin scenarios from requirements
-- FR37: Test Case Generator agent creates negative test cases and boundary condition tests
+- FR32: BAConsultant AI Agent analyzes requirements, performs gap/ambiguity detection, and generates requirements-to-test coverage matrix with user story quality scoring. Generated user stories require dual-review approval (internal team review + client stakeholder review) before release to downstream agents
+- FR33: QAConsultant AI Agent generates manual test checklists with step-by-step instructions, supporting checklist-driven testing across Smoke, Sanity, Integration, Regression, Usability, and UAT types
+- FR34: QAConsultant AI Agent generates exploratory testing prompts, BDD/Gherkin scenarios, negative test cases, boundary condition tests, and domain-aware synthetic test data
+- FR35: AutomationConsultant AI Agent generates automated test scripts (Playwright, Puppeteer, REST-Assured) with smart locators, supporting multiple framework architectures (POM, Data-Driven, Hybrid)
+- FR36: QAConsultant AI Agent creates test strategy documents, test plans, and validates sprint readiness
+- FR37: AutomationConsultant AI Agent performs automated DOM crawling, sitemap generation, and coverage gap detection for application discovery
 - FR38: Users can view all generated test artifacts organized by type and agent
 - FR39: Users can edit generated test artifacts before execution
 - FR40: Users can version and track changes to test artifacts

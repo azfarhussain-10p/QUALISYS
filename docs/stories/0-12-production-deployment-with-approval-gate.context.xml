@@ -4,8 +4,9 @@
     <storyId>12</storyId>
     <title>Production Deployment with Approval Gate</title>
     <status>ready-for-dev</status>
-    <generatedAt>2026-01-23</generatedAt>
+    <generatedAt>2026-02-09</generatedAt>
     <generator>BMAD Story Context Workflow</generator>
+    <multiCloudNote>Context regenerated for multi-cloud (AWS + Azure) Two Roots architecture</multiCloudNote>
     <sourceStoryPath>docs/stories/0-12-production-deployment-with-approval-gate.md</sourceStoryPath>
   </metadata>
 
@@ -86,10 +87,10 @@
       <note>Production deployment extends staging patterns with approval gates and canary strategy.</note>
       <prerequisites>
         <story id="0-3-kubernetes-cluster-provisioning" status="ready-for-dev">
-          <provides>EKS cluster with production namespace</provides>
+          <provides>Kubernetes cluster (EKS/AKS) with production namespace</provides>
         </story>
         <story id="0-6-container-registry" status="ready-for-dev">
-          <provides>ECR repositories with tagged images</provides>
+          <provides>Container registry (ECR/ACR) repositories with tagged images</provides>
         </story>
         <story id="0-8-github-actions-workflow-setup" status="ready-for-dev">
           <provides>GitHub Actions infrastructure, environments</provides>
@@ -155,16 +156,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure cloud provider credentials
+        # AWS: aws-actions/configure-aws-credentials@v4
+        # Azure: azure/login@v2
+        uses: ./.github/actions/cloud-auth
         with:
-          role-to-assume: ${{ secrets.AWS_PRODUCTION_ROLE_ARN }}
-          aws-region: us-east-1
+          cloud-provider: ${{ vars.CLOUD_PROVIDER }}
+          role-to-assume: ${{ secrets.AWS_PRODUCTION_ROLE_ARN }}  # AWS
+          azure-credentials: ${{ secrets.AZURE_CREDENTIALS }}  # Azure
       - name: Deploy canary (10%)
         run: |
-          aws eks update-kubeconfig --name qualisys-cluster --region us-east-1
+          ./.github/scripts/update-kubeconfig.sh ${{ vars.CLOUD_PROVIDER }}
           kubectl set image deployment/qualisys-api-canary \
-            qualisys-api=${{ secrets.ECR_REGISTRY }}/qualisys-api:${{ inputs.image_tag }} \
+            qualisys-api=${{ secrets.CONTAINER_REGISTRY }}/qualisys-api:${{ inputs.image_tag }} \
             -n production
           kubectl rollout status deployment/qualisys-api-canary -n production --timeout=120s
       - name: Smoke tests on canary
@@ -175,7 +179,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Configure AWS and scale to 50%
+      - name: Configure cloud provider and scale to 50%
         run: |
           kubectl scale deployment/qualisys-api-canary --replicas=5 -n production
           kubectl scale deployment/qualisys-api-stable --replicas=5 -n production
@@ -190,7 +194,7 @@ jobs:
       - name: Promote to 100%
         run: |
           kubectl set image deployment/qualisys-api-stable \
-            qualisys-api=${{ secrets.ECR_REGISTRY }}/qualisys-api:${{ inputs.image_tag }} \
+            qualisys-api=${{ secrets.CONTAINER_REGISTRY }}/qualisys-api:${{ inputs.image_tag }} \
             -n production
           kubectl rollout status deployment/qualisys-api-stable -n production --timeout=180s
           kubectl scale deployment/qualisys-api-canary --replicas=0 -n production
@@ -226,7 +230,7 @@ spec:
     spec:
       containers:
         - name: qualisys-api
-          image: ${ECR_REGISTRY}/qualisys-api:${CANARY_TAG}
+          image: ${CONTAINER_REGISTRY}/qualisys-api:${CANARY_TAG}
           ports:
             - containerPort: 3000
           resources:
@@ -298,7 +302,7 @@ kubectl rollout undo deployment/qualisys-web-stable -n production
 
 ### Option 2: Deploy specific version
 kubectl set image deployment/qualisys-api-stable \
-  qualisys-api=<ECR_REGISTRY>/qualisys-api:<PREVIOUS_SHA> \
+  qualisys-api=<CONTAINER_REGISTRY>/qualisys-api:<PREVIOUS_SHA> \
   -n production
 
 ### Verify rollback
@@ -314,7 +318,8 @@ kubectl rollout history deployment/qualisys-api-stable -n production
     <dependencies>
       <githubActions>
         <action name="actions/checkout" version="v4" purpose="Clone repository" />
-        <action name="aws-actions/configure-aws-credentials" version="v4" purpose="OIDC AWS auth" />
+        <action name="aws-actions/configure-aws-credentials" version="v4" purpose="OIDC AWS auth (AWS variant)" />
+        <action name="azure/login" version="v2" purpose="Azure service principal auth (Azure variant)" />
         <action name="slackapi/slack-github-action" version="v1" purpose="Slack notifications" />
       </githubActions>
       <kubernetes>
@@ -324,8 +329,9 @@ kubectl rollout history deployment/qualisys-api-stable -n production
         <resource name="Ingress" purpose="External traffic, SSL termination" />
       </kubernetes>
       <secrets>
-        <secret name="AWS_PRODUCTION_ROLE_ARN" purpose="OIDC role for production AWS access" />
-        <secret name="ECR_REGISTRY" purpose="ECR registry URL" />
+        <secret name="AWS_PRODUCTION_ROLE_ARN" purpose="OIDC role for production AWS access (AWS) / AZURE_CLIENT_ID (Azure)" />
+        <secret name="AZURE_CREDENTIALS" purpose="Azure service principal credentials (Azure)" />
+        <secret name="CONTAINER_REGISTRY" purpose="Container registry URL (ECR for AWS, ACR for Azure)" />
         <secret name="SMOKE_TEST_TOKEN" purpose="API token for smoke test authentication" />
         <secret name="SLACK_BOT_TOKEN" purpose="Slack API authentication" />
         <secret name="SLACK_DEPLOY_CHANNEL" purpose="Deployment notifications channel" />

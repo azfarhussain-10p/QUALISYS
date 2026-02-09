@@ -265,7 +265,7 @@ QUALISYS is an **AI System Quality Assurance Platform** designed to revolutioniz
 
 #### Architecture Analysis (docs/architecture.md)
 - **Technology Stack:** Vite + React (frontend), FastAPI (backend), PostgreSQL 15+, Redis, Kubernetes
-- **Key Patterns:** Multi-tenant schema isolation, 8 AI agents with LangChain, Self-healing engine
+- **Key Patterns:** Multi-tenant schema isolation, 6 AI agents (3 MVP + 3 Post-MVP) with LangChain, Self-healing engine
 - **Risk Mitigation:** 8 failure modes analyzed with preventive architecture
 - **Validation:** 100% pass rate (60/60 items) including version verification
 
@@ -438,7 +438,7 @@ Product Brief → PRD (110 FRs) → Architecture (all FRs supported) → Epics (
 | **FR1-10 (Account/Access)** | OAuth 2.0, SAML 2.0, MFA (TOTP), JWT tokens | ✅ 10/10 |
 | **FR11-15 (Project Mgmt)** | PostgreSQL project tables, RBAC policies | ✅ 10/10 |
 | **FR16-25 (Doc Ingestion)** | Vector DB (pgvector), document parsing pipeline | ✅ 10/10 |
-| **FR26-31 (AI Orchestration)** | LangChain, 8 AI agents, AgentOrchestrator abstraction | ✅ 10/10 |
+| **FR26-31 (AI Orchestration)** | LangChain, 6 AI agents (3 MVP + 3 Post-MVP), AgentOrchestrator abstraction | ✅ 10/10 |
 | **FR32-40 (Test Generation)** | Agent output storage, artifact versioning | ✅ 10/10 |
 | **FR41-48 (Manual Testing)** | Manual test execution tables, evidence storage (S3) | ✅ 10/10 |
 | **FR49-57 (Automated Testing)** | Playwright containers, parallel execution, Kubernetes HPA | ✅ 10/10 |

@@ -12,14 +12,14 @@ so that **external traffic reaches our applications securely with proper routing
 
 | # | Criterion | Verification Method |
 |---|-----------|---------------------|
-| AC1 | NGINX Ingress Controller or AWS ALB Ingress Controller installed | kubectl get pods -n ingress-nginx shows running controller |
+| AC1 | NGINX Ingress Controller installed (cloud-agnostic) | kubectl get pods -n ingress-nginx shows running controller |
 | AC2 | Ingress routes traffic: app.qualisys.io → web, api.qualisys.io → api | curl commands route to correct services |
 | AC3 | Staging domain configured: staging.qualisys.dev | Browser navigates to staging URL |
-| AC4 | SSL certificates provisioned via cert-manager (Let's Encrypt) or AWS ACM | Certificates valid and auto-renewing |
+| AC4 | SSL certificates provisioned via cert-manager (Let's Encrypt) | Certificates valid and auto-renewing |
 | AC5 | HTTPS enforced with HTTP to HTTPS redirect | HTTP requests redirect to HTTPS (301) |
 | AC6 | Health checks configured for backend services | Ingress controller routes only to healthy pods |
 | AC7 | Rate limiting configured (1000 req/min per IP) | Excessive requests return 429 Too Many Requests |
-| AC8 | DDoS protection enabled (AWS Shield or Cloudflare) | Protection active in AWS console/Cloudflare dashboard |
+| AC8 | DDoS protection enabled (AWS Shield / Azure DDoS Protection / Cloudflare) | Protection active in cloud console/Cloudflare dashboard |
 | AC9 | Custom error pages configured (502, 503, 504) | Error pages show branded maintenance message |
 | AC10 | Ingress annotations documented for team reference | CONTRIBUTING.md includes ingress configuration guide |
 
@@ -40,7 +40,7 @@ so that **external traffic reaches our applications securely with proper routing
   - [ ] 2.5 Configure HTTPS redirect annotations
 
 - [ ] **Task 3: DNS Configuration** (AC: 2, 3)
-  - [ ] 3.1 Create Route 53 hosted zone (or existing DNS provider)
+  - [ ] 3.1 Create DNS zone (Route 53 on AWS, Azure DNS on Azure, or external provider)
   - [ ] 3.2 Create A/CNAME records for app.qualisys.io
   - [ ] 3.3 Create A/CNAME records for api.qualisys.io
   - [ ] 3.4 Create A/CNAME records for staging.qualisys.dev
@@ -56,7 +56,7 @@ so that **external traffic reaches our applications securely with proper routing
 - [ ] **Task 5: Rate Limiting & Security** (AC: 7, 8)
   - [ ] 5.1 Configure NGINX rate limiting annotations
   - [ ] 5.2 Set rate limit to 1000 req/min per IP
-  - [ ] 5.3 Enable AWS Shield Standard (automatic with ALB)
+  - [ ] 5.3 Enable DDoS protection (AWS Shield Standard / Azure DDoS Protection)
   - [ ] 5.4 Configure Cloudflare proxy (optional, if using)
   - [ ] 5.5 Test rate limiting with load test tool
 
@@ -91,7 +91,7 @@ This story implements ingress configuration per the architecture document:
 | Option | Pros | Cons | Decision |
 |--------|------|------|----------|
 | NGINX Ingress | Feature-rich, battle-tested, community support | Requires separate LB | **Selected** |
-| AWS ALB Ingress | Native AWS integration, no extra LB | Less flexible annotations | Alternative |
+| Cloud ALB Ingress | Native cloud integration (AWS ALB / Azure App GW) | Less flexible, cloud-specific | Alternative |
 | Traefik | Modern, auto-discovery | Less mature ecosystem | Not selected |
 
 ### NGINX Ingress Controller Installation
@@ -111,7 +111,7 @@ helm install ingress-nginx ingress-nginx/ingress-nginx \
   --set controller.resources.limits.cpu=500m \
   --set controller.resources.limits.memory=256Mi \
   --set controller.service.type=LoadBalancer \
-  --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"=nlb
+  --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"=nlb  # AWS only; Azure uses default LB
 ```
 
 ### Cert-Manager Installation
@@ -298,7 +298,11 @@ data:
     </html>
 ```
 
-### DNS Configuration (Route 53)
+### DNS Configuration (Route 53 / Azure DNS)
+
+> **Multi-Cloud Note**: The Terraform below shows the AWS Route 53 variant.
+> Azure uses `azurerm_dns_zone` and `azurerm_dns_a_record` resources.
+> See `infrastructure/terraform/azure/` for the Azure DNS configuration.
 
 ```hcl
 # terraform/dns.tf
@@ -361,7 +365,7 @@ hey -n 2000 -c 50 -q 50 https://api.qualisys.io/health
 ### Dependencies
 
 - **Story 0.2** (VPC & Network) - REQUIRED: Public subnets for load balancer
-- **Story 0.3** (Kubernetes Cluster) - REQUIRED: EKS cluster to deploy ingress
+- **Story 0.3** (Kubernetes Cluster) - REQUIRED: Kubernetes cluster (EKS/AKS) to deploy ingress
 - Outputs used by subsequent stories:
   - Story 0.11 (Staging Deployment): Staging ingress routes traffic
   - Story 0.12 (Production Deployment): Production ingress routes traffic
@@ -370,7 +374,7 @@ hey -n 2000 -c 50 -q 50 https://api.qualisys.io/health
 ### Security Considerations
 
 1. **Threat: SSL stripping** → HTTPS redirect enforced, HSTS headers
-2. **Threat: DoS/DDoS** → Rate limiting + AWS Shield protection
+2. **Threat: DoS/DDoS** → Rate limiting + DDoS protection (AWS Shield / Azure DDoS)
 3. **Threat: Injection via headers** → Security headers configured
 4. **Threat: Certificate expiration** → cert-manager auto-renewal
 5. **Threat: Exposed internal services** → Only specified hosts/paths routed
@@ -418,3 +422,4 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 |------|--------|--------|
 | 2026-01-23 | SM Agent (Bob) | Story drafted from Epic 0 tech spec and epic file |
 | 2026-01-23 | SM Agent (Bob) | Context XML generated, status: drafted → ready-for-dev |
+| 2026-02-09 | PM Agent (John) | Multi-cloud course correction: generalized AWS-specific references to cloud-agnostic |

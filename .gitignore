@@ -1,7 +1,6 @@
 # =============================================================================
 # QUALISYS .gitignore
-# Story: 0-1 Cloud Account & IAM Setup
-# AC: 6 - Credentials NOT committed to Git
+# Multi-cloud (AWS + Azure) AI-powered QMS platform
 # =============================================================================
 
 # =============================================================================
@@ -22,7 +21,7 @@ credentials*
 .env.*.local
 !.env.example
 !.env.template
-secrets/
+/secrets/
 *.credentials.json
 
 # =============================================================================
@@ -34,6 +33,8 @@ aws-credentials*
 .gcp/
 .azure/
 cloud-credentials*
+kubeconfig*
+*.kubeconfig
 
 # =============================================================================
 # Terraform & Infrastructure as Code
@@ -81,6 +82,8 @@ dmypy.json
 .pyre/
 .pytype/
 cython_debug/
+.ruff_cache/
+.uv/
 
 # =============================================================================
 # Node.js / Next.js (Frontend)
@@ -130,6 +133,9 @@ dist/
 .cursor/
 .cursorrules.local
 
+# Claude Code
+.claude/settings.local.json
+
 # =============================================================================
 # Operating System
 # =============================================================================
@@ -166,6 +172,13 @@ lpt6
 lpt7
 lpt8
 lpt9
+
+# =============================================================================
+# Kubernetes & Helm
+# =============================================================================
+charts/
+*.tgz
+Chart.lock
 
 # =============================================================================
 # Docker / Podman / Containers

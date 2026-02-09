@@ -1,0 +1,46 @@
+# QUALISYS Azure — Example Variables
+# Copy to terraform.tfvars and fill in your values.
+
+# --- Required ---
+azure_subscription_id = "00000000-0000-0000-0000-000000000000"
+budget_alert_email    = "devops@example.com"
+
+# --- Environment ---
+environment  = "dev"          # dev | staging | production
+project_name = "qualisys"
+
+# --- Azure Region ---
+azure_location = "eastus"     # Azure region for all resources
+
+# --- AKS ---
+kubernetes_version     = "1.29"
+general_node_vm_size   = "Standard_D2s_v3"
+general_node_min_count = 2
+general_node_max_count = 10
+playwright_node_vm_size   = "Standard_F4s_v2"
+playwright_node_min_count = 5
+playwright_node_max_count = 20
+
+# --- PostgreSQL ---
+postgresql_version        = "15"
+postgresql_sku_name       = ""        # Empty = auto-select based on environment
+postgresql_storage_mb     = 32768     # 32 GB
+postgresql_db_name        = "qualisys_master"
+postgresql_admin_username = "qualisys_admin"
+
+# --- Redis ---
+redis_sku_name = "Premium"
+redis_family   = "P"
+redis_capacity = 1
+
+# --- ACR ---
+acr_sku = "Premium"
+
+# --- Key Vault ---
+secret_recovery_days = 30
+
+# --- Logging ---
+log_retention_days = 90
+
+# --- VNet ---
+vnet_address_space = ["10.0.0.0/16"]

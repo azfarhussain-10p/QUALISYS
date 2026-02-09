@@ -12,14 +12,14 @@ so that **I can debug issues across distributed services**.
 
 | # | Criterion | Verification Method |
 |---|-----------|---------------------|
-| AC1 | Log aggregation system deployed (CloudWatch Logs) | CloudWatch log groups exist for application |
+| AC1 | Log aggregation system deployed (CloudWatch Logs or Azure Monitor Logs) | Log groups/workspaces exist for application |
 | AC2 | API logs shipped to central system (request/response, errors) | Search logs for API requests returns results |
 | AC3 | Worker logs shipped (background jobs, AI agent pipeline) | Search logs for worker processes returns results |
 | AC4 | Kubernetes system logs collected (kubelet, kube-proxy) | Search logs for K8s events returns results |
 | AC5 | Logs structured in JSON format | Log entries parse as valid JSON |
 | AC6 | Logs include required fields: timestamp, level, message, trace_id, tenant_id | Sample log entry contains all fields |
 | AC7 | Log retention: 30 days staging, 90 days production | Verify retention policy settings |
-| AC8 | Log search interface accessible at CloudWatch Console | Team can search logs with IAM access |
+| AC8 | Log search interface accessible (CloudWatch Console / Azure Log Analytics) | Team can search logs with IAM/RBAC access |
 | AC9 | Log-based alert: Error rate spike (>10 errors/min) | Alert fires when threshold exceeded |
 | AC10 | Log-based alert: 5xx response rate >5% | Alert fires when threshold exceeded |
 | AC11 | PII redaction enabled (email, names masked in logs) | Search for PII shows masked values |
@@ -27,19 +27,19 @@ so that **I can debug issues across distributed services**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: CloudWatch Log Groups Setup** (AC: 1, 7)
-  - [ ] 1.1 Create CloudWatch log group: /qualisys/staging/api
-  - [ ] 1.2 Create CloudWatch log group: /qualisys/staging/worker
-  - [ ] 1.3 Create CloudWatch log group: /qualisys/production/api
-  - [ ] 1.4 Create CloudWatch log group: /qualisys/production/worker
+- [ ] **Task 1: Log Groups / Workspace Setup** (AC: 1, 7)
+  - [ ] 1.1 Create log group (CloudWatch) or workspace (Azure Monitor): /qualisys/staging/api
+  - [ ] 1.2 Create log group (CloudWatch) or workspace (Azure Monitor): /qualisys/staging/worker
+  - [ ] 1.3 Create log group (CloudWatch) or workspace (Azure Monitor): /qualisys/production/api
+  - [ ] 1.4 Create log group (CloudWatch) or workspace (Azure Monitor): /qualisys/production/worker
   - [ ] 1.5 Configure retention: 30 days staging, 90 days production
-  - [ ] 1.6 Set up log group encryption (KMS key)
+  - [ ] 1.6 Set up log group encryption (KMS on AWS, CMK on Azure)
 
 - [ ] **Task 2: Fluent Bit DaemonSet Deployment** (AC: 2, 3, 4)
   - [ ] 2.1 Deploy Fluent Bit as DaemonSet in monitoring namespace
   - [ ] 2.2 Configure Fluent Bit to collect container logs
-  - [ ] 2.3 Configure Fluent Bit to ship to CloudWatch Logs
-  - [ ] 2.4 Set up IRSA (IAM Role for Service Account) for Fluent Bit
+  - [ ] 2.3 Configure Fluent Bit to ship to CloudWatch Logs (AWS) or Azure Monitor (Azure)
+  - [ ] 2.4 Set up IRSA (AWS) or Workload Identity (Azure) for Fluent Bit
   - [ ] 2.5 Configure multiline log parsing for stack traces
   - [ ] 2.6 Verify logs appearing in CloudWatch
 
@@ -59,16 +59,16 @@ so that **I can debug issues across distributed services**.
   - [ ] 4.5 Document PII handling in logs
 
 - [ ] **Task 5: Log-Based Alerts** (AC: 9, 10)
-  - [ ] 5.1 Create CloudWatch Metric Filter for error count
-  - [ ] 5.2 Create CloudWatch Alarm for >10 errors/min
-  - [ ] 5.3 Create CloudWatch Metric Filter for 5xx responses
-  - [ ] 5.4 Create CloudWatch Alarm for 5xx rate >5%
-  - [ ] 5.5 Configure alarm notifications to SNS topic
+  - [ ] 5.1 Create metric filter (CloudWatch) or alert rule (Azure Monitor) for error count
+  - [ ] 5.2 Create alarm/alert for >10 errors/min
+  - [ ] 5.3 Create metric filter/alert rule for 5xx responses
+  - [ ] 5.4 Create alarm/alert for 5xx rate >5%
+  - [ ] 5.5 Configure alarm notifications (SNS on AWS, Action Groups on Azure)
   - [ ] 5.6 Connect SNS to Slack webhook
 
 - [ ] **Task 6: Access and Documentation** (AC: 8)
-  - [ ] 6.1 Configure IAM policy for log access
-  - [ ] 6.2 Create CloudWatch Logs Insights saved queries
+  - [ ] 6.1 Configure IAM policy (AWS) or RBAC role (Azure) for log access
+  - [ ] 6.2 Create saved queries (CloudWatch Insights / KQL in Azure)
   - [ ] 6.3 Document common log search patterns
   - [ ] 6.4 Create runbook for log investigation
   - [ ] 6.5 Verify team members can access logs
@@ -85,12 +85,17 @@ This story implements observability infrastructure per architecture requirements
 
 ### Technical Constraints
 
-- **Tool Choice**: AWS CloudWatch Logs (managed, simpler than ELK for MVP)
+- **Tool Choice**: AWS CloudWatch Logs / Azure Monitor Logs (managed, simpler than ELK for MVP)
 - **Log Shipper**: Fluent Bit (lightweight, Kubernetes-native)
 - **Retention**: 30 days staging, 90 days production
 - **Format**: JSON structured logs with standard fields
 
 ### CloudWatch Log Groups (Terraform)
+
+> **Multi-Cloud Note**: The Terraform and YAML examples below show the AWS variant
+> (CloudWatch Logs, KMS, IRSA, SNS). Azure uses Azure Monitor Log Analytics workspaces,
+> Customer-Managed Keys, Workload Identity, and Action Groups respectively.
+> The Fluent Bit DaemonSet is cloud-agnostic; only the OUTPUT plugin differs.
 
 ```hcl
 # modules/logging/main.tf
@@ -279,7 +284,7 @@ spec:
       serviceAccountName: fluent-bit
       containers:
         - name: fluent-bit
-          image: amazon/aws-for-fluent-bit:2.31.12
+          image: amazon/aws-for-fluent-bit:2.31.12  # AWS; Azure uses fluent/fluent-bit:latest
           env:
             - name: AWS_REGION
               value: us-east-1
@@ -325,7 +330,7 @@ metadata:
   name: fluent-bit
   namespace: monitoring
   annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/fluent-bit-cloudwatch-role
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/fluent-bit-cloudwatch-role  # AWS; Azure uses azure.workload.identity/client-id
 ```
 
 ### IRSA Policy for Fluent Bit
@@ -639,7 +644,7 @@ fields @timestamp, method, path, status, trace_id
 ### Dependencies
 
 - **Story 0.3** (Kubernetes Cluster) - REQUIRED: Monitoring namespace
-- **Story 0.1** (IAM Setup) - REQUIRED: IAM role for Fluent Bit
+- **Story 0.1** (IAM Setup) - REQUIRED: IAM role (AWS) or Workload Identity (Azure) for Fluent Bit
 - **Story 0.7** (Secret Management) - OPTIONAL: Slack webhook URL
 - Outputs used by:
   - Epic 1-5: Centralized logging for all services
@@ -648,9 +653,9 @@ fields @timestamp, method, path, status, trace_id
 ### Security Considerations
 
 1. **Threat: PII exposure in logs** → Fluent Bit PII redaction filter
-2. **Threat: Unauthorized log access** → IAM policies restrict access
-3. **Threat: Log tampering** → CloudWatch Logs immutable, KMS encryption
-4. **Threat: Log data exfiltration** → VPC endpoints for CloudWatch
+2. **Threat: Unauthorized log access** → IAM/RBAC policies restrict access
+3. **Threat: Log tampering** → Log service immutable, KMS/CMK encryption
+4. **Threat: Log data exfiltration** → VPC endpoints (AWS) / Private Link (Azure) for log service
 
 ### Sample Log Entry
 
@@ -702,3 +707,4 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-01-24 | SM Agent (Bob) | Story drafted from Epic 0 tech spec and epic file |
+| 2026-02-09 | PM Agent (John) | Multi-cloud course correction: generalized AWS-specific references to cloud-agnostic |

@@ -59,7 +59,7 @@ so that **we can track application and infrastructure health in real-time**.
   - [ ] 4.5 Create database performance dashboard
   - [ ] 4.6 Configure Grafana ingress with SSL
   - [ ] 4.7 Set up OAuth or basic authentication
-  - [ ] 4.8 Configure admin password in Secrets Manager
+  - [ ] 4.8 Configure admin password in secret store (Secrets Manager / Key Vault)
 
 - [ ] **Task 5: Alerting Rules** (AC: 9, 10, 11, 12)
   - [ ] 5.1 Create PrometheusRule for pod crash loop alert
@@ -126,7 +126,7 @@ prometheus:
     storageSpec:
       volumeClaimTemplate:
         spec:
-          storageClassName: gp3
+          storageClassName: gp3  # AWS; Azure uses managed-premium or managed-csi
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
@@ -629,3 +629,4 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-01-24 | SM Agent (Bob) | Story drafted from Epic 0 tech spec and epic file |
+| 2026-02-09 | PM Agent (John) | Multi-cloud course correction: generalized AWS-specific references to cloud-agnostic |

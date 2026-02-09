@@ -68,7 +68,11 @@ Each story is scored across:
 
 Max score: 40 | Minimum pass: 32
 
-Human BA approval required before handoff.
+Dual-review approval required before handoff:
+1. **Internal Team Review** — BA/QA/PM reviews story for quality, completeness, and technical accuracy
+2. **Client Review** — Client stakeholder reviews for business intent and acceptance criteria correctness
+
+Only stories approved by BOTH internal team AND client are released to QAConsultant.
 
 ---
 
@@ -136,8 +140,17 @@ Human approval required before sprint start.
 
 ## 8. Governance & Human-in-the-Loop
 
-### Artifact Status Lifecycle
+### Artifact Status Lifecycle (Standard)
 Draft → Ready for Review → Review Done → Approved → Released
+
+### User Story Lifecycle (Dual-Review)
+Draft → Ready for Review → Internal Review Done → Client Review → Client Approved → Released
+
+User stories specifically require TWO sequential mandatory reviews:
+1. **Internal Team Review** — Internal BA/QA/PM reviews for quality and completeness
+2. **Client Review** — Client stakeholder validates business intent and acceptance criteria
+
+Only after both reviews are complete does the story become available to downstream agents.
 
 No AI agent can self-approve.
 

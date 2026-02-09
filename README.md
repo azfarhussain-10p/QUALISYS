@@ -13,11 +13,11 @@
 | **Current Phase** | Phase 4: Implementation |
 | **Current Epic** | Epic 0 - Infrastructure Foundation |
 | **Track** | Enterprise BMad Method |
-| **Total Stories** | 108 (100 MVP + 8 Post-MVP) |
+| **Total Stories** | 107 (100 MVP + 7 Post-MVP) |
 | **Epics** | 6 (Epic 0-5 MVP, Epic 6 Post-MVP) |
 | **Status** | 🚧 Infrastructure Setup (Sprint 0) |
 | **Version** | 0.1.0 (Pre-release) |
-| **Last Updated** | 2026-02-02 |
+| **Last Updated** | 2026-02-06 |
 
 ---
 
@@ -28,7 +28,7 @@ QUALISYS is an **AI System Quality Assurance Platform** that transforms testing 
 **The Core Problem:** Software teams spend 40% of their time on manual testing activities, test automation scripts break constantly with UI changes, and test coverage gaps lead to bugs escaping to production. Traditional testing tools were built for deterministic software and cannot handle AI's non-deterministic nature.
 
 **The Solution:** QUALISYS combines three breakthrough capabilities:
-1. **Multi-Agent AI System** - 8 specialized AI agents work in orchestrated pipelines
+1. **Multi-Agent AI System** - 6 specialized AI agents (3 MVP + 3 Post-MVP) work in orchestrated pipelines
 2. **Self-Healing Test Automation** - Automatically detects DOM changes and proposes fixes
 3. **End-to-End Testing Lifecycle** - Complete coverage from requirements ingestion to executive dashboards
 
@@ -59,7 +59,8 @@ docs/
 │   └── tech-spec-epic-1.md    # Foundation & Admin tech spec
 ├── stories/                   # Story Files
 ├── reports/                   # Validation & Readiness Reports
-└── research/                 # Market & Competitive Research
+├── research/                 # Market & Competitive Research
+└── improvements/             # Agent improvement research & plans
 ```
 
 **Quick Links:**
@@ -68,18 +69,17 @@ docs/
 - [System Architecture](./docs/architecture/architecture.md) - Technical design & risk analysis
 - [Epic Overview](./docs/epics/epics.md) - All epics breakdown
 - [Implementation Readiness Report](./docs/reports/implementation-readiness-report-2026-01-22.md) - Phase 3→4 validation
+- [Sprint Change Proposal](./docs/sprint-change-proposal-2026-02-06.md) - Agent restructuring (8→6 agents)
 
 ---
 
 ## ✨ Key Features
 
 ### 🤖 Multi-Agent AI System
-- **8 specialized AI agents** for comprehensive test generation:
-  - **Documentation Analyzer**: Requirements → coverage matrix
-  - **Manual Tester**: Generate manual test checklists + exploratory prompts
-  - **Automation Tester**: Generate Playwright/Puppeteer scripts with smart locators
-  - **Test Case Generator**: BDD/Gherkin scenarios + negative cases + boundary analysis
-  - **Web Scraper**: Advanced DOM analysis and crawling (Post-MVP)
+- **6 specialized AI agents** for comprehensive test generation:
+  - **BAConsultant AI Agent**: Requirements analysis, gap/ambiguity detection, coverage matrix, user story creation with quality scoring (MVP)
+  - **QAConsultant AI Agent**: Test strategy, manual test checklists, BDD/Gherkin scenarios, checklist-driven testing, synthetic test data, sprint readiness validation (MVP)
+  - **AutomationConsultant AI Agent**: Playwright/Puppeteer/REST-Assured script generation, framework architecture, DOM crawling and discovery, automation suite management, CI/CD integration (MVP)
   - **AI Log Reader/Summarizer**: Test execution log analysis (Post-MVP)
   - **Security Scanner Orchestrator**: Security testing automation (Post-MVP)
   - **Performance/Load Agent**: Load testing and performance validation (Post-MVP)
@@ -155,12 +155,14 @@ docs/
 - **Code Safety**: Semgrep, Snyk, Bandit for all generated code
 
 ### Infrastructure
-- **Cloud Platform**: AWS (EKS, RDS, ElastiCache, S3, IAM, VPC)
-- **Orchestration**: Kubernetes (EKS) + Helm charts
-- **CI/CD**: GitHub Actions (automated builds, tests, deployments)
-- **Secrets Management**: HashiCorp Vault / AWS Secrets Manager
-- **Monitoring**: Prometheus + Grafana (metrics), ELK Stack / CloudWatch (logs)
-- **Container Registry**: AWS ECR (ECR) for Docker images
+- **Cloud Platform**: AWS **or** Azure (build-time choice per deployment)
+  - **AWS**: EKS, RDS, ElastiCache, ECR, S3, Secrets Manager, IAM, VPC
+  - **Azure**: AKS, PostgreSQL Flexible Server, Azure Cache for Redis, ACR, Key Vault, Managed Identities, VNet
+- **Orchestration**: Kubernetes (EKS or AKS) + Helm charts
+- **CI/CD**: GitHub Actions (automated builds, tests, deployments) with `CLOUD_PROVIDER` variable
+- **Secrets Management**: AWS Secrets Manager / Azure Key Vault (via ExternalSecrets Operator)
+- **Monitoring**: CloudWatch + CloudTrail (AWS) / Log Analytics + Activity Log (Azure)
+- **Container Registry**: AWS ECR / Azure ACR for Docker images
 
 ---
 
@@ -181,7 +183,7 @@ QUALISYS serves 6 distinct personas with role-optimized interfaces:
 
 ## 🗺️ Roadmap & Epics
 
-The QUALISYS MVP is organized into 6 epics with 108 total stories (100 MVP + 8 Post-MVP):
+The QUALISYS MVP is organized into 6 epics with 107 total stories (100 MVP + 7 Post-MVP):
 
 ### Epic 0: Infrastructure Foundation (P0 CRITICAL) - 🚧 In Progress
 **Status**: Sprint 0 (Pre-Implementation Setup)  
@@ -189,14 +191,16 @@ The QUALISYS MVP is organized into 6 epics with 108 total stories (100 MVP + 8 P
 **Goal**: Provision complete cloud infrastructure, CI/CD pipelines, test infrastructure, and development environment.
 
 **Key Deliverables:**
-- AWS cloud infrastructure (EKS, RDS PostgreSQL, ElastiCache Redis, S3, IAM, VPC)
-- GitHub Actions CI/CD pipelines (PR checks, staging auto-deploy, production with approval)
+- Cloud infrastructure supporting both AWS and Azure (build-time choice):
+  - **AWS**: EKS, RDS PostgreSQL, ElastiCache Redis, ECR, S3, IAM, VPC
+  - **Azure**: AKS, PostgreSQL Flexible Server, Azure Cache for Redis, ACR, Key Vault, VNet
+- GitHub Actions CI/CD pipelines with `CLOUD_PROVIDER` variable (PR checks, staging auto-deploy, production with approval)
 - Test infrastructure (test databases, data factories, parallel runners, reporting)
-- Monitoring stack (Prometheus + Grafana, ELK/CloudWatch)
+- Monitoring stack (CloudWatch/Log Analytics, CloudTrail/Activity Log)
 - Local development environment (Podman Compose)
 - Third-party service provisioning (API keys, OAuth credentials)
 
-**Success Criteria**: Deploy "Hello World" service to staging via CI/CD, execute sample test suite, provision tenant schemas, view live metrics.
+**Success Criteria**: Deploy "Hello World" service to staging via CI/CD on either AWS or Azure, execute sample test suite, provision tenant schemas, view live metrics.
 
 ### Epic 1: Foundation & Administration (P1 HIGH)
 **Status**: Contexted (ready for Sprint 1)  
@@ -219,7 +223,7 @@ The QUALISYS MVP is organized into 6 epics with 108 total stories (100 MVP + 8 P
 - Document ingestion (PDF, Word, Markdown)
 - GitHub repository connection and code analysis
 - DOM crawling with Playwright
-- 4 MVP AI agents (Documentation Analyzer, Manual Tester, Automation Tester, Test Case Generator)
+- 3 MVP AI agents (BAConsultant AI Agent, QAConsultant AI Agent, AutomationConsultant AI Agent)
 - Agent orchestration and pipeline management
 - PM/CSM dashboards with KPIs and SLA monitoring
 
@@ -261,11 +265,11 @@ The QUALISYS MVP is organized into 6 epics with 108 total stories (100 MVP + 8 P
 
 ### Epic 6: Advanced Features (Post-MVP)
 **Status**: Backlog (P2)  
-**Stories**: 8 stories  
+**Stories**: 7 stories
 **Goal**: Advanced AI agents, ML-based self-healing, enterprise features.
 
 **Key Features:**
-- Remaining 4 AI agents (Web Scraper, Log Reader, Security Scanner, Performance Agent)
+- Remaining 3 Post-MVP AI agents (AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent)
 - ML-suggested robust selectors
 - Advanced SLA monitoring
 - Cost tracking per test/story point
@@ -291,7 +295,8 @@ The QUALISYS MVP is organized into 6 epics with 108 total stories (100 MVP + 8 P
 #### Optional Software (Role-Specific)
 - **Terraform 1.6+** - For infrastructure provisioning (DevOps/Infrastructure engineers)
 - **kubectl 1.28+** - Kubernetes CLI (for production debugging, SRE/Platform engineers)
-- **AWS CLI** - For cloud resource management (DevOps engineers)
+- **AWS CLI** - For AWS cloud resource management (DevOps engineers)
+- **Azure CLI** - For Azure cloud resource management (DevOps engineers)
 
 #### IDE/Editor (Choose One)
 - **Cursor** (Recommended) - AI-powered IDE with built-in AI assistance
@@ -347,10 +352,18 @@ OPENAI_API_KEY=your-openai-key
 # Development LLM (optional, for local testing)
 OLLAMA_BASE_URL=http://localhost:11434
 
-# AWS Credentials (for S3, EKS, etc.)
+# Cloud Provider (aws or azure)
+CLOUD_PROVIDER=aws
+
+# AWS Credentials (when CLOUD_PROVIDER=aws)
 AWS_ACCESS_KEY_ID=your-key
 AWS_SECRET_ACCESS_KEY=your-secret
 AWS_REGION=us-east-1
+
+# Azure Credentials (when CLOUD_PROVIDER=azure)
+# AZURE_SUBSCRIPTION_ID=your-subscription-id
+# AZURE_TENANT_ID=your-tenant-id
+# AZURE_CLIENT_ID=your-client-id
 ```
 
 ### Project Structure
@@ -367,10 +380,12 @@ QUALISYS/
 │   ├── reports/           # Validation reports
 │   └── research/          # Market research
 ├── infrastructure/         # Infrastructure as Code
-│   └── terraform/         # Terraform definitions
-├── backend/               # Python FastAPI backend
-├── frontend/              # Next.js frontend
-├── tests/                 # Test suites
+│   ├── terraform/         # Terraform (aws/ and azure/ roots)
+│   └── kubernetes/        # K8s manifests (shared/, aws/, azure/)
+├── api/                   # Python FastAPI backend
+├── web/                   # Next.js frontend
+├── e2e/                   # End-to-end test suites
+├── playwright-runner/     # Playwright test runner service
 ├── .bmad/                 # BMad Method framework (included, no install needed)
 │   ├── bmm/              # BMad Method Module (agents, workflows)
 │   ├── bmb/             # BMad Builder Module
@@ -406,13 +421,13 @@ When a team member pulls the project for the first time, they should:
 4. ✅ **Install Dependencies**
    ```bash
    # Backend
-   cd backend
+   cd api
    python -m venv venv
    source venv/bin/activate  # Windows: venv\Scripts\activate
    pip install -r requirements.txt
-   
+
    # Frontend
-   cd ../frontend
+   cd ../web
    npm install
    ```
 
@@ -436,7 +451,7 @@ When a team member pulls the project for the first time, they should:
 - ❌ **BMad Method** - Already included in `.bmad/` directory
 - ❌ **Claude Code** - Optional, project works with any IDE
 - ❌ **Kubernetes** - Only needed for production deployment (not local dev)
-- ❌ **AWS Account** - Only needed for infrastructure work (Epic 0)
+- ❌ **AWS/Azure Account** - Only needed for infrastructure work (Epic 0)
 
 ### IDE-Specific Setup
 
@@ -522,38 +537,6 @@ When a team member pulls the project for the first time, they should:
 
 ---
 
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING.md) (coming soon).
-
----
-
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/10pearls/qualisys/issues)
-- **Email**: support@qualisys.io
-- **Slack**: [Join our community](#)
-
----
-
-## 📄 License
-
-[License details to be added]
-
----
-
-## 🙏 Acknowledgments
-
-Built with:
-- [Playwright](https://playwright.dev/) - Browser automation
-- [LangChain](https://langchain.com/) - LLM orchestration
-- [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
-- [Next.js](https://nextjs.org/) - React framework
-- [Qdrant](https://qdrant.tech/) - Vector database
-- [vLLM](https://github.com/vllm-project/vllm) - LLM inference engine
-
----
-
 ## 🏗️ Development Methodology
 
 QUALISYS is developed using the **BMad Method v6** - an AI-driven agile development framework that uses specialized AI agents and workflows to guide software development from conception to implementation.
@@ -631,4 +614,4 @@ Built with:
 
 **Status**: 🚧 Phase 4: Implementation (Epic 0 - Infrastructure Foundation)  
 **Version**: 0.1.0 (Pre-release)  
-**Last Updated**: 2026-02-02
+**Last Updated**: 2026-02-06

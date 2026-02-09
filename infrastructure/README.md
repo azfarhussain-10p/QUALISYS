@@ -1,15 +1,51 @@
 # QUALISYS Infrastructure
 
-AWS cloud infrastructure managed via Terraform. This directory contains all Infrastructure as Code (IaC) for the QUALISYS platform.
+Multi-cloud infrastructure (AWS + Azure) managed via Terraform. This directory contains all Infrastructure as Code (IaC) for the QUALISYS platform using a Two Roots architecture.
+
+## Multi-Cloud Architecture (Two Roots)
+
+QUALISYS supports both AWS and Azure via a **Two Roots** Terraform architecture:
+
+| Concern | AWS | Azure |
+|---------|-----|-------|
+| Kubernetes | EKS | AKS |
+| Database | RDS PostgreSQL | PostgreSQL Flexible Server |
+| Cache | ElastiCache Redis | Azure Cache for Redis |
+| Container Registry | ECR | ACR |
+| Secrets | Secrets Manager | Key Vault |
+| IAM / Identity | IAM + IRSA | RBAC + Workload Identity |
+| Networking | VPC | VNet |
+| DNS | Route 53 | Azure DNS |
+| State Backend | S3 + DynamoDB | Storage Account + Table |
+
+For detailed cloud-specific documentation:
+- **AWS**: `infrastructure/terraform/aws/README.md`
+- **Azure**: `infrastructure/terraform/azure/README.md`
+- **Two Roots architecture**: `infrastructure/terraform/README.md`
+- **Kubernetes (AWS)**: `infrastructure/kubernetes/aws/`
+- **Kubernetes (Azure)**: `infrastructure/kubernetes/azure/`
+
+> **Note**: The sections below document the **AWS variant** in detail.
+> Azure equivalents follow the same patterns with provider-specific resources.
+> CI/CD workflows use `vars.CLOUD_PROVIDER` to automatically target the correct provider.
 
 ## Prerequisites
 
+### AWS
 - [Terraform](https://developer.hashicorp.com/terraform/install) >= 1.5.0
 - [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) v2.x
 - AWS account with appropriate IAM permissions
 - MFA device configured for your IAM user
 
+### Azure
+- [Terraform](https://developer.hashicorp.com/terraform/install) >= 1.5.0
+- [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) v2.x
+- Azure subscription with Contributor role
+- `az login` completed with appropriate permissions
+
 ## Quick Start
+
+### AWS Quick Start
 
 ### 1. Bootstrap State Backend
 
@@ -27,6 +63,17 @@ terraform apply -var="budget_alert_email=devops@yourdomain.com"
 cd infrastructure/terraform
 cp environments/dev.tfvars.example environments/dev.tfvars
 # Edit dev.tfvars with your values
+terraform init
+terraform plan -var-file="environments/dev.tfvars"
+terraform apply -var-file="environments/dev.tfvars"
+```
+
+### Azure Quick Start
+
+See `infrastructure/terraform/azure/README.md` for the full Azure setup guide:
+
+```bash
+cd infrastructure/terraform/azure
 terraform init
 terraform plan -var-file="environments/dev.tfvars"
 terraform apply -var-file="environments/dev.tfvars"
@@ -108,39 +155,50 @@ infrastructure/
 │   │   ├── lifecycle-policy.tf # Lifecycle rules (production, tagged, untagged)
 │   │   ├── variables.tf        # ECR-specific variables
 │   │   └── outputs.tf          # Repository URLs, ARNs for downstream
-│   └── secrets/
-│       ├── main.tf             # KMS key, JWT + third-party secrets
-│       ├── rotation.tf         # DB password rotation Lambda (SAR) + schedule
-│       ├── iam.tf              # Category IAM policies, IRSA role, audit alarm
-│       ├── variables.tf        # Secrets-specific variables
-│       └── outputs.tf          # Secret ARNs, policy ARNs, IRSA role ARN
+│   ├── secrets/
+│   │   ├── main.tf             # KMS key, JWT + third-party secrets
+│   │   ├── rotation.tf         # DB password rotation Lambda (SAR) + schedule
+│   │   ├── iam.tf              # Category IAM policies, IRSA role, audit alarm
+│   │   ├── variables.tf        # Secrets-specific variables
+│   │   └── outputs.tf          # Secret ARNs, policy ARNs, IRSA role ARN
+│   ├── aws/                    # AWS-specific Terraform root
+│   │   ├── README.md           # AWS setup guide
+│   │   └── ...                 # VPC, EKS, RDS, ElastiCache, ECR, Secrets
+│   ├── azure/                  # Azure-specific Terraform root
+│   │   ├── README.md           # Azure setup guide
+│   │   └── ...                 # VNet, AKS, PostgreSQL, Redis, ACR, Key Vault
+│   └── shared/                 # Cross-cloud outputs
+│       └── outputs.tf          # Normalized outputs for CI/CD
 ├── scripts/
 │   └── db-init.sql             # PostgreSQL initialization (app_user, RLS test)
 ├── kubernetes/
-│   ├── namespaces/
-│   │   ├── namespaces.yaml     # dev, staging, production, playwright-pool, monitoring
-│   │   └── resource-quotas.yaml # Per-namespace CPU/memory/pod limits
-│   ├── rbac/
-│   │   ├── roles.yaml          # ClusterRoles: developer, devops, ci-cd
-│   │   ├── bindings.yaml       # ClusterRoleBindings + RoleBindings
-│   │   └── aws-auth-configmap.yaml # IAM-to-K8s RBAC mapping
-│   ├── cluster-autoscaler/
-│   │   └── values.yaml         # Helm values for cluster-autoscaler
-│   ├── metrics-server/
-│   │   └── values.yaml         # Helm values for metrics-server
-│   ├── aws-load-balancer-controller/
-│   │   └── values.yaml         # Helm values for AWS ALB controller
-│   └── external-secrets/
-│       ├── values.yaml             # Helm values for ExternalSecrets Operator
-│       ├── cluster-secret-store.yaml # ClusterSecretStore → AWS Secrets Manager
-│       └── external-secrets/       # ExternalSecret resources per secret group
-│           ├── infra-secrets.yaml      # DB, Redis, JWT
-│           ├── llm-secrets.yaml        # OpenAI, Anthropic
-│           └── integration-secrets.yaml # OAuth, Email
+│   ├── shared/                 # Cloud-agnostic K8s manifests
+│   │   ├── namespaces/
+│   │   │   ├── namespaces.yaml     # dev, staging, production, playwright-pool, monitoring
+│   │   │   └── resource-quotas.yaml # Per-namespace CPU/memory/pod limits
+│   │   └── rbac/
+│   │       ├── roles.yaml          # ClusterRoles: developer, devops, ci-cd
+│   │       └── bindings.yaml       # ClusterRoleBindings + RoleBindings
+│   ├── aws/                    # AWS-specific K8s configs
+│   │   ├── aws-auth-configmap.yaml # IAM-to-K8s RBAC mapping
+│   │   ├── cluster-autoscaler/
+│   │   ├── aws-load-balancer-controller/
+│   │   └── external-secrets/       # ExternalSecrets → AWS Secrets Manager
+│   │       ├── cluster-secret-store.yaml
+│   │       └── external-secrets/
+│   └── azure/                  # Azure-specific K8s configs
+│       ├── cluster-secret-store.yaml # ClusterSecretStore → Azure Key Vault
+│       ├── helm-values/
+│       └── external-secrets/       # ExternalSecrets → Azure Key Vault
+│           ├── infra-secrets.yaml
+│           ├── llm-secrets.yaml
+│           └── integration-secrets.yaml
 └── README.md                   # This file
 ```
 
 ## IAM Policy Documentation
+
+> **AWS-specific** — Azure uses RBAC roles and Managed Identity. See `terraform/azure/README.md`.
 
 ### Human User Roles
 
@@ -195,6 +253,8 @@ infrastructure/
 5. **Credential Storage**: All credentials stored in 1Password, never committed to Git
 
 ## Network Architecture
+
+> **AWS-specific** — Azure uses VNet with equivalent subnet tiers. See `terraform/azure/README.md`.
 
 ### VPC Design
 
@@ -253,6 +313,8 @@ infrastructure/
 - Estimated cost: ~$64/month ($32/gateway)
 
 ## Kubernetes Architecture
+
+> **AWS-specific (EKS)** — Azure uses AKS with equivalent node pools, RBAC, and Workload Identity. See `kubernetes/azure/`.
 
 ### EKS Cluster
 
@@ -350,6 +412,8 @@ helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
 ```
 
 ## PostgreSQL Database Architecture
+
+> **AWS-specific (RDS)** — Azure uses PostgreSQL Flexible Server with equivalent configuration. See `terraform/azure/README.md`.
 
 ### RDS Instance
 
@@ -464,6 +528,8 @@ PGPASSWORD=$MASTER_PASS psql \
 4. Superusers bypass RLS — ensure application uses `app_user`, never master user
 
 ## Redis Caching Architecture
+
+> **AWS-specific (ElastiCache)** — Azure uses Azure Cache for Redis with equivalent config. See `terraform/azure/README.md`.
 
 ### ElastiCache Cluster
 
@@ -599,6 +665,8 @@ kubectl run redis-test --rm -it --image=redis:7 -- \
 
 ## Container Registry (ECR)
 
+> **AWS-specific (ECR)** — Azure uses ACR with equivalent lifecycle policies. See `terraform/azure/README.md`.
+
 ### Repositories
 
 | Repository | Purpose | Scan on Push | Tag Immutability |
@@ -687,6 +755,8 @@ aws ecr describe-image-scan-findings \
 3. Production-tagged images (`production-*`) are protected from cleanup
 
 ## Secret Management
+
+> **AWS-specific (Secrets Manager)** — Azure uses Key Vault with ExternalSecrets Operator. See `kubernetes/azure/external-secrets/`.
 
 ### Secrets Overview
 
@@ -949,6 +1019,8 @@ AWS Cost Anomaly Detection monitors all services for unusual spending patterns. 
 
 ## CI/CD Pipeline (GitHub Actions)
 
+> **Note**: CI/CD workflows already support multi-cloud via `vars.CLOUD_PROVIDER`. See actual workflow files for Azure conditional steps.
+
 ### Workflow Architecture
 
 ```
@@ -997,6 +1069,16 @@ gh secret set ECR_REGISTRY --body "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com"
 
 # Optional
 gh secret set SLACK_WEBHOOK_URL --body "<Slack incoming webhook URL>"
+```
+
+### Azure Secrets (if using Azure)
+
+```bash
+gh variable set CLOUD_PROVIDER --body "azure"
+gh secret set AZURE_CLIENT_ID --body "<service principal client id>"
+gh secret set AZURE_TENANT_ID --body "<azure tenant id>"
+gh secret set AZURE_SUBSCRIPTION_ID --body "<azure subscription id>"
+gh secret set ACR_REGISTRY --body "<registry>.azurecr.io"
 ```
 
 ### GitHub Environments Setup
@@ -1270,3 +1352,7 @@ gh secret set CODECOV_TOKEN --body "<codecov-upload-token>"
 2. Check which files are below threshold: `coverage/lcov-report/index.html`
 3. Add tests for uncovered code paths
 4. If new file added without tests, either add tests or exclude from coverage in `jest.config.js`
+
+---
+
+_2026-02-09: PM Agent (John) — Multi-cloud course correction: added Azure awareness, Two Roots architecture overview, section annotations, dual prerequisites, Azure CI/CD secrets._

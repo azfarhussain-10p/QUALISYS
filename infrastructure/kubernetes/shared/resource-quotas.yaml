@@ -1,0 +1,83 @@
+# Namespace Resource Quotas
+# Story: 0-3 Kubernetes Cluster Provisioning
+# Task 3.7 - Create resource quotas for each namespace (prevent resource starvation)
+
+# =============================================================================
+# dev namespace quota
+# =============================================================================
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: dev-quota
+  namespace: dev
+spec:
+  hard:
+    limits.cpu: "4"
+    limits.memory: 8Gi
+    pods: "50"
+    requests.cpu: "2"
+    requests.memory: 4Gi
+---
+# =============================================================================
+# staging namespace quota
+# =============================================================================
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: staging-quota
+  namespace: staging
+spec:
+  hard:
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    pods: "100"
+    requests.cpu: "4"
+    requests.memory: 8Gi
+---
+# =============================================================================
+# production namespace quota
+# =============================================================================
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: production-quota
+  namespace: production
+spec:
+  hard:
+    limits.cpu: "32"
+    limits.memory: 64Gi
+    pods: "200"
+    requests.cpu: "16"
+    requests.memory: 32Gi
+---
+# =============================================================================
+# playwright-pool namespace quota
+# =============================================================================
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: playwright-pool-quota
+  namespace: playwright-pool
+spec:
+  hard:
+    limits.cpu: "80"
+    limits.memory: 160Gi
+    pods: "100"
+    requests.cpu: "40"
+    requests.memory: 80Gi
+---
+# =============================================================================
+# monitoring namespace quota
+# =============================================================================
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: monitoring-quota
+  namespace: monitoring
+spec:
+  hard:
+    limits.cpu: "4"
+    limits.memory: 8Gi
+    pods: "30"
+    requests.cpu: "2"
+    requests.memory: 4Gi

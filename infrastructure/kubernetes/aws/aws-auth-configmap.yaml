@@ -1,0 +1,41 @@
+# AWS Auth ConfigMap
+# Story: 0-3 Kubernetes Cluster Provisioning
+# AC: 4 - Task 4.5: Map IAM roles to Kubernetes RBAC via aws-auth ConfigMap
+#
+# IMPORTANT: This is a template. Replace <ACCOUNT_ID> with your AWS account ID
+# and <NODE_ROLE_ARN> with the EKS node IAM role ARN from Terraform output.
+#
+# Apply with: kubectl apply -f aws-auth-configmap.yaml
+# Or manage via eksctl: eksctl create iamidentitymapping --cluster qualisys-eks ...
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aws-auth
+  namespace: kube-system
+data:
+  # Map EKS node role (required for nodes to join cluster)
+  mapRoles: |
+    - rolearn: arn:aws:iam::<ACCOUNT_ID>:role/qualisys-eks-node
+      username: system:node:{{EC2PrivateDNSName}}
+      groups:
+        - system:bootstrappers
+        - system:nodes
+
+    # DevOps Admin → qualisys-devops group (full cluster admin)
+    - rolearn: arn:aws:iam::<ACCOUNT_ID>:role/QualisysDevOpsAdmin
+      username: devops-admin
+      groups:
+        - qualisys-devops
+
+    # Developer → qualisys-developers group (read-only prod, full dev/staging)
+    - rolearn: arn:aws:iam::<ACCOUNT_ID>:role/QualisysDeveloper
+      username: developer
+      groups:
+        - qualisys-developers
+
+    # CI/CD → qualisys-cicd group (staging-only deploy)
+    - rolearn: arn:aws:iam::<ACCOUNT_ID>:role/QualisysCICD
+      username: cicd
+      groups:
+        - qualisys-cicd

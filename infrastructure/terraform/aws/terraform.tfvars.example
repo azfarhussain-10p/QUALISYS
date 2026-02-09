@@ -1,0 +1,16 @@
+# QUALISYS AWS — Example Variables
+# Copy to terraform.tfvars and fill in your values.
+
+# --- Required ---
+budget_alert_email = "devops@example.com"
+
+# --- Environment ---
+environment   = "dev"          # dev | staging | production
+project_name  = "qualisys"
+account_alias = "qualisys-main"
+
+# --- AWS Region ---
+aws_region = "us-east-1"
+
+# --- CloudTrail ---
+cloudtrail_retention_days = 90

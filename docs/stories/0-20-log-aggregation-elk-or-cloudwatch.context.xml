@@ -4,7 +4,8 @@
     <storyId>20</storyId>
     <title>Log Aggregation (ELK or CloudWatch)</title>
     <status>drafted</status>
-    <generatedAt>2026-01-24</generatedAt>
+    <generatedAt>2026-02-09</generatedAt>
+    <multiCloudNote>Context regenerated for multi-cloud (AWS + Azure) Two Roots architecture</multiCloudNote>
     <generator>BMAD Story Context Workflow</generator>
     <sourceStoryPath>docs/stories/0-20-log-aggregation-elk-or-cloudwatch.md</sourceStoryPath>
   </metadata>
@@ -14,21 +15,21 @@
     <iWant>centralized log aggregation</iWant>
     <soThat>I can debug issues across distributed services</soThat>
     <tasks>
-      <task id="1" name="CloudWatch Log Groups Setup" acs="1,7">
-        <subtask>1.1 Create CloudWatch log group: /qualisys/staging/api</subtask>
-        <subtask>1.2 Create CloudWatch log group: /qualisys/staging/worker</subtask>
-        <subtask>1.3 Create CloudWatch log group: /qualisys/production/api</subtask>
-        <subtask>1.4 Create CloudWatch log group: /qualisys/production/worker</subtask>
-        <subtask>1.5 Configure retention: 30 days staging, 90 days production</subtask>
-        <subtask>1.6 Set up log group encryption (KMS key)</subtask>
+      <task id="1" name="Log Destination Setup (CloudWatch / Azure Monitor)" acs="1,7">
+        <subtask>1.1 AWS: Create CloudWatch log group /qualisys/staging/api; Azure: Create Log Analytics workspace qualisys-staging</subtask>
+        <subtask>1.2 AWS: Create CloudWatch log group /qualisys/staging/worker; Azure: configure worker table in workspace</subtask>
+        <subtask>1.3 AWS: Create CloudWatch log group /qualisys/production/api; Azure: Create Log Analytics workspace qualisys-production</subtask>
+        <subtask>1.4 AWS: Create CloudWatch log group /qualisys/production/worker; Azure: configure worker table in workspace</subtask>
+        <subtask>1.5 Configure retention: 30 days staging, 90 days production (both providers)</subtask>
+        <subtask>1.6 Set up log encryption: KMS (AWS) / CMK (Azure)</subtask>
       </task>
       <task id="2" name="Fluent Bit DaemonSet Deployment" acs="2,3,4">
         <subtask>2.1 Deploy Fluent Bit as DaemonSet in monitoring namespace</subtask>
         <subtask>2.2 Configure Fluent Bit to collect container logs</subtask>
-        <subtask>2.3 Configure Fluent Bit to ship to CloudWatch Logs</subtask>
-        <subtask>2.4 Set up IRSA (IAM Role for Service Account) for Fluent Bit</subtask>
+        <subtask>2.3 Configure Fluent Bit output: CloudWatch Logs (AWS) / Azure Log Analytics (Azure)</subtask>
+        <subtask>2.4 Set up IRSA (AWS) or Workload Identity (Azure) for Fluent Bit service account</subtask>
         <subtask>2.5 Configure multiline log parsing for stack traces</subtask>
-        <subtask>2.6 Verify logs appearing in CloudWatch</subtask>
+        <subtask>2.6 Verify logs appearing in CloudWatch (AWS) / Log Analytics (Azure)</subtask>
       </task>
       <task id="3" name="Structured Logging Implementation" acs="5,6,12">
         <subtask>3.1 Implement JSON logger utility (Winston/Pino)</subtask>
@@ -46,17 +47,17 @@
         <subtask>4.5 Document PII handling in logs</subtask>
       </task>
       <task id="5" name="Log-Based Alerts" acs="9,10">
-        <subtask>5.1 Create CloudWatch Metric Filter for error count</subtask>
-        <subtask>5.2 Create CloudWatch Alarm for greater than 10 errors/min</subtask>
-        <subtask>5.3 Create CloudWatch Metric Filter for 5xx responses</subtask>
-        <subtask>5.4 Create CloudWatch Alarm for 5xx rate greater than 5%</subtask>
-        <subtask>5.5 Configure alarm notifications to SNS topic</subtask>
-        <subtask>5.6 Connect SNS to Slack webhook</subtask>
+        <subtask>5.1 Create metric filter for error count: CloudWatch Metric Filter (AWS) / Log Analytics alert rule (Azure)</subtask>
+        <subtask>5.2 Create alert for greater than 10 errors/min: CloudWatch Alarm (AWS) / Azure Monitor alert rule (Azure)</subtask>
+        <subtask>5.3 Create metric filter for 5xx responses: CloudWatch Metric Filter (AWS) / Log Analytics alert rule (Azure)</subtask>
+        <subtask>5.4 Create alert for 5xx rate greater than 5%: CloudWatch Alarm (AWS) / Azure Monitor alert rule (Azure)</subtask>
+        <subtask>5.5 Configure alarm notifications: SNS (AWS) / Action Groups (Azure)</subtask>
+        <subtask>5.6 Connect notification channel to Slack webhook</subtask>
       </task>
       <task id="6" name="Access and Documentation" acs="8">
-        <subtask>6.1 Configure IAM policy for log access</subtask>
-        <subtask>6.2 Create CloudWatch Logs Insights saved queries</subtask>
-        <subtask>6.3 Document common log search patterns</subtask>
+        <subtask>6.1 Configure IAM/RBAC policies for log access (per cloud provider)</subtask>
+        <subtask>6.2 Create saved queries: CloudWatch Logs Insights (AWS) / Log Analytics KQL queries (Azure)</subtask>
+        <subtask>6.3 Document common log search patterns (both providers)</subtask>
         <subtask>6.4 Create runbook for log investigation</subtask>
         <subtask>6.5 Verify team members can access logs</subtask>
       </task>
@@ -64,14 +65,14 @@
   </story>
 
   <acceptanceCriteria>
-    <criterion id="AC1">Log aggregation system deployed (CloudWatch Logs)</criterion>
+    <criterion id="AC1">Log aggregation system deployed (CloudWatch Logs or Azure Monitor Logs)</criterion>
     <criterion id="AC2">API logs shipped to central system (request/response, errors)</criterion>
     <criterion id="AC3">Worker logs shipped (background jobs, AI agent pipeline)</criterion>
     <criterion id="AC4">Kubernetes system logs collected (kubelet, kube-proxy)</criterion>
     <criterion id="AC5">Logs structured in JSON format</criterion>
     <criterion id="AC6">Logs include required fields: timestamp, level, message, trace_id, tenant_id</criterion>
     <criterion id="AC7">Log retention: 30 days staging, 90 days production</criterion>
-    <criterion id="AC8">Log search interface accessible at CloudWatch Console</criterion>
+    <criterion id="AC8">Log search interface accessible at CloudWatch Console / Azure Log Analytics</criterion>
     <criterion id="AC9">Log-based alert: Error rate spike (greater than 10 errors/min)</criterion>
     <criterion id="AC10">Log-based alert: 5xx response rate greater than 5%</criterion>
     <criterion id="AC11">PII redaction enabled (email, names masked in logs)</criterion>
@@ -90,7 +91,7 @@
         <path>docs/epics/epic-0-infrastructure.md</path>
         <title>Epic 0: Infrastructure Foundation</title>
         <section>Story 0.20: Log Aggregation</section>
-        <snippet>CloudWatch Logs for centralized logging with Fluent Bit as log shipper.</snippet>
+        <snippet>CloudWatch Logs (AWS) / Azure Monitor Logs (Azure) for centralized logging with Fluent Bit as log shipper.</snippet>
       </doc>
       <doc>
         <path>docs/architecture.md</path>
@@ -110,7 +111,7 @@
         <path>docs/stories/0-1-cloud-account-iam-setup.md</path>
         <kind>story</kind>
         <symbol>IAM Setup</symbol>
-        <reason>Dependency: IAM role for Fluent Bit CloudWatch access</reason>
+        <reason>Dependency: IAM role (AWS) / RBAC assignment (Azure) for Fluent Bit log destination access</reason>
       </file>
       <file>
         <path>docs/stories/0-7-secret-management.md</path>
@@ -121,9 +122,12 @@
     </code>
     <dependencies>
       <terraform>
-        <module name="aws_cloudwatch_log_group">CloudWatch log group resources</module>
-        <module name="aws_cloudwatch_metric_filter">Metric filters for alerts</module>
-        <module name="aws_cloudwatch_metric_alarm">CloudWatch alarms</module>
+        <module name="aws_cloudwatch_log_group">CloudWatch log group resources (AWS)</module>
+        <module name="azurerm_log_analytics_workspace">Log Analytics workspace (Azure)</module>
+        <module name="aws_cloudwatch_metric_filter">Metric filters for alerts (AWS)</module>
+        <module name="azurerm_monitor_scheduled_query_rules_alert_v2">Log-based alert rules (Azure)</module>
+        <module name="aws_cloudwatch_metric_alarm">CloudWatch alarms (AWS)</module>
+        <module name="azurerm_monitor_action_group">Alert notification action groups (Azure)</module>
       </terraform>
       <node>
         <package name="pino" version="^8.16.0">Fast JSON logger</package>
@@ -132,12 +136,13 @@
       </node>
       <kubernetes>
         <image name="amazon/aws-for-fluent-bit" version="2.31.12">Fluent Bit for AWS</image>
+        <image name="fluent/fluent-bit" version="latest">Fluent Bit for Azure (uses upstream image)</image>
       </kubernetes>
     </dependencies>
   </artifacts>
 
   <constraints>
-    <constraint type="tool">AWS CloudWatch Logs (managed, simpler than ELK for MVP)</constraint>
+    <constraint type="tool">CloudWatch Logs (AWS) / Azure Monitor Logs (Azure) - managed, simpler than ELK for MVP</constraint>
     <constraint type="shipper">Fluent Bit (lightweight, Kubernetes-native)</constraint>
     <constraint type="retention">30 days staging, 90 days production</constraint>
     <constraint type="format">JSON structured logs with standard fields</constraint>
@@ -158,17 +163,24 @@
       <path>src/logger/index.ts</path>
     </interface>
     <interface>
-      <name>CloudWatch Logs Insights</name>
+      <name>CloudWatch Logs Insights (AWS)</name>
       <kind>query interface</kind>
       <signature>fields @timestamp, @message | filter level = "error"</signature>
       <path>AWS Console</path>
+    </interface>
+    <interface>
+      <name>Log Analytics KQL (Azure)</name>
+      <kind>query interface</kind>
+      <signature>ContainerLog | where LogEntry contains "error" | project TimeGenerated, LogEntry</signature>
+      <path>Azure Portal > Log Analytics</path>
     </interface>
   </interfaces>
 
   <tests>
     <standards>
-      Infrastructure validation through CloudWatch Console. Verify log groups exist, logs appear with correct
-      structure, PII is redacted, and alerts fire on threshold breach. Use AWS CLI for automation.
+      Infrastructure validation through CloudWatch Console (AWS) / Azure Portal Log Analytics (Azure). Verify
+      log groups/workspaces exist, logs appear with correct structure, PII is redacted, and alerts fire on
+      threshold breach. Use AWS CLI or Azure CLI for automation per provider.
     </standards>
     <locations>
       <location>terraform/modules/logging/</location>
@@ -176,11 +188,11 @@
       <location>src/logger/</location>
     </locations>
     <ideas>
-      <idea ac="AC1">Verify CloudWatch log groups exist via AWS CLI</idea>
+      <idea ac="AC1">Verify log groups (AWS CLI) / Log Analytics workspaces (Azure CLI) exist</idea>
       <idea ac="AC2,3,4">Query logs and verify entries from API, worker, K8s</idea>
       <idea ac="AC5,6">Parse sample log entry as JSON, verify required fields</idea>
-      <idea ac="AC7">Verify retention policy settings in CloudWatch Console</idea>
-      <idea ac="AC8">Team member accesses logs via CloudWatch Console</idea>
+      <idea ac="AC7">Verify retention policy settings in CloudWatch Console / Log Analytics workspace config</idea>
+      <idea ac="AC8">Team member accesses logs via CloudWatch Console / Azure Log Analytics</idea>
       <idea ac="AC9">Generate 15 errors in 1 minute, verify alarm fires</idea>
       <idea ac="AC10">Generate 10% 5xx responses, verify alarm fires</idea>
       <idea ac="AC11">Search for PII pattern, verify masked values</idea>

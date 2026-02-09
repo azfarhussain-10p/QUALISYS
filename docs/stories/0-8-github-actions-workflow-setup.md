@@ -2,6 +2,8 @@
 
 Status: done
 
+> **Multi-Cloud Note (2026-02-09):** This story was originally implemented for AWS. The infrastructure has since been expanded to support Azure via the Two Roots architecture. AWS-specific references below (ECR, IAM, OIDC) have Azure equivalents (ACR, Managed Identity, Federated Credentials). CI/CD workflows now use `vars.CLOUD_PROVIDER` for multi-cloud support. See `infrastructure/terraform/README.md` for the full service mapping.
+
 ## Story
 
 As a **DevOps Engineer**,

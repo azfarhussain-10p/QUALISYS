@@ -4,8 +4,9 @@
     <storyId>11</storyId>
     <title>Staging Auto-Deployment</title>
     <status>ready-for-dev</status>
-    <generatedAt>2026-01-23</generatedAt>
+    <generatedAt>2026-02-09</generatedAt>
     <generator>BMAD Story Context Workflow</generator>
+    <multiCloudNote>Context regenerated for multi-cloud (AWS + Azure) Two Roots architecture</multiCloudNote>
     <sourceStoryPath>docs/stories/0-11-staging-auto-deployment.md</sourceStoryPath>
   </metadata>
 
@@ -15,7 +16,7 @@
     <soThat>we can test in a production-like environment with zero manual intervention</soThat>
     <tasks>
       <task id="1" name="Deploy Staging Workflow" acs="1,8">
-        <subtask>1.1-1.5 Create deploy-staging.yml with AWS/EKS auth, optimize for speed</subtask>
+        <subtask>1.1-1.5 Create deploy-staging.yml with cloud provider auth (CLOUD_PROVIDER variable), optimize for speed</subtask>
       </task>
       <task id="2" name="Kubernetes Deployment Configuration" acs="2,3,9,10">
         <subtask>2.1-2.6 Create deployment manifests with rolling update, resource limits, quotas</subtask>
@@ -44,7 +45,7 @@
     <ac id="6">Slack notification sent on deployment (success/failure with link)</ac>
     <ac id="7">Staging environment accessible at https://staging.qualisys.dev</ac>
     <ac id="8">Deployment time less than 2 minutes from merge to running pods</ac>
-    <ac id="9">Deployment manifest uses image from ECR with Git SHA tag</ac>
+    <ac id="9">Deployment manifest uses image from container registry (ECR/ACR) with Git SHA tag</ac>
     <ac id="10">Staging namespace has appropriate resource limits configured</ac>
   </acceptanceCriteria>
 
@@ -78,13 +79,13 @@
         <path>docs/stories/0-8-github-actions-workflow-setup.md</path>
         <title>Story 0.8: GitHub Actions Workflow Setup</title>
         <section>Deploy Staging Workflow</section>
-        <snippet>Prerequisite: deploy-staging.yml workflow structure, GitHub Environments, secrets configuration for AWS and Kubernetes access.</snippet>
+        <snippet>Prerequisite: deploy-staging.yml workflow structure, GitHub Environments, secrets configuration for cloud provider (AWS/Azure) and Kubernetes access.</snippet>
       </doc>
       <doc>
         <path>docs/stories/0-9-docker-build-automation.md</path>
         <title>Story 0.9: Docker Build Automation</title>
         <section>Image Tagging Strategy</section>
-        <snippet>Prerequisite: Docker images tagged with Git SHA pushed to ECR. Images available for deployment reference.</snippet>
+        <snippet>Prerequisite: Docker images tagged with Git SHA pushed to container registry (ECR/ACR). Images available for deployment reference.</snippet>
       </doc>
     </docs>
 
@@ -92,10 +93,10 @@
       <note>Deployment infrastructure - Stories 0.3, 0.8, 0.9, 0.13 provide foundation.</note>
       <prerequisites>
         <story id="0-3-kubernetes-cluster-provisioning" status="ready-for-dev">
-          <provides>EKS cluster with staging namespace, RBAC for CI/CD</provides>
+          <provides>Kubernetes cluster (EKS/AKS) with staging namespace, RBAC for CI/CD</provides>
         </story>
         <story id="0-6-container-registry" status="ready-for-dev">
-          <provides>ECR repositories with tagged images</provides>
+          <provides>Container registry (ECR/ACR) repositories with tagged images</provides>
         </story>
         <story id="0-8-github-actions-workflow-setup" status="ready-for-dev">
           <provides>GitHub Actions infrastructure, environments, secrets</provides>
@@ -140,29 +141,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure cloud provider credentials
+        # AWS variant: aws-actions/configure-aws-credentials@v4
+        # Azure variant: azure/login@v2
+        uses: ./.github/actions/cloud-auth
         with:
-          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}
-          aws-region: us-east-1
+          cloud-provider: ${{ vars.CLOUD_PROVIDER }}
+          role-to-assume: ${{ secrets.AWS_STAGING_ROLE_ARN }}  # AWS
+          azure-credentials: ${{ secrets.AZURE_CREDENTIALS }}  # Azure
 
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v2
+      - name: Login to container registry (ECR/ACR)
+        uses: ./.github/actions/registry-login
+        with:
+          cloud-provider: ${{ vars.CLOUD_PROVIDER }}
 
       - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name qualisys-cluster --region us-east-1
+        # AWS: aws eks update-kubeconfig --name qualisys-cluster --region us-east-1
+        # Azure: az aks get-credentials --resource-group qualisys-rg --name qualisys-cluster
+        run: ./.github/scripts/update-kubeconfig.sh ${{ vars.CLOUD_PROVIDER }}
 
       - name: Deploy API to staging
         run: |
           kubectl set image deployment/qualisys-api \
-            qualisys-api=${{ secrets.ECR_REGISTRY }}/qualisys-api:${{ github.sha }} \
+            qualisys-api=${{ secrets.CONTAINER_REGISTRY }}/qualisys-api:${{ github.sha }} \
             -n staging
           kubectl rollout status deployment/qualisys-api -n staging --timeout=120s
 
       - name: Deploy Web to staging
         run: |
           kubectl set image deployment/qualisys-web \
-            qualisys-web=${{ secrets.ECR_REGISTRY }}/qualisys-web:${{ github.sha }} \
+            qualisys-web=${{ secrets.CONTAINER_REGISTRY }}/qualisys-web:${{ github.sha }} \
             -n staging
           kubectl rollout status deployment/qualisys-web -n staging --timeout=120s
 
@@ -200,7 +208,7 @@ spec:
     spec:
       containers:
         - name: qualisys-api
-          image: ${ECR_REGISTRY}/qualisys-api:${GIT_SHA}
+          image: ${CONTAINER_REGISTRY}/qualisys-api:${GIT_SHA}
           ports:
             - containerPort: 3000
           resources:
@@ -286,8 +294,10 @@ spec:
     <dependencies>
       <githubActions>
         <action name="actions/checkout" version="v4" purpose="Clone repository" />
-        <action name="aws-actions/configure-aws-credentials" version="v4" purpose="OIDC AWS auth" />
-        <action name="aws-actions/amazon-ecr-login" version="v2" purpose="ECR authentication" />
+        <action name="aws-actions/configure-aws-credentials" version="v4" purpose="OIDC AWS auth (AWS variant)" />
+        <action name="azure/login" version="v2" purpose="Azure service principal auth (Azure variant)" />
+        <action name="aws-actions/amazon-ecr-login" version="v2" purpose="ECR authentication (AWS variant)" />
+        <action name="azure/docker-login" version="v2" purpose="ACR authentication (Azure variant)" />
         <action name="slackapi/slack-github-action" version="v1" purpose="Slack notifications" />
       </githubActions>
       <kubernetes>
@@ -297,8 +307,9 @@ spec:
         <resource name="ResourceQuota" purpose="Namespace limits" />
       </kubernetes>
       <secrets>
-        <secret name="AWS_STAGING_ROLE_ARN" purpose="OIDC role for AWS access" />
-        <secret name="ECR_REGISTRY" purpose="ECR registry URL" />
+        <secret name="AWS_STAGING_ROLE_ARN" purpose="OIDC role for AWS access (AWS)" />
+        <secret name="AZURE_CREDENTIALS" purpose="Azure service principal credentials (Azure)" />
+        <secret name="CONTAINER_REGISTRY" purpose="Container registry URL (ECR for AWS, ACR for Azure)" />
         <secret name="SLACK_BOT_TOKEN" purpose="Slack API authentication" />
         <secret name="SLACK_DEPLOY_CHANNEL" purpose="Deployment notifications channel" />
       </secrets>
@@ -309,7 +320,7 @@ spec:
     <constraint source="Performance" critical="true">Deployment time must be less than 2 minutes from merge to running</constraint>
     <constraint source="Availability" critical="true">Zero-downtime: maxUnavailable=0 during rolling update</constraint>
     <constraint source="Reliability">Automatic rollback on failed health checks</constraint>
-    <constraint source="Security">OIDC federation for AWS access (no long-lived credentials)</constraint>
+    <constraint source="Security">OIDC federation for cloud provider access (AWS IAM / Azure Workload Identity) - no long-lived credentials</constraint>
     <constraint source="Security">HTTPS enforced with SSL redirect</constraint>
     <constraint source="Cost">Resource quotas prevent runaway staging usage</constraint>
     <constraint source="Dependency">Stories 0.3, 0.6, 0.8, 0.9 must be complete for full functionality</constraint>
@@ -323,9 +334,9 @@ spec:
       <path>.github/workflows/deploy-staging.yml</path>
     </interface>
     <interface>
-      <name>AWS OIDC Federation</name>
-      <kind>IAM / STS</kind>
-      <signature>aws-actions/configure-aws-credentials with role-to-assume</signature>
+      <name>Cloud Provider OIDC Federation</name>
+      <kind>IAM / STS (AWS) or Workload Identity (Azure)</kind>
+      <signature>aws-actions/configure-aws-credentials (AWS) / azure/login (Azure) with OIDC</signature>
       <path>.github/workflows/deploy-staging.yml</path>
     </interface>
     <interface>
@@ -373,7 +384,7 @@ spec:
       <idea ac="6">Check Slack channel for deployment notification with commit SHA and URL</idea>
       <idea ac="7">Browser navigates to https://staging.qualisys.dev, sees application</idea>
       <idea ac="8">GitHub Actions summary shows workflow completed in less than 2 minutes</idea>
-      <idea ac="9">kubectl describe pod shows image from ECR with Git SHA tag</idea>
+      <idea ac="9">kubectl describe pod shows image from container registry (ECR/ACR) with Git SHA tag</idea>
       <idea ac="10">kubectl describe resourcequota -n staging shows configured limits</idea>
       <idea ac="rollback">kubectl rollout undo successfully reverts to previous deployment</idea>
       <idea ac="ssl">curl -I staging.qualisys.dev shows HTTPS redirect and valid certificate</idea>

@@ -57,12 +57,12 @@ This document provides the complete epic and story breakdown for QUALISYS, decom
 - **FR31:** System stores agent outputs (coverage matrices, test cases, scripts) as project artifacts
 
 ### Test Artifact Generation
-- **FR32:** Documentation Analyzer agent generates requirements-to-test coverage matrix
-- **FR33:** Manual Tester agent generates manual test checklists with step-by-step instructions
-- **FR34:** Manual Tester agent generates exploratory testing prompts and scenarios
-- **FR35:** Automation Tester agent generates Playwright test scripts with smart locators
-- **FR36:** Test Case Generator agent creates BDD/Gherkin scenarios from requirements
-- **FR37:** Test Case Generator agent creates negative test cases and boundary condition tests
+- **FR32:** BAConsultant AI Agent analyzes requirements, performs gap/ambiguity detection, and generates requirements-to-test coverage matrix with user story quality scoring. Generated user stories require dual-review approval (internal team review + client stakeholder review) before release to downstream agents
+- **FR33:** QAConsultant AI Agent generates manual test checklists with step-by-step instructions, supporting checklist-driven testing across Smoke, Sanity, Integration, Regression, Usability, and UAT types
+- **FR34:** QAConsultant AI Agent generates exploratory testing prompts, BDD/Gherkin scenarios, negative test cases, boundary condition tests, and domain-aware synthetic test data
+- **FR35:** AutomationConsultant AI Agent generates automated test scripts (Playwright, Puppeteer, REST-Assured) with smart locators, supporting multiple framework architectures (POM, Data-Driven, Hybrid)
+- **FR36:** QAConsultant AI Agent creates test strategy documents, test plans, and validates sprint readiness
+- **FR37:** AutomationConsultant AI Agent performs automated DOM crawling, sitemap generation, and coverage gap detection for application discovery
 - **FR38:** Users can view all generated test artifacts organized by type and agent
 - **FR39:** Users can edit generated test artifacts before execution
 - **FR40:** Users can version and track changes to test artifacts
@@ -176,7 +176,7 @@ This document provides the complete epic and story breakdown for QUALISYS, decom
 | **3** | Manual Testing & Developer Integration | 3-4 weeks | QA-Manual, Dev, PM/CSM | FR33-34, FR41-48, FR91-95 | Manual test execution with evidence + GitHub PR integration |
 | **4** | Automated Execution & Self-Healing (Breakthrough) | 4-5 weeks | QA-Automation, Dev | FR49-57, FR58-66 | Automated Playwright tests with self-healing magic |
 | **5** | Complete Dashboards & Ecosystem Integration | 3-4 weeks | All personas | FR72-77, FR85-90, FR96-101, FR109-110 | Full visibility + TestRail/Slack integrations |
-| **6+** | Advanced Agents & Growth Features | Post-MVP | Power users | Advanced agents (Web Scraper, Log Reader, Security, Performance), email reports, advanced RBAC | Platform depth and breadth |
+| **6+** | Advanced Agents & Growth Features | Post-MVP | Power users | Post-MVP agents (AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent), email reports, advanced RBAC | Platform depth and breadth |
 
 **Total MVP Duration:** 15-19 weeks (Epics 1-5)
 
@@ -450,12 +450,12 @@ Deliver core value engine: AI-powered test generation from requirements. Establi
 - FR31: System stores agent outputs (coverage matrices, test cases, scripts) as project artifacts
 
 **Test Artifact Generation (FR32-40):**
-- FR32: Documentation Analyzer agent generates requirements-to-test coverage matrix
-- FR33: Manual Tester agent generates manual test checklists with step-by-step instructions
-- FR34: Manual Tester agent generates exploratory testing prompts and scenarios
-- FR35: Automation Tester agent generates Playwright test scripts with smart locators
-- FR36: Test Case Generator agent creates BDD/Gherkin scenarios from requirements
-- FR37: Test Case Generator agent creates negative test cases and boundary condition tests
+- FR32: BAConsultant AI Agent analyzes requirements, performs gap/ambiguity detection, and generates requirements-to-test coverage matrix with user story quality scoring. Generated user stories require dual-review approval (internal team review + client stakeholder review) before release to downstream agents
+- FR33: QAConsultant AI Agent generates manual test checklists with step-by-step instructions, supporting checklist-driven testing across Smoke, Sanity, Integration, Regression, Usability, and UAT types
+- FR34: QAConsultant AI Agent generates exploratory testing prompts, BDD/Gherkin scenarios, negative test cases, boundary condition tests, and domain-aware synthetic test data
+- FR35: AutomationConsultant AI Agent generates automated test scripts (Playwright, Puppeteer, REST-Assured) with smart locators, supporting multiple framework architectures (POM, Data-Driven, Hybrid)
+- FR36: QAConsultant AI Agent creates test strategy documents, test plans, and validates sprint readiness
+- FR37: AutomationConsultant AI Agent performs automated DOM crawling, sitemap generation, and coverage gap detection for application discovery
 - FR38: Users can view all generated test artifacts organized by type and agent
 - FR39: Users can edit generated test artifacts before execution
 - FR40: Users can version and track changes to test artifacts
@@ -483,7 +483,7 @@ Deliver core value engine: AI-powered test generation from requirements. Establi
 **QA-Automation Can:**
 - ✅ Upload PRD (50-page PDF) and see it parsed + embedded
 - ✅ Connect GitHub repo and see code structure analyzed
-- ✅ Select 4 MVP AI agents (Documentation Analyzer, Manual Tester, Automation Tester, Test Case Generator)
+- ✅ Select 3 MVP AI agents (BAConsultant AI Agent, QAConsultant AI Agent, AutomationConsultant AI Agent)
 - ✅ Watch agents run in real-time (progress bar, status updates)
 - ✅ See generated artifacts: Coverage matrix (127 test scenarios from 47 requirements), Manual checklists (23 procedures), Playwright scripts (89 tests), BDD scenarios (45 Gherkin files)
 - ✅ Edit generated tests before execution
@@ -509,8 +509,8 @@ Deliver core value engine: AI-powered test generation from requirements. Establi
 
 **AI Agent Platform Architecture (From Value Chain Analysis - High-Value Investment):**
 - LangChain for MVP (fast development), plan custom orchestrator for production
-- 4 MVP agents only (Documentation Analyzer, Manual Tester, Automation Tester, Test Case Generator)
-- 4 advanced agents deferred to Epic 6+ (Web Scraper, Log Reader, Security, Performance)
+- 3 MVP agents only (BAConsultant AI Agent, QAConsultant AI Agent, AutomationConsultant AI Agent)
+- 3 Post-MVP agents deferred to Epic 6+ (AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent)
 - Agent outputs stored as JSON artifacts (versioned, editable)
 
 **LLM Cost & Latency Mitigation (From Pre-mortem & Risk Matrix - CRITICAL):**
@@ -594,7 +594,7 @@ As a QA-Automation user, I want to provide app URLs for crawling, so that AI und
 
 **Story 2.6: AI Agent Selection UI**
 As a QA-Automation user, I want to select which AI agents to run, so that I can customize test generation.
-- AC1: Agent selection page shows 4 MVP agents (Documentation Analyzer, Manual Tester, Automation Tester, Test Case Generator)
+- AC1: Agent selection page shows 3 MVP agents (BAConsultant AI Agent, QAConsultant AI Agent, AutomationConsultant AI Agent)
 - AC2: Each agent card shows: Icon, Name, Description, Inputs (e.g., "Requires: PRD"), Outputs (e.g., "Generates: Coverage Matrix"), Est. Runtime (~2-5 min)
 - AC3: Agents selectable via checkbox
 - AC4: "Use Recommended Pipeline" button auto-selects all 4 agents
@@ -612,7 +612,7 @@ As a QA-Automation user, I want to create agent pipelines (sequential/parallel),
 **Story 2.8: Agent Execution Engine**
 As the system, I want to execute selected agents with project context, so that tests are generated.
 - AC1: Agent execution starts, context loaded (documents, code, DOM data)
-- AC2: LangChain agent chains invoked (Documentation Analyzer → Test Case Generator → Manual Tester → Automation Tester)
+- AC2: LangChain agent chains invoked (BAConsultant AI Agent → QAConsultant AI Agent → AutomationConsultant AI Agent)
 - AC3: LLM API calls made (OpenAI GPT-4 for MVP)
 - AC4: Token usage tracked per agent, per tenant
 - AC5: Agent outputs (JSON) stored in database
@@ -622,7 +622,7 @@ As the system, I want to execute selected agents with project context, so that t
 **Story 2.9: Real-Time Agent Progress Tracking**
 As a QA-Automation user, I want to see agent execution progress in real-time, so that I know it's working.
 - AC1: Progress page shows agent status cards: Queued (gray) → Running (blue, animated) → Complete (green)
-- AC2: Progress bars per agent: "Documentation Analyzer: Analyzing... 47% (page 23 of 47)"
+- AC2: Progress bars per agent: "BAConsultant AI Agent: Analyzing... 47% (page 23 of 47)"
 - AC3: Estimated time remaining shown: "~3 minutes remaining"
 - AC4: Logs stream in real-time (expandable section, not blocking)
 - AC5: On completion: Success animation (green checkmark) + confetti effect
@@ -704,7 +704,7 @@ As a QA user, I want to link test cases to JIRA issues, so that I can track cove
 **Story 2.18: Token Budget & Cost Monitoring**
 As an Admin, I want to monitor LLM token usage and costs, so that I can control spend.
 - AC1: Admin dashboard shows: "Token Usage This Month: 45,000 / 100,000 (45%)"
-- AC2: Usage breakdown by agent: Documentation Analyzer (20K tokens), Test Generator (15K), etc.
+- AC2: Usage breakdown by agent: BAConsultant AI Agent (20K tokens), QAConsultant AI Agent (15K), etc.
 - AC3: Cost estimation: "$0.90 spent this month" (based on OpenAI pricing)
 - AC4: Alert configured: Email sent at 80% budget usage
 - AC5: Hard limit enforced: LLM calls refused when 100% budget exceeded (user sees "Budget exceeded" error)
@@ -784,8 +784,8 @@ Complete the "5-minute wow moment" by enabling manual test execution with eviden
 ### Functional Requirements Coverage
 
 **Manual Test Generation (FR33-34 - Connected from Epic 2):**
-- FR33: Manual Tester agent generates manual test checklists (already generated in Epic 2)
-- FR34: Manual Tester agent generates exploratory testing prompts (already generated in Epic 2)
+- FR33: QAConsultant AI Agent generates manual test checklists (already generated in Epic 2)
+- FR34: QAConsultant AI Agent generates exploratory testing prompts (already generated in Epic 2)
 
 **Manual Test Execution (FR41-48):**
 - FR41: Manual testers can view assigned manual test checklists
@@ -1357,7 +1357,7 @@ As a QA-Automation user, I want to re-run failed tests individually or in batch,
 
 **Story 4.8: Multi-Strategy Locator Storage**
 As the system, I want to store multiple locator strategies per UI element, so that self-healing can use fallbacks.
-- AC1: During test generation (Epic 2), Automation Tester agent generates 3-5 locators per element
+- AC1: During test generation (Epic 2), AutomationConsultant AI Agent generates 3-5 locators per element
 - AC2: Locators stored in test script metadata (JSON array):
   ```json
   {
@@ -2011,12 +2011,12 @@ Before moving to Epic 6+, Epic 5 must achieve:
 
 ### Objective
 
-Expand platform capabilities beyond MVP with 4 advanced AI agents (Web Scraper, Log Reader, Security Tester, Performance Tester), enterprise features (advanced RBAC, SSO, compliance), and growth enablers (agent marketplace, vertical-specific agents, self-hosted LLM support). This epic transforms QUALISYS from "complete MVP" to "enterprise-ready platform with ecosystem."
+Expand platform capabilities beyond MVP with 3 Post-MVP AI agents (AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent), enterprise features (advanced RBAC, SSO, compliance), and growth enablers (agent marketplace, vertical-specific agents, self-hosted LLM support). This epic transforms QUALISYS from "complete MVP" to "enterprise-ready platform with ecosystem."
 
 ### Features & Capabilities (Not FR-driven, Market-driven)
 
 **Advanced AI Agents (4 additional agents):**
-- **Web Scraper Agent:** Crawls application, discovers all pages/flows, generates test coverage map
+- **Note:** Web Scraper capability is now part of AutomationConsultant AI Agent (MVP). See FR37.
 - **Log Reader Agent:** Analyzes application logs, identifies error patterns, generates negative test cases
 - **Security Tester Agent:** Scans for OWASP Top 10 vulnerabilities, generates security test scenarios
 - **Performance Tester Agent:** Generates load/stress test scripts, identifies performance bottlenecks
@@ -2051,7 +2051,7 @@ Expand platform capabilities beyond MVP with 4 advanced AI agents (Web Scraper, 
 ### Value Delivered
 
 **Power Users Can:**
-- ✅ Run advanced agents: "Web Scraper discovered 127 pages and 45 user flows not documented in PRD"
+- ✅ Run Post-MVP agents: "AI Log Reader discovered 45 recurring error patterns across 2,000 test execution logs"
 - ✅ Generate security tests: "Security Tester found 3 potential XSS vulnerabilities, created test cases"
 - ✅ Analyze logs: "Log Reader identified 12 error patterns, generated negative test scenarios"
 - ✅ Performance test: "Performance Tester generated load test: 1000 concurrent users, identified 3 bottlenecks"
@@ -2122,36 +2122,31 @@ Expand platform capabilities beyond MVP with 4 advanced AI agents (Web Scraper, 
 
 ### Epic 6+ Stories (Examples - Not Exhaustive)
 
-**Story 6.1: Web Scraper Agent**
-As a QA-Automation user, I want Web Scraper agent to discover all app pages/flows, so that I can ensure complete test coverage.
-- AC1: Agent selection UI shows "Web Scraper" agent (8th agent)
-- AC2: Input: App URL + optional login credentials
-- AC3: Agent crawls app (breadth-first search, max 500 pages, timeout 30 min)
-- AC4: Output: Sitemap (JSON), Page inventory (URLs, forms, buttons, links), User flow graph (visualized)
-- AC5: Coverage map: "127 pages discovered, 89 have tests (70% coverage), 38 missing tests"
+**Story 6.1: AI Log Reader/Summarizer Agent**
+As a QA-Automation user, I want the AI Log Reader/Summarizer agent to analyze test execution logs and application logs, so that I can identify error patterns and generate targeted negative test cases.
+- AC1: Agent selection UI shows "AI Log Reader/Summarizer" agent
+- AC2: Input: Application log files (upload .log or connect to logging service)
+- AC3: Agent analyzes logs: Error patterns, Exception stack traces, Failed requests
+- AC4: Output: Negative test scenarios (12 generated), Error handling test cases (BDD format)
+- AC5: Example output: "Test: Submit form with SQL injection payload (detected in logs as common attack)"
 
-**Story 6.2: Log Reader Agent**
-As a QA-Automation user, I want Log Reader agent to analyze logs and generate negative test cases, so that I can test error handling.
-- AC1: Input: Application log files (upload .log or connect to logging service)
-- AC2: Agent analyzes logs: Error patterns, Exception stack traces, Failed requests
-- AC3: Output: Negative test scenarios (12 generated), Error handling test cases (BDD format)
-- AC4: Example output: "Test: Submit form with SQL injection payload (detected in logs as common attack)"
+**Note:** Web Scraper capability (DOM crawling, sitemap generation, page discovery) is now part of the AutomationConsultant AI Agent in MVP. See FR37.
 
-**Story 6.3: Security Tester Agent**
-As a QA-Automation/Security persona, I want Security Tester to scan for vulnerabilities, so that I can test security requirements.
+**Story 6.2: Security Scanner Orchestrator Agent**
+As a QA-Automation/Security persona, I want the Security Scanner Orchestrator agent to coordinate automated security scans, so that I can identify and test for vulnerabilities.
 - AC1: Input: App URL + authentication (if needed)
 - AC2: Agent scans for OWASP Top 10: SQL injection, XSS, CSRF, insecure auth, etc.
 - AC3: Output: Vulnerability report (3 potential issues found), Security test cases (15 generated)
 - AC4: Integration: Export vulnerabilities to JIRA as Security defects
 
-**Story 6.4: Performance Tester Agent**
-As a QA-Automation user, I want Performance Tester to generate load tests, so that I can validate performance requirements.
+**Story 6.3: Performance/Load Agent**
+As a QA-Automation user, I want the Performance/Load Agent to generate load tests, so that I can validate performance requirements.
 - AC1: Input: Critical user flows (login, checkout, search) + performance targets (response time <2s)
 - AC2: Agent generates: k6 load test scripts (1000 concurrent users, 10-minute ramp-up)
 - AC3: Output: Performance test suite (3 scenarios), Expected bottlenecks (DB query N+1, no caching)
 - AC4: Execution: Run performance tests on-demand (requires dedicated infrastructure)
 
-**Story 6.5: SAML 2.0 SSO Integration**
+**Story 6.4: SAML 2.0 SSO Integration**
 As an Enterprise Admin, I want to configure SAML SSO with Okta/Azure AD, so that employees use corporate credentials.
 - AC1: Settings → Authentication → "Enable SAML SSO" toggle
 - AC2: Configure IdP: Metadata URL (`https://okta.com/app/.../sso/saml/metadata`), Entity ID, SSO URL
@@ -2159,7 +2154,7 @@ As an Enterprise Admin, I want to configure SAML SSO with Okta/Azure AD, so that
 - AC4: JIT provisioning: If user doesn't exist → Create automatically with role from SAML
 - AC5: Test login: "Login with SSO" button → Redirected to Okta → Success → User lands in QUALISYS dashboard
 
-**Story 6.6: Agent SDK & Marketplace**
+**Story 6.5: Agent SDK & Marketplace**
 As a developer, I want to build custom agents using Agent SDK, so that I can extend QUALISYS for my use case.
 - AC1: Install SDK: `npm install @qualisys/agent-sdk`
 - AC2: Create agent: Extend `AgentBase` class, implement `execute()` method
@@ -2167,7 +2162,7 @@ As a developer, I want to build custom agents using Agent SDK, so that I can ext
 - AC4: Submit to marketplace: Upload source → Security scan (no malicious code) → Manual review → Approved
 - AC5: Users install: "E-commerce Checkout Validator" agent from marketplace → Runs like built-in agent
 
-**Story 6.7: Self-Hosted LLM Support**
+**Story 6.6: Self-Hosted LLM Support**
 As an Owner/Admin, I want to use self-hosted LLM (Ollama/vLLM), so that I can reduce costs and avoid sending data externally.
 - AC1: Settings → LLM Configuration → Provider dropdown: OpenAI (default), Anthropic, Self-Hosted
 - AC2: Self-hosted config: LLM API endpoint (`http://localhost:11434` for Ollama), Model name (llama3)
@@ -2175,7 +2170,7 @@ As an Owner/Admin, I want to use self-hosted LLM (Ollama/vLLM), so that I can re
 - AC4: Failover: If self-hosted fails → Fall back to OpenAI (configured priority order)
 - AC5: Cost tracking: Self-hosted costs = $0 tokens (GPU infrastructure cost tracked separately)
 
-**Story 6.8: SOC 2 Audit Trail Export**
+**Story 6.7: SOC 2 Audit Trail Export**
 As a Compliance Officer, I want to export audit trail for SOC 2 audit, so that I can demonstrate control compliance.
 - AC1: Settings → Compliance → "Export Audit Trail" button
 - AC2: Date range: Select range (e.g., last 12 months for annual audit)
@@ -2185,30 +2180,26 @@ As a Compliance Officer, I want to export audit trail for SOC 2 audit, so that I
 
 ### Phasing Strategy (Epic 6+ Rollout)
 
-**Phase 1 (Weeks 1-2): Advanced Agents**
-- Story 6.1: Web Scraper Agent
-- Story 6.2: Log Reader Agent
-- **Outcome:** 2 of 4 advanced agents available, validate demand
+**Phase 1 (Weeks 1-2): Post-MVP Agents**
+- Story 6.1: AI Log Reader/Summarizer Agent
+- Story 6.2: Security Scanner Orchestrator Agent
+- Story 6.3: Performance/Load Agent
+- **Outcome:** All 6 agents available (3 MVP + 3 Post-MVP), platform maturity demonstrated
 
 **Phase 2 (Weeks 3-4): Enterprise Security**
-- Story 6.5: SAML SSO
-- Story 6.8: SOC 2 Audit Trail
+- Story 6.4: SAML SSO
+- Story 6.7: SOC 2 Audit Trail
 - **Outcome:** Enterprise sales unblocked, can close Fortune 500 deals
 
 **Phase 3 (Weeks 5-6): Extensibility**
-- Story 6.6: Agent SDK & Marketplace (beta)
-- Story 6.7: Self-Hosted LLM Support
+- Story 6.5: Agent SDK & Marketplace (beta)
+- Story 6.6: Self-Hosted LLM Support
 - **Outcome:** Community engagement starts, cost-conscious customers opt for self-hosted
-
-**Phase 4 (Weeks 7-8): Remaining Agents**
-- Story 6.3: Security Tester Agent
-- Story 6.4: Performance Tester Agent
-- **Outcome:** All 8 agents available (4 MVP + 4 advanced), platform maturity demonstrated
 
 ### Epic 6+ Completion Criteria
 
 Epic 6+ is not blocking MVP launch, but achieves:
-- ✅ **Advanced agents:** Web Scraper + Log Reader functional (validate demand before building all 4)
+- ✅ **Post-MVP agents:** AI Log Reader/Summarizer + Security Scanner Orchestrator + Performance/Load Agent functional
 - ✅ **Enterprise ready:** SAML SSO working with 3 IdPs (Okta, Azure AD, Google), SOC 2 audit trail exportable
 - ✅ **Extensibility proven:** Agent SDK documented, 1 community agent published (proof of concept)
 - ✅ **Cost optimization:** Self-hosted LLM working (1 customer using it successfully)

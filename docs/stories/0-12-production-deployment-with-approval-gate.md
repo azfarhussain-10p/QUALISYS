@@ -29,7 +29,7 @@ so that **we maintain control over production changes and can quickly rollback i
   - [ ] 1.1 Create `.github/workflows/deploy-production.yml`
   - [ ] 1.2 Configure workflow_dispatch trigger (manual only)
   - [ ] 1.3 Add input parameters (image tag, rollout percentage)
-  - [ ] 1.4 Configure AWS/EKS authentication
+  - [ ] 1.4 Configure cloud provider/Kubernetes authentication
   - [ ] 1.5 Add deployment audit logging
 
 - [ ] **Task 2: GitHub Environment Protection** (AC: 2, 3, 8)
@@ -88,6 +88,11 @@ This story implements production deployment per the architecture document:
 - **Rollback SLA**: <2 minutes to rollback on failure
 
 ### Production Deployment Workflow
+
+> **Multi-Cloud Note**: The workflow YAML below shows the AWS variant.
+> The actual `.github/workflows/deploy-production.yml` uses `vars.CLOUD_PROVIDER`
+> with conditional steps for AWS (EKS/ECR) and Azure (AKS/ACR).
+> See `infrastructure/terraform/README.md` for the Two Roots architecture.
 
 ```yaml
 # .github/workflows/deploy-production.yml
@@ -283,7 +288,7 @@ kubectl rollout undo deployment/qualisys-web-stable -n production
 
 # Manual rollback - Option 2: Deploy specific version
 kubectl set image deployment/qualisys-api-stable \
-  qualisys-api=<ECR_REGISTRY>/qualisys-api:<PREVIOUS_SHA> \
+  qualisys-api=<CONTAINER_REGISTRY>/qualisys-api:<PREVIOUS_SHA> \
   -n production
 
 # Verify rollback
@@ -303,8 +308,8 @@ Environment: production
 ├── Wait timer: 5 minutes (optional)
 ├── Deployment branches: main only
 └── Environment secrets:
-    ├── AWS_PRODUCTION_ROLE_ARN
-    ├── ECR_REGISTRY
+    ├── AWS_PRODUCTION_ROLE_ARN (AWS) / AZURE_CLIENT_ID (Azure)
+    ├── CONTAINER_REGISTRY (ECR or ACR URI)
     ├── SMOKE_TEST_TOKEN
     ├── SLACK_BOT_TOKEN
     └── SLACK_DEPLOY_CHANNEL
@@ -374,8 +379,8 @@ spec:
 
 ### Dependencies
 
-- **Story 0.3** (Kubernetes Cluster) - REQUIRED: EKS cluster with production namespace
-- **Story 0.6** (Container Registry) - REQUIRED: ECR repository for images
+- **Story 0.3** (Kubernetes Cluster) - REQUIRED: Kubernetes cluster (EKS/AKS) with production namespace
+- **Story 0.6** (Container Registry) - REQUIRED: Container registry (ECR/ACR) for images
 - **Story 0.8** (GitHub Actions) - REQUIRED: Workflow infrastructure
 - **Story 0.9** (Docker Build) - REQUIRED: Docker images to deploy
 - **Story 0.11** (Staging Deployment) - REQUIRED: Staging tested first
@@ -439,3 +444,4 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 |------|--------|--------|
 | 2026-01-23 | SM Agent (Bob) | Story drafted from Epic 0 tech spec and epic file |
 | 2026-01-23 | SM Agent (Bob) | Context XML generated, status: drafted → ready-for-dev |
+| 2026-02-09 | PM Agent (John) | Multi-cloud course correction: generalized AWS-specific references to cloud-agnostic |

@@ -4,7 +4,8 @@
     <storyId>13</storyId>
     <title>Load Balancer and Ingress Configuration</title>
     <status>ready-for-dev</status>
-    <generatedAt>2026-01-23</generatedAt>
+    <generatedAt>2026-02-09</generatedAt>
+    <multiCloudNote>Context regenerated for multi-cloud (AWS + Azure) Two Roots architecture</multiCloudNote>
     <generator>BMAD Story Context Workflow</generator>
     <sourceStoryPath>docs/stories/0-13-load-balancer-ingress-configuration.md</sourceStoryPath>
   </metadata>
@@ -21,13 +22,13 @@
         <subtask>2.1-2.5 Install cert-manager, create ClusterIssuers, configure auto-renewal</subtask>
       </task>
       <task id="3" name="DNS Configuration" acs="2,3">
-        <subtask>3.1-3.5 Create Route 53 records for app, api, staging domains</subtask>
+        <subtask>3.1-3.5 Create DNS zone (Route 53 / Azure DNS) records for app, api, staging domains</subtask>
       </task>
       <task id="4" name="Ingress Resources" acs="2,3,5">
         <subtask>4.1-4.5 Create Ingress resources for staging and production with routing</subtask>
       </task>
       <task id="5" name="Rate Limiting and Security" acs="7,8">
-        <subtask>5.1-5.5 Configure rate limiting annotations, AWS Shield, test limits</subtask>
+        <subtask>5.1-5.5 Configure rate limiting annotations, DDoS protection (AWS Shield / Azure DDoS), test limits</subtask>
       </task>
       <task id="6" name="Error Pages and Documentation" acs="9,10">
         <subtask>6.1-6.5 Create custom error pages, document configuration</subtask>
@@ -36,14 +37,14 @@
   </story>
 
   <acceptanceCriteria>
-    <ac id="1">NGINX Ingress Controller or AWS ALB Ingress Controller installed</ac>
+    <ac id="1">NGINX Ingress Controller (cloud-agnostic) installed</ac>
     <ac id="2">Ingress routes traffic: app.qualisys.io to web, api.qualisys.io to api</ac>
     <ac id="3">Staging domain configured: staging.qualisys.dev</ac>
-    <ac id="4">SSL certificates provisioned via cert-manager (Let's Encrypt) or AWS ACM</ac>
+    <ac id="4">SSL certificates provisioned via cert-manager (Let's Encrypt)</ac>
     <ac id="5">HTTPS enforced with HTTP to HTTPS redirect</ac>
     <ac id="6">Health checks configured for backend services</ac>
     <ac id="7">Rate limiting configured (1000 req/min per IP)</ac>
-    <ac id="8">DDoS protection enabled (AWS Shield or Cloudflare)</ac>
+    <ac id="8">DDoS protection enabled (AWS Shield / Azure DDoS Protection / Cloudflare)</ac>
     <ac id="9">Custom error pages configured (502, 503, 504)</ac>
     <ac id="10">Ingress annotations documented for team reference</ac>
   </acceptanceCriteria>
@@ -54,19 +55,19 @@
         <path>docs/tech-specs/tech-spec-epic-0.md</path>
         <title>Epic 0 Technical Specification</title>
         <section>Services and Modules</section>
-        <snippet>Load Balancer: AWS ALB + NGINX Ingress. SSL termination, rate limiting (1000 req/min). External traffic routing, HTTPS enforcement.</snippet>
+        <snippet>Load Balancer: Cloud LB (AWS ALB / Azure LB) + NGINX Ingress. SSL termination, rate limiting (1000 req/min). External traffic routing, HTTPS enforcement.</snippet>
       </doc>
       <doc>
         <path>docs/tech-specs/tech-spec-epic-0.md</path>
         <title>Epic 0 Technical Specification</title>
         <section>Security</section>
-        <snippet>In transit: TLS 1.3 for ALB. HTTPS enforced. Rate limiting at ingress level. DDoS protection via AWS Shield.</snippet>
+        <snippet>In transit: TLS 1.3 for load balancer. HTTPS enforced. Rate limiting at ingress level. DDoS protection via AWS Shield / Azure DDoS Protection.</snippet>
       </doc>
       <doc>
         <path>docs/epics/epic-0-infrastructure.md</path>
         <title>Epic 0: Infrastructure Foundation</title>
         <section>Story 0.13</section>
-        <snippet>Load Balancer and Ingress Configuration: ALB or NGINX Ingress, SSL certificates, HTTPS redirect, rate limiting, DDoS protection, custom error pages.</snippet>
+        <snippet>Load Balancer and Ingress Configuration: NGINX Ingress (cloud-agnostic), SSL certificates, HTTPS redirect, rate limiting, DDoS protection (AWS Shield / Azure DDoS), custom error pages.</snippet>
       </doc>
       <doc>
         <path>docs/architecture/architecture.md</path>
@@ -78,7 +79,7 @@
         <path>docs/stories/0-3-kubernetes-cluster-provisioning.md</path>
         <title>Story 0.3: Kubernetes Cluster Provisioning</title>
         <section>Ingress Controller</section>
-        <snippet>Prerequisite: EKS cluster with ingress-nginx namespace. Ingress controller installed as part of cluster setup or this story.</snippet>
+        <snippet>Prerequisite: Kubernetes cluster (EKS/AKS) with ingress-nginx namespace. Ingress controller installed as part of cluster setup or this story.</snippet>
       </doc>
     </docs>
 
@@ -89,7 +90,7 @@
           <provides>Public subnets for load balancer, security groups</provides>
         </story>
         <story id="0-3-kubernetes-cluster-provisioning" status="ready-for-dev">
-          <provides>EKS cluster, namespaces for ingress controller deployment</provides>
+          <provides>Kubernetes cluster (EKS/AKS), namespaces for ingress controller deployment</provides>
         </story>
       </prerequisites>
       <expectedStructure>
@@ -100,7 +101,7 @@
         <file path="kubernetes/cert-manager/cluster-issuer.yaml" purpose="Let's Encrypt ClusterIssuers" />
         <file path="kubernetes/staging/ingress.yaml" purpose="Staging ingress resource" />
         <file path="kubernetes/production/ingress.yaml" purpose="Production ingress resource" />
-        <file path="terraform/dns.tf" purpose="Route 53 DNS configuration" />
+        <file path="terraform/dns.tf" purpose="DNS configuration (Route 53 / Azure DNS)" />
         <file path="CONTRIBUTING.md" purpose="Updated with ingress documentation" />
       </expectedStructure>
       <outputs description="Ingress and load balancing infrastructure">
@@ -121,7 +122,7 @@ helm install ingress-nginx ingress-nginx/ingress-nginx \
   --set controller.resources.requests.cpu=100m \
   --set controller.resources.requests.memory=128Mi \
   --set controller.service.type=LoadBalancer \
-  --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"=nlb
+  --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"=nlb  # AWS; for Azure use: service.beta.kubernetes.io/azure-load-balancer-internal: "false"
 
 # cert-manager
 helm repo add jetstack https://charts.jetstack.io
@@ -227,7 +228,7 @@ data:
       </customErrorPagesTemplate>
       <dnsConfig>
         <![CDATA[
-# terraform/dns.tf
+# terraform/dns.tf (AWS - Route 53)
 resource "aws_route53_record" "app" {
   zone_id = aws_route53_zone.qualisys_io.zone_id
   name    = "app.qualisys.io"
@@ -249,6 +250,23 @@ resource "aws_route53_record" "api" {
     evaluate_target_health = true
   }
 }
+
+# terraform/dns.tf (Azure - Azure DNS alternative)
+# resource "azurerm_dns_a_record" "app" {
+#   name                = "app"
+#   zone_name           = azurerm_dns_zone.qualisys_io.name
+#   resource_group_name = azurerm_resource_group.dns.name
+#   ttl                 = 300
+#   target_resource_id  = azurerm_public_ip.ingress.id
+# }
+#
+# resource "azurerm_dns_a_record" "api" {
+#   name                = "api"
+#   zone_name           = azurerm_dns_zone.qualisys_io.name
+#   resource_group_name = azurerm_resource_group.dns.name
+#   ttl                 = 300
+#   target_resource_id  = azurerm_public_ip.ingress.id
+# }
         ]]>
       </dnsConfig>
     </code>
@@ -265,12 +283,11 @@ resource "aws_route53_record" "api" {
         <resource name="ConfigMap" purpose="Custom error pages" />
         <resource name="Service (LoadBalancer)" purpose="External load balancer" />
       </kubernetes>
-      <aws>
-        <service name="Route 53" purpose="DNS management" />
-        <service name="Network Load Balancer" purpose="Layer 4 load balancing" />
-        <service name="AWS Shield Standard" purpose="DDoS protection (automatic)" />
-        <service name="ACM" purpose="Alternative SSL certificates" />
-      </aws>
+      <cloud>
+        <service name="Route 53 / Azure DNS" purpose="DNS management" />
+        <service name="Network Load Balancer / Azure Load Balancer" purpose="Layer 4 load balancing" />
+        <service name="AWS Shield Standard / Azure DDoS Protection" purpose="DDoS protection (automatic)" />
+      </cloud>
     </dependencies>
   </artifacts>
 
@@ -304,9 +321,9 @@ resource "aws_route53_record" "api" {
       <path>External service</path>
     </interface>
     <interface>
-      <name>Route 53 API</name>
-      <kind>AWS API</kind>
-      <signature>DNS record management via Terraform</signature>
+      <name>DNS API (Route 53 / Azure DNS)</name>
+      <kind>Cloud API</kind>
+      <signature>DNS record management via Terraform (provider-specific)</signature>
       <path>terraform/dns.tf</path>
     </interface>
     <interface>
@@ -325,7 +342,7 @@ resource "aws_route53_record" "api" {
       <location>kubectl commands for controller and ingress verification</location>
       <location>Browser for SSL and routing verification</location>
       <location>curl commands for rate limiting and redirect testing</location>
-      <location>AWS Console for DNS and Shield verification</location>
+      <location>Cloud console (AWS Console / Azure Portal) for DNS and DDoS protection verification</location>
     </locations>
     <ideas>
       <idea ac="1">kubectl get pods -n ingress-nginx shows 2 running controller pods</idea>
@@ -337,7 +354,7 @@ resource "aws_route53_record" "api" {
       <idea ac="5">curl -I http://app.qualisys.io returns 301 redirect to HTTPS</idea>
       <idea ac="6">kubectl describe ingress shows backend health status</idea>
       <idea ac="7">hey -n 2000 -q 50 https://api.qualisys.io/health shows 429 after limit</idea>
-      <idea ac="8">AWS Console shows Shield Standard active for load balancer</idea>
+      <idea ac="8">Cloud console shows DDoS protection (AWS Shield Standard / Azure DDoS Protection) active for load balancer</idea>
       <idea ac="9">Stop all backend pods, curl returns custom 503 page</idea>
       <idea ac="10">CONTRIBUTING.md includes ingress annotation reference</idea>
       <idea ac="renewal">Wait for certificate to approach expiry, verify auto-renewal</idea>

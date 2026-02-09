@@ -12,13 +12,13 @@ so that **Epic 2-5 integrations can be implemented without delays**.
 
 | # | Criterion | Verification Method |
 |---|-----------|---------------------|
-| AC1 | OpenAI API account created, API key generated and stored in secret manager | Secret exists in AWS Secrets Manager |
-| AC2 | Anthropic API account created, API key generated and stored | Secret exists in AWS Secrets Manager |
-| AC3 | Google OAuth client ID/secret created for SSO (Epic 1) | OAuth credentials stored in Secrets Manager |
-| AC4 | SendGrid or Postmark account created for transactional emails (Epic 1) | Email API key stored in Secrets Manager |
+| AC1 | OpenAI API account created, API key generated and stored in secret manager | Secret exists in secret store (AWS Secrets Manager / Azure Key Vault) |
+| AC2 | Anthropic API account created, API key generated and stored | Secret exists in secret store (AWS Secrets Manager / Azure Key Vault) |
+| AC3 | Google OAuth client ID/secret created for SSO (Epic 1) | OAuth credentials stored in secret store |
+| AC4 | SendGrid or Postmark account created for transactional emails (Epic 1) | Email API key stored in secret store |
 | AC5 | Jira integration account created (Epic 5, can defer) | Jira API token stored or documented for later |
-| AC6 | Slack webhook configured for notifications (Epic 5, can defer) | Webhook URL stored in Secrets Manager |
-| AC7 | GitHub App created for repository integration (Epic 3, can defer) | GitHub App credentials stored in Secrets Manager |
+| AC6 | Slack webhook configured for notifications (Epic 5, can defer) | Webhook URL stored in secret store |
+| AC7 | GitHub App created for repository integration (Epic 3, can defer) | GitHub App credentials stored in secret store |
 | AC8 | All API keys documented in secret manager with purpose and expiration | Secrets have description and tags |
 | AC9 | API key rotation schedule defined (quarterly for LLM keys) | Rotation schedule documented |
 | AC10 | Billing alerts configured for LLM APIs | OpenAI/Anthropic billing alerts set |
@@ -31,34 +31,34 @@ so that **Epic 2-5 integrations can be implemented without delays**.
   - [ ] 1.1 Create OpenAI organization account
   - [ ] 1.2 Generate OpenAI API key with usage limits
   - [ ] 1.3 Configure OpenAI billing alerts ($50, $100, $200)
-  - [ ] 1.4 Store OpenAI API key in Secrets Manager
+  - [ ] 1.4 Store OpenAI API key in secret store (Secrets Manager / Key Vault)
   - [ ] 1.5 Create Anthropic account
   - [ ] 1.6 Generate Anthropic API key
   - [ ] 1.7 Configure Anthropic billing alerts
-  - [ ] 1.8 Store Anthropic API key in Secrets Manager
+  - [ ] 1.8 Store Anthropic API key in secret store (Secrets Manager / Key Vault)
 
 - [ ] **Task 2: Authentication Provider** (AC: 3)
   - [ ] 2.1 Create Google Cloud project for OAuth
   - [ ] 2.2 Configure OAuth consent screen
   - [ ] 2.3 Create OAuth 2.0 client credentials
   - [ ] 2.4 Add authorized redirect URIs
-  - [ ] 2.5 Store client ID and secret in Secrets Manager
+  - [ ] 2.5 Store client ID and secret in secret store (Secrets Manager / Key Vault)
 
 - [ ] **Task 3: Email Service** (AC: 4)
   - [ ] 3.1 Create SendGrid account (or Postmark)
   - [ ] 3.2 Verify sender domain
   - [ ] 3.3 Generate API key with appropriate permissions
   - [ ] 3.4 Configure email templates (optional)
-  - [ ] 3.5 Store API key in Secrets Manager
+  - [ ] 3.5 Store API key in secret store (Secrets Manager / Key Vault)
 
 - [ ] **Task 4: Integration Services** (AC: 5, 6, 7)
   - [ ] 4.1 Create Jira integration credentials (defer if not ready)
   - [ ] 4.2 Create Slack App and webhook URL
   - [ ] 4.3 Create GitHub App for repository integration
-  - [ ] 4.4 Store all credentials in Secrets Manager
+  - [ ] 4.4 Store all credentials in secret store (Secrets Manager / Key Vault)
 
 - [ ] **Task 5: Documentation and Security** (AC: 8, 9, 11)
-  - [ ] 5.1 Document all secrets with purpose in Secrets Manager
+  - [ ] 5.1 Document all secrets with purpose in secret store
   - [ ] 5.2 Add expiration tags to secrets
   - [ ] 5.3 Create API key rotation schedule
   - [ ] 5.4 Document rate limits and quotas
@@ -84,12 +84,16 @@ This story provisions integration credentials per architecture requirements:
 
 ### Technical Constraints
 
-- **Secret Storage**: AWS Secrets Manager (not environment variables)
+- **Secret Storage**: AWS Secrets Manager / Azure Key Vault (not environment variables)
 - **Account Type**: Organizational accounts (not personal)
 - **Billing**: Alerts configured to prevent runaway costs
 - **Rotation**: Quarterly rotation for LLM API keys
 
-### AWS Secrets Manager Structure
+### Secret Store Structure (AWS Secrets Manager / Azure Key Vault)
+
+> **Multi-Cloud Note**: The path structure below applies to AWS Secrets Manager.
+> Azure Key Vault uses flat naming with hyphens (e.g., `llm-openai-api-key`).
+> See `infrastructure/kubernetes/azure/external-secrets/` for Azure Key Vault mappings.
 
 ```
 /qualisys/
@@ -113,6 +117,10 @@ This story provisions integration credentials per architecture requirements:
 ```
 
 ### Terraform Secrets Configuration
+
+> **Multi-Cloud Note**: The Terraform below shows AWS `aws_secretsmanager_secret` resources.
+> Azure equivalent uses `azurerm_key_vault_secret` in `infrastructure/terraform/azure/`.
+> The ExternalSecrets Operator abstracts both backends for Kubernetes consumption.
 
 ```hcl
 # modules/secrets/main.tf
@@ -229,7 +237,11 @@ resource "aws_secretsmanager_secret" "jira_api_token" {
 }
 ```
 
-### ExternalSecrets Configuration
+### ExternalSecrets Configuration (AWS variant)
+
+> **Multi-Cloud Note**: The SecretStore below uses AWS Secrets Manager provider.
+> Azure variant uses `azurekv` provider with Workload Identity auth.
+> See `infrastructure/kubernetes/azure/cluster-secret-store.yaml` for Azure configuration.
 
 ```yaml
 # k8s/secrets/external-secrets.yaml
@@ -493,8 +505,8 @@ spec:
 
 ### Dependencies
 
-- **Story 0.7** (Secret Management) - REQUIRED: Secrets Manager infrastructure
-- **Story 0.1** (IAM Setup) - REQUIRED: IAM roles for secret access
+- **Story 0.7** (Secret Management) - REQUIRED: Secret management infrastructure (Secrets Manager / Key Vault)
+- **Story 0.1** (IAM Setup) - REQUIRED: IAM roles (AWS) / RBAC + Workload Identity (Azure) for secret access
 - Outputs used by:
   - **Epic 1**: Google OAuth, SendGrid for authentication and email
   - **Epic 2**: OpenAI/Anthropic for AI agents
@@ -503,7 +515,7 @@ spec:
 
 ### Security Considerations
 
-1. **Threat: Key exposure** → Store only in Secrets Manager, never in code
+1. **Threat: Key exposure** → Store only in secret store (Secrets Manager / Key Vault), never in code
 2. **Threat: Runaway costs** → Billing alerts and hard limits
 3. **Threat: Stale keys** → Quarterly rotation schedule
 4. **Threat: Over-permissioned keys** → Least privilege for each service
@@ -550,3 +562,4 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-01-24 | SM Agent (Bob) | Story drafted from Epic 0 tech spec and epic file |
+| 2026-02-09 | PM Agent (John) | Multi-cloud course correction: generalized AWS-specific references to cloud-agnostic |

@@ -10,7 +10,7 @@
 **Scope:** 110 functional requirements across 14 capability categories covering the complete testing lifecycle - from requirements ingestion through AI-powered test generation to self-healing automated execution and enterprise integrations.
 
 **Key Capabilities:**
-- 8 specialized AI agents for intelligent test generation
+- 6 specialized AI agents (3 MVP + 3 Post-MVP) for intelligent test generation
 - Self-healing test automation (breakthrough differentiator)
 - Multi-tenant architecture with 6 role-based personas
 - Integration-first strategy (JIRA, TestRail, Testworthy, GitHub, Slack)
@@ -41,7 +41,7 @@
 
 **Architectural Challenges:**
 - Multi-tenancy with strict data isolation
-- AI/LLM orchestration (8 agents, LangChain)
+- AI/LLM orchestration (6 agents, LangChain)
 - Self-healing intelligence (DOM change detection, selector fallback strategies)
 - Real-time execution (WebSocket updates, parallel runners)
 - Enterprise integrations (bi-directional sync with external platforms)
@@ -207,7 +207,7 @@ The architecture must include monitoring for these warning signs:
 ### Internal Weaknesses (Architectural Risks)
 
 **W1: Architectural Complexity**
-- 8 AI agents + self-healing + real-time updates + integrations = many moving parts
+- 6 AI agents + self-healing + real-time updates + integrations = many moving parts
 - Risk of cascading failures: one component breaks, others fail
 - Operational burden: requires full-stack + AI/ML + DevOps expertise
 - **Architectural mitigation:** Circuit breakers, graceful degradation, comprehensive observability, runbooks
@@ -365,7 +365,7 @@ The architecture must include monitoring for these warning signs:
 
 **Against Traditional Tools (Selenium, TestRail):**
 - QUALISYS advantage: AI-native (not bolt-on AI features), intelligent test generation, self-healing automation
-- Architecture differentiator: 8 specialized AI agents, LLM orchestration, modern cloud-native stack
+- Architecture differentiator: 6 specialized AI agents (BAConsultant, QAConsultant, AutomationConsultant + 3 Post-MVP), LLM orchestration, modern cloud-native stack
 
 ## First Principles Architectural Foundation
 
@@ -532,7 +532,7 @@ This section questions common assumptions and rebuilds architectural decisions f
 - **Dashboard:** Real-time per-tenant view
   - Current usage: $234 / $500 budget (47%)
   - Trend: +12% vs last week
-  - Top consumers: Automation Tester (45%), Test Case Generator (32%)
+  - Top consumers: AutomationConsultant AI Agent (45%), QAConsultant AI Agent (32%)
 - **Enforcement:** Hard limits at 100%, warnings at 80%
 - **Optimization:** Aggressive Redis caching (24h TTL, 70%+ cache hit rate target)
 
@@ -681,7 +681,7 @@ This section documents the root cause reasoning behind critical architectural de
 
 **ROOT CAUSE:** Specialized agents are necessary because testing is a correctness-critical domain where LLM hallucinations are unacceptable. Specialization (narrow prompts + focused context) reduces hallucination rate from ~15% (general) to <5% (specialized).
 
-**Architectural Implication:** 8 agents justified, but each must have clear specialization boundaries to avoid overlap (which wastes tokens and creates confusion). Agent orchestration must route tasks to correct specialist.
+**Architectural Implication:** 6 agents justified (3 MVP + 3 Post-MVP), each with clear specialization boundaries to avoid overlap (which wastes tokens and creates confusion). Agent orchestration must route tasks to correct specialist.
 
 ---
 
@@ -809,7 +809,7 @@ This section documents the root cause reasoning behind critical architectural de
 - **Design:** Core system (70% AI/ML investment), dedicated Self-Healing Engine service
 
 **Validated Decision #3:** Agent specialization reduces hallucination in correctness-critical domain
-- **Design:** 8 specialized agents with clear boundaries, avoid overlap
+- **Design:** 6 specialized agents (3 MVP + 3 Post-MVP) with clear boundaries, avoid overlap
 
 **Validated Decision #4:** Containers are minimum viable security for untrusted code execution
 - **Design:** Mandatory pre-warmed pool (10-50 hot containers) to overcome cold start
@@ -862,7 +862,7 @@ This section examines QUALISYS architecture through six distinct lenses (Facts, 
 **Core Capabilities:**
 - Multi-Tenancy: Four-pillar architecture (data, performance, cost, failure isolation)
 - Self-Healing Engine: Confidence scoring, approval workflows, audit trails, 24-hour rollback
-- AI Agents: **Reduce to 4 core agents** - Documentation Analyzer, Test Case Generator, Automation Tester, Manual Tester (defer Web Scraper, Log Reader, Security Scanner, Performance Agent to Phase 2)
+- AI Agents: **3 MVP agents** - BAConsultant AI Agent, QAConsultant AI Agent, AutomationConsultant AI Agent (defer AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent to Post-MVP)
 - Integrations: **JIRA + GitHub only** (defer TestRail, Testworthy, Slack to Phase 2 for faster launch)
 - Real-Time Updates: Server-Sent Events (not WebSocket - simpler architecture)
 
@@ -890,7 +890,7 @@ This section examines QUALISYS architecture through six distinct lenses (Facts, 
 **Phase 2 - Scale & Optimize (Months 4-6)**
 
 **Expand Capabilities:**
-- Add remaining 4 specialized agents: Web Scraper, Log Reader, Security Scanner, Performance Agent
+- Add remaining 3 specialized agents: AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent
 - Complete integrations: TestRail, Testworthy, Slack (achieve "works with all your tools" positioning)
 - Visual regression testing: AI-powered screenshot comparison for layout bug detection
 - Predictive test selection: Risk-based ML model (run high-risk tests first, faster feedback)
@@ -1533,7 +1533,7 @@ QUALISYS is a multi-tenant SaaS B2B platform that revolutionizes software testin
 
 ### Architectural Approach: Pragmatic Complexity with Strategic Safeguards
 
-This architecture embraces necessary complexity (multi-tenancy, 8 AI agents, self-healing intelligence) while implementing comprehensive safeguards (security layers, approval workflows, monitoring, circuit breakers). Key principle: **Accept complexity where it creates value, enforce simplicity everywhere else.**
+This architecture embraces necessary complexity (multi-tenancy, 6 AI agents, self-healing intelligence) while implementing comprehensive safeguards (security layers, approval workflows, monitoring, circuit breakers). Key principle: **Accept complexity where it creates value, enforce simplicity everywhere else.**
 
 **Strategic Architecture Decisions:**
 
@@ -1560,7 +1560,7 @@ Architecture supports three tracks based on deployment complexity:
 - Stack: Vite + React, FastAPI, PostgreSQL + pgvector, Redis + BullMQ, Kubernetes
 - Success metric: <10 minute time to first test suite, >80% self-healing confidence
 
-**Scale Track (Months 4-6):** 8 agents, 5 integrations, 100+ tenants, 5K tests/day
+**Scale Track (Months 4-6):** 6 agents, 5 integrations, 100+ tenants, 5K tests/day
 - Focus: Complete feature set, performance optimization, SOC 2 Type I
 - Enhancements: Remaining 4 agents, visual regression, predictive test selection, LangChain → Custom orchestration
 - Success metric: <3 second dashboard load, $0.50-$5 cost per 1K tests
