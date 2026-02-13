@@ -1,7 +1,7 @@
 # Deploy Staging Workflow
-# Story: 0-8 GitHub Actions Workflow Setup
-# AC: 2 - Deploy staging on push to main
-# AC: 7 - Least-privilege permissions
+# Story: 0-8 GitHub Actions Workflow Setup, 0-11 Staging Auto-Deployment
+# AC (0-8): 2 - Deploy staging on push to main, 7 - Least-privilege permissions
+# AC (0-11): 1 - Auto-deploy on main merge, 6 - Slack with staging URL, 8 - <2min deploy
 # Supports both AWS and Azure via CLOUD_PROVIDER repository variable
 
 name: Deploy Staging
@@ -114,7 +114,7 @@ jobs:
                   \"type\": \"section\",
                   \"text\": {
                     \"type\": \"mrkdwn\",
-                    \"text\": \":white_check_mark: *Staging deployment successful*\n*Cloud:* \`${{ vars.CLOUD_PROVIDER }}\`\n*Commit:* \`${GITHUB_SHA::7}\`\n*Branch:* \`${GITHUB_REF_NAME}\`\n*Actor:* ${GITHUB_ACTOR}\"
+                    \"text\": \":white_check_mark: *Staging deployment successful*\n*Cloud:* \`${{ vars.CLOUD_PROVIDER }}\`\n*Commit:* \`${GITHUB_SHA::7}\`\n*Branch:* \`${GITHUB_REF_NAME}\`\n*Actor:* ${GITHUB_ACTOR}\n*URL:* <https://staging.qualisys.dev|staging.qualisys.dev>\"
                   }
                 }
               ]
@@ -134,7 +134,7 @@ jobs:
                   \"type\": \"section\",
                   \"text\": {
                     \"type\": \"mrkdwn\",
-                    \"text\": \":x: *Staging deployment failed*\n*Cloud:* \`${{ vars.CLOUD_PROVIDER }}\`\n*Commit:* \`${GITHUB_SHA::7}\`\n*Branch:* \`${GITHUB_REF_NAME}\`\n*Actor:* ${GITHUB_ACTOR}\n*Run:* <${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}|View logs>\"
+                    \"text\": \":x: *Staging deployment failed*\n*Cloud:* \`${{ vars.CLOUD_PROVIDER }}\`\n*Commit:* \`${GITHUB_SHA::7}\`\n*Branch:* \`${GITHUB_REF_NAME}\`\n*Actor:* ${GITHUB_ACTOR}\n*URL:* <https://staging.qualisys.dev|staging.qualisys.dev>\n*Run:* <${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}|View logs>\"
                   }
                 }
               ]

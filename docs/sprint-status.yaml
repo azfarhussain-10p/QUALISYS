@@ -7,7 +7,7 @@
 # CONFIGURATION
 # ===================================================================
 generated: "2025-12-12"
-updated: "2026-02-03"
+updated: "2026-02-12"
 project: QUALISYS
 project_key: qualisys-ai-testing-platform
 tracking_system: file-system
@@ -41,10 +41,10 @@ story_location: "{project-root}/docs/stories"
 mvp_summary:
   total_epics: 6
   total_stories: 100
-  epics_completed: 0
-  stories_completed: 10
-  current_sprint: "Sprint 0 - Infrastructure Foundation"
-  current_epic: "epic-0"
+  epics_completed: 1
+  stories_completed: 22
+  current_sprint: "Sprint 1 - Foundation & Administration"
+  current_epic: "epic-1"
   blocking_items: []
 
 # ===================================================================
@@ -60,7 +60,7 @@ development_status:
   # Tech Spec: docs/tech-specs/tech-spec-epic-0.md
   # Cloud Provider: AWS + Azure (Two Roots architecture, 2026-02-09)
   # =====================================================
-  epic-0: active
+  epic-0: completed
   0-1-cloud-account-iam-setup: done
   0-2-vpc-network-configuration: done
   0-3-kubernetes-cluster-provisioning: done
@@ -71,19 +71,19 @@ development_status:
   0-8-github-actions-workflow-setup: done
   0-9-docker-build-automation: done
   0-10-automated-test-execution-on-pr: done
-  0-11-staging-auto-deployment: ready-for-dev
-  0-12-production-deployment-with-approval-gate: ready-for-dev
-  0-13-load-balancer-ingress-configuration: ready-for-dev
-  0-14-test-database-provisioning: ready-for-dev
-  0-15-test-data-factories-seeding: ready-for-dev
-  0-16-ci-cd-test-pipeline-integration: ready-for-dev
-  0-17-test-reporting-dashboard: ready-for-dev
-  0-18-multi-tenant-test-isolation-infrastructure: ready-for-dev
-  0-19-monitoring-infrastructure-prometheus-grafana: ready-for-dev
-  0-20-log-aggregation-elk-or-cloudwatch: ready-for-dev
-  0-21-local-development-environment-podman-compose: ready-for-dev
-  0-22-third-party-service-accounts-api-keys: ready-for-dev
-  epic-0-retrospective: optional
+  0-11-staging-auto-deployment: done
+  0-12-production-deployment-with-approval-gate: done
+  0-13-load-balancer-ingress-configuration: done
+  0-14-test-database-provisioning: done
+  0-15-test-data-factories-seeding: done
+  0-16-ci-cd-test-pipeline-integration: done
+  0-17-test-reporting-dashboard: done
+  0-18-multi-tenant-test-isolation-infrastructure: done
+  0-19-monitoring-infrastructure-prometheus-grafana: done
+  0-20-log-aggregation-elk-or-cloudwatch: done
+  0-21-local-development-environment-podman-compose: done
+  0-22-third-party-service-accounts-api-keys: done
+  epic-0-retrospective: complete
 
   # =====================================================
   # Epic 1: Foundation & Administration
@@ -246,6 +246,7 @@ development_status:
   6-5-agent-sdk-marketplace: backlog
   6-6-self-hosted-llm-support: backlog
   6-7-soc-2-audit-trail-export: backlog
+  6-8-database-consultant-ai-agent: backlog
   epic-6-retrospective: optional
 
 # ===================================================================
@@ -253,36 +254,39 @@ development_status:
 # ===================================================================
 # Stories ready to be worked on next (in priority order)
 sprint_queue:
-  current_epic: "epic-0"
+  current_epic: "epic-1"
   next_stories:
-    - id: "0-1-cloud-account-iam-setup"
+    - id: "1-1-user-account-creation"
       dependencies: []
       priority: "critical-path"
-    - id: "0-21-local-development-environment-podman-compose"
-      dependencies: []
-      priority: "can-start-immediately"
-    - id: "0-6-container-registry"
-      dependencies: ["0-1"]
+      status: "ready-for-dev"
+    - id: "1-2-organization-creation-setup"
+      dependencies: ["1-1"]
       priority: "critical-path"
+      status: "drafted"
+    - id: "1-3-team-member-invitation"
+      dependencies: ["1-2"]
+      priority: "next-up"
+      status: "backlog"
 
 # ===================================================================
 # METRICS
 # ===================================================================
 metrics:
   epics:
-    epic-0: { total: 22, backlog: 0, drafted: 0, ready: 12, in_progress: 0, review: 0, done: 10 }
+    epic-0: { total: 22, backlog: 0, drafted: 0, ready: 0, in_progress: 0, review: 0, done: 22 }
     epic-1: { total: 13, backlog: 11, drafted: 1, ready: 1, in_progress: 0, review: 0, done: 0 }
     epic-2: { total: 18, backlog: 18, drafted: 0, ready: 0, in_progress: 0, review: 0, done: 0 }
     epic-3: { total: 15, backlog: 15, drafted: 0, ready: 0, in_progress: 0, review: 0, done: 0 }
     epic-4: { total: 16, backlog: 16, drafted: 0, ready: 0, in_progress: 0, review: 0, done: 0 }
     epic-5: { total: 16, backlog: 16, drafted: 0, ready: 0, in_progress: 0, review: 0, done: 0 }
-    epic-6: { total: 7, backlog: 7, drafted: 0, ready: 0, in_progress: 0, review: 0, done: 0 }
+    epic-6: { total: 8, backlog: 8, drafted: 0, ready: 0, in_progress: 0, review: 0, done: 0 }
   totals:
     mvp_stories: 100
-    post_mvp_stories: 7
-    total_stories: 107
-    completed: 10
-    completion_percentage: 10
+    post_mvp_stories: 8
+    total_stories: 108
+    completed: 22
+    completion_percentage: 22
 
 # ===================================================================
 # CHANGELOG
@@ -532,3 +536,67 @@ changelog:
     action: "Agent Restructuring - Sprint Change Proposal Approved"
     by: "PM Agent (John)"
     notes: "Consolidated 8 agents → 6 agents (3 MVP + 3 Post-MVP). Old agents: Documentation Analyzer, Manual Tester, Test Case Generator, Automation Tester, Web Scraper → New: BAConsultant AI Agent, QAConsultant AI Agent, AutomationConsultant AI Agent. Web Scraper absorbed into AutomationConsultant (MVP). Epic 6 stories renumbered (8→7, web-scraper removed). Updated PRD, Architecture, Epics, Sprint Status, UX Design, README. See docs/sprint-change-proposal-2026-02-06.md."
+  - date: "2026-02-11"
+    action: "Story 0-15-test-data-factories-seeding done"
+    by: "DEV Agent (Amelia)"
+    notes: "Code review APPROVED. 10/10 ACs implemented, 30/30 tasks verified, 0 HIGH/MEDIUM findings, 3 LOW advisory. Status: review → done."
+  - date: "2026-02-11"
+    action: "Story 0-16-ci-cd-test-pipeline-integration implemented"
+    by: "DEV Agent (Amelia)"
+    notes: "4 files modified (pr-checks.yml, README.md, CONTRIBUTING.md, infrastructure/README.md). All 10 ACs implemented, 30/30 tasks complete. Enhanced: timeouts, seed step, 30d retention, artifact-parsing PR comment with test counts/coverage/stack traces, coverage badges. Status: in-progress → review."
+  - date: "2026-02-11"
+    action: "Story 0-16-ci-cd-test-pipeline-integration done"
+    by: "DEV Agent (Amelia)"
+    notes: "Code review APPROVED. 10/10 ACs implemented, 30/30 tasks verified, 0 HIGH/MEDIUM findings, 3 LOW (2 fixed inline: dead code + AC mislabel). Status: review → done."
+  - date: "2026-02-11"
+    action: "Story 0-17-test-reporting-dashboard implemented"
+    by: "DEV Agent (Amelia)"
+    notes: "6 files created (5 K8s manifests, codecov.yml), 5 files modified (pr-checks.yml, jest.config.js, playwright.config.ts, infrastructure/README.md, CONTRIBUTING.md). All 10 ACs implemented, 31/31 tasks. Status: in-progress → review."
+  - date: "2026-02-11"
+    action: "Story 0-17-test-reporting-dashboard done"
+    by: "DEV Agent (Amelia)"
+    notes: "Code review APPROVED. 10/10 ACs implemented, 31/31 tasks verified, 0 HIGH/MEDIUM findings, 2 LOW advisory (jest-allure deprecation, hardcoded report URL). Status: review → done."
+  - date: "2026-02-11"
+    action: "Story 0-18-multi-tenant-test-isolation-infrastructure implemented"
+    by: "DEV Agent (Amelia)"
+    notes: "5 files created (3 TS test-utils, 1 integration test suite, 1 pytest conftest), 3 files modified (jest.config.js, CONTRIBUTING.md, infrastructure/README.md). All 10 ACs implemented, 32/32 tasks complete. Utilities: createTestTenant, cleanupTestTenant, setTenantContext, useTenantIsolation, withTenantIsolation. Status: ready-for-dev → review."
+  - date: "2026-02-11"
+    action: "Story 0-18-multi-tenant-test-isolation-infrastructure done"
+    by: "DEV Agent (Amelia)"
+    notes: "Code review APPROVED. 10/10 ACs implemented, 32/32 tasks verified, 0 HIGH/MEDIUM findings, 2 LOW advisory (string interpolation in SET LOCAL — safe via UUID generation). Status: review → done."
+  - date: "2026-02-11"
+    action: "Story 0-19-monitoring-infrastructure-prometheus-grafana implemented"
+    by: "DEV Agent (Amelia)"
+    notes: "10 files created (9 K8s manifests + 1 TS metrics module), 2 files modified (README.md, CONTRIBUTING.md). All 14 ACs implemented, 6 tasks, 33 subtasks complete. kube-prometheus-stack Helm values, ServiceMonitors, postgres/redis exporters, PrometheusRule alerts, 3 Grafana dashboards (cluster/app/db), Express metrics middleware. Status: ready-for-dev → review."
+  - date: "2026-02-11"
+    action: "Story 0-19-monitoring-infrastructure-prometheus-grafana done"
+    by: "DEV Agent (Amelia)"
+    notes: "Code review APPROVED. 14/14 ACs verified, 33/33 tasks verified. 1 MEDIUM finding fixed (invalid query template in PrometheusRule annotation), 1 LOW advisory. Status: review → done."
+  - date: "2026-02-11"
+    action: "Story 0-20-log-aggregation-elk-or-cloudwatch implemented"
+    by: "DEV Agent (Amelia)"
+    notes: "10 files created (4 AWS Terraform, 3 Azure Terraform, 2 K8s manifests, 1 TS logger), 2 files modified (README.md, CONTRIBUTING.md). All 12 ACs implemented, 6 tasks, 35 subtasks complete. Multi-cloud: CloudWatch log groups + KMS + IRSA + metric filters/alarms (AWS), Log Analytics workspaces + Workload Identity + scheduled query alerts (Azure). Fluent Bit DaemonSet with PII redaction Lua filter. Pino structured JSON logger with trace_id/tenant_id. Status: ready-for-dev → review."
+  - date: "2026-02-11"
+    action: "Story 0-20-log-aggregation-elk-or-cloudwatch done"
+    by: "DEV Agent (Amelia)"
+    notes: "Code review APPROVED. 12/12 ACs verified, 35/35 tasks verified. 2 MEDIUM findings fixed (metric_query ID mismatch in CloudWatch alarm expression, Fluent Bit namespace routing using DaemonSet namespace instead of source container namespace). 1 LOW advisory. Status: review → done."
+  - date: "2026-02-12"
+    action: "Story 0-21-local-development-environment-podman-compose implemented"
+    by: "DEV Agent (Amelia)"
+    notes: "7 files created (compose.yml, 2 Containerfile.dev, init-local-db.sql, dev-seed.ts, .env.example, local-development.md), 2 files modified (infrastructure/README.md, CONTRIBUTING.md). All 12 ACs implemented, 6 tasks, 30 subtasks complete. Podman Compose with 5 services, hot reload, health checks, multi-tenant DB init, dev seed, full setup guide. Status: ready-for-dev → review."
+  - date: "2026-02-12"
+    action: "Story 0-21-local-development-environment-podman-compose done"
+    by: "DEV Agent (Amelia)"
+    notes: "Code review APPROVED. 12/12 ACs verified, 30/30 tasks verified. 1 MEDIUM finding fixed (String.replace only replacing first underscore in admin email — used replaceAll). 2 LOW advisory. Status: review → done."
+  - date: "2026-02-12"
+    action: "Story 0-22-third-party-service-accounts-api-keys implemented"
+    by: "DEV Agent (Amelia)"
+    notes: "7 files created (3 Azure TF, 3 K8s manifests, docs/secrets/README.md), 5 files modified (3 AWS TF, infrastructure/README.md, CONTRIBUTING.md). All 12 ACs implemented, 6 tasks, 30 subtasks. Multi-cloud: AWS Secrets Manager extended + Azure Key Vault module created. 8 ExternalSecret resources + 2 ClusterSecretStores. Full credentials inventory, rotation schedule, rate limits, billing alerts documentation. Status: ready-for-dev → review."
+  - date: "2026-02-12"
+    action: "Story 0-22-third-party-service-accounts-api-keys done"
+    by: "DEV Agent (Amelia)"
+    notes: "Code review APPROVED. 12/12 ACs verified, 30/30 tasks verified. 1 MEDIUM finding fixed (3 missing Azure outputs — google_oauth_client_secret, jira, slack). 1 LOW fixed (content_type mismatch on Azure OpenAI/Anthropic). Status: review → done. EPIC 0 COMPLETE: 22/22 stories done."
+  - date: "2026-02-12"
+    action: "Epic 0 retrospective complete"
+    by: "DEV Agent (Amelia)"
+    notes: "Epic 0 retrospective conducted. 22/22 stories done, 0 HIGH findings across all reviews. Key lessons: replaceAll over replace, output parity between clouds, Alpine lacks curl. 2 mid-sprint corrections (Docker→Podman, AWS→AWS+Azure) absorbed cleanly. Epic 1 ready to start — Story 1-1 is ready-for-dev."

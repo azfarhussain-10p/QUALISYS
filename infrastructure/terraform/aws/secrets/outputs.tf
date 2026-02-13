@@ -48,6 +48,21 @@ output "email_sendgrid_secret_arn" {
   value       = aws_secretsmanager_secret.email_sendgrid.arn
 }
 
+output "github_app_secret_arn" {
+  description = "ARN of the GitHub App credentials secret"
+  value       = aws_secretsmanager_secret.github_app.arn
+}
+
+output "jira_api_token_secret_arn" {
+  description = "ARN of the Jira API token secret"
+  value       = aws_secretsmanager_secret.jira_api_token.arn
+}
+
+output "slack_webhook_secret_arn" {
+  description = "ARN of the Slack webhook URL secret"
+  value       = aws_secretsmanager_secret.slack_webhook.arn
+}
+
 # =============================================================================
 # KMS
 # =============================================================================

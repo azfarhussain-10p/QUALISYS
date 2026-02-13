@@ -1,0 +1,52 @@
+# Allure Data Retention Cleanup CronJob
+# Story: 0-17 Test Reporting Dashboard
+# AC: 8 - Historical test data retained for 90 days, then auto-purged
+# Runs daily at 2:00 AM UTC
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: allure-cleanup
+  namespace: test-infrastructure
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    app.kubernetes.io/component: allure-server
+spec:
+  schedule: "0 2 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: cleanup
+              image: alpine:3.18
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  echo "Starting Allure cleanup - removing data older than 90 days"
+                  DELETED_RESULTS=$(find /app/allure-results -type f -mtime +90 -delete -print | wc -l)
+                  DELETED_REPORTS=$(find /app/default-reports -type d -mtime +90 -mindepth 1 -exec rm -rf {} + -print 2>/dev/null | wc -l)
+                  echo "Cleanup complete: ${DELETED_RESULTS} result files, ${DELETED_REPORTS} report directories removed"
+              volumeMounts:
+                - name: allure-results
+                  mountPath: /app/allure-results
+                - name: allure-reports
+                  mountPath: /app/default-reports
+              resources:
+                requests:
+                  memory: "64Mi"
+                  cpu: "50m"
+                limits:
+                  memory: "128Mi"
+                  cpu: "100m"
+          restartPolicy: OnFailure
+          volumes:
+            - name: allure-results
+              persistentVolumeClaim:
+                claimName: allure-results-pvc
+            - name: allure-reports
+              persistentVolumeClaim:
+                claimName: allure-reports-pvc

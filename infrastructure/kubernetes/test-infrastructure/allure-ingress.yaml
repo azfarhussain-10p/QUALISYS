@@ -1,0 +1,44 @@
+# Allure Server Ingress - TLS + Basic Auth
+# Story: 0-17 Test Reporting Dashboard
+# AC: 6 - Dashboard accessible at https://reports.qualisys.io
+# AC: 1 - SSL via cert-manager, basic auth via nginx annotation
+#
+# Prerequisites:
+#   - cert-manager ClusterIssuer "letsencrypt-prod" (Story 0-13)
+#   - NGINX Ingress Controller (Story 0-13)
+#   - Basic auth secret created via:
+#     htpasswd -c auth qualisys-team
+#     kubectl create secret generic allure-basic-auth \
+#       --from-file=auth -n test-infrastructure
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: allure-server-ingress
+  namespace: test-infrastructure
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    app.kubernetes.io/component: allure-server
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: allure-basic-auth
+    nginx.ingress.kubernetes.io/auth-realm: "Allure Reports - Authentication Required"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - reports.qualisys.io
+      secretName: allure-tls
+  rules:
+    - host: reports.qualisys.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: allure-server
+                port:
+                  number: 5050

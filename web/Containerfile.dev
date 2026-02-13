@@ -1,0 +1,25 @@
+# Web Development Container (Next.js)
+# Story: 0-21 Local Development Environment (Podman Compose)
+# AC: 5  - Web hot reload (Next.js fast refresh)
+#
+# Uses node:20-alpine to match production Dockerfile (web/Dockerfile).
+# Source code is mounted via compose.yml volume — changes trigger fast refresh.
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install wget for health checks
+RUN apk add --no-cache wget
+
+# Install dependencies first (cached layer)
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+# Copy source (overwritten by volume mount in compose.yml)
+COPY . .
+
+EXPOSE 3000
+
+# Next.js dev server with fast refresh
+CMD ["npm", "run", "dev"]

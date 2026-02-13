@@ -1,0 +1,153 @@
+# Podman Compose — Local Development Environment
+# Story: 0-21 Local Development Environment (Podman Compose)
+# AC: 1  - compose.yml with all services
+# AC: 2  - PostgreSQL with pre-created schemas
+# AC: 3  - Redis accepting connections
+# AC: 4  - API hot reload (ts-node-dev)
+# AC: 5  - Web hot reload (Next.js fast refresh)
+# AC: 6  - MailCatcher for email testing
+# AC: 12 - Health check endpoints
+#
+# Usage:
+#   podman-compose up -d
+#   podman-compose logs -f
+#   podman-compose down
+#
+# Note: Docker Desktop is NOT approved for 10Pearls systems.
+#       Use Podman Desktop or podman-compose CLI.
+
+version: '3.8'
+
+services:
+  # ===========================================================================
+  # PostgreSQL Database (AC2)
+  # ===========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: qualisys-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-qualisys}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-qualisys_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-qualisys_master}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-local-db.sql:/docker-entrypoint-initdb.d/01-init.sql:Z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qualisys} -d ${POSTGRES_DB:-qualisys_master}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ===========================================================================
+  # Redis Cache (AC3)
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: qualisys-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ===========================================================================
+  # MailCatcher — Email Testing (AC6)
+  # ===========================================================================
+  mailcatcher:
+    image: schickling/mailcatcher
+    container_name: qualisys-mailcatcher
+    ports:
+      - "1080:1080"   # Web UI
+      - "1025:1025"   # SMTP
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:1080"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ===========================================================================
+  # API Service — Development (AC4, AC12)
+  # ===========================================================================
+  api:
+    build:
+      context: ./api
+      dockerfile: Containerfile.dev
+    container_name: qualisys-api
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qualisys}:${POSTGRES_PASSWORD:-qualisys_dev}@postgres:5432/${POSTGRES_DB:-qualisys_master}
+      REDIS_URL: redis://redis:6379
+      SMTP_HOST: mailcatcher
+      SMTP_PORT: 1025
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_change_in_production}
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./api/src:/app/src:Z
+      - ./api/package.json:/app/package.json:Z
+      - api_node_modules:/app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # ===========================================================================
+  # Web Service — Development (AC5)
+  # ===========================================================================
+  web:
+    build:
+      context: ./web
+      dockerfile: Containerfile.dev
+    container_name: qualisys-web
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./web/src:/app/src:Z
+      - ./web/public:/app/public:Z
+      - ./web/package.json:/app/package.json:Z
+      - web_node_modules:/app/node_modules
+      - web_next:/app/.next
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  api_node_modules:
+  web_node_modules:
+  web_next:
+
+networks:
+  default:
+    name: qualisys-network

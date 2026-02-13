@@ -9,9 +9,10 @@
 | Metric | Value |
 |--------|-------|
 | **Current Phase** | Phase 4: Implementation |
-| **Current Epic** | Epic 0 - Infrastructure Foundation |
+| **Current Epic** | Epic 1 - Foundation & Administration |
 | **Track** | Enterprise BMad Method |
 | **Stories** | 108 total (100 MVP + 8 Post-MVP) |
+| **Completed** | Epic 0 (22/22 stories) |
 
 ---
 
@@ -90,8 +91,8 @@ docs/
 
 | Epic | Name | Stories | Status | Priority |
 |------|------|---------|--------|----------|
-| 0 | Infrastructure Foundation | 22 | contexted | P0 CRITICAL |
-| 1 | Foundation & Administration | 13 | contexted | P1 HIGH |
+| 0 | Infrastructure Foundation | 22 | **completed** | P0 CRITICAL |
+| 1 | Foundation & Administration | 13 | **active** | P1 HIGH |
 | 2 | AI Agent Platform & Executive Visibility | 18 | backlog | P1 HIGH |
 | 3 | Manual Testing & Developer Integration | 15 | backlog | P1 HIGH |
 | 4 | Automated Execution & Self-Healing | 16 | backlog | P0 CRITICAL |
@@ -103,12 +104,12 @@ docs/
 ## Key Technical Decisions
 
 ### Cloud Platform
-- **Selected**: AWS (7.85/10 weighted score)
-- **Rationale**: Team expertise, managed services quality, documentation
+- **Selected**: AWS + Azure (Two Roots architecture, build-time choice per deployment)
+- **Rationale**: Team expertise, multi-cloud flexibility, managed services quality
 
 ### Architecture
 - **Multi-Tenant**: Schema-per-tenant PostgreSQL with RLS
-- **Container Orchestration**: Kubernetes (EKS)
+- **Container Orchestration**: Kubernetes (EKS or AKS)
 - **Caching**: Redis 7+ cluster mode
 - **CI/CD**: GitHub Actions
 
@@ -170,5 +171,5 @@ QUALISYS is an AI-powered testing platform combining:
 
 ---
 
-**Last Updated**: 2026-01-23
+**Last Updated**: 2026-02-12
 **Maintained By**: QUALISYS Development Team

@@ -1,0 +1,59 @@
+# cert-manager - Helm Values
+# Story: 0-13 Load Balancer & Ingress Configuration
+# AC: 4 - SSL certificates provisioned via cert-manager (Let's Encrypt)
+#
+# Install:
+#   helm repo add jetstack https://charts.jetstack.io
+#   helm repo update
+#   helm install cert-manager jetstack/cert-manager \
+#     --namespace cert-manager --create-namespace \
+#     -f infrastructure/kubernetes/cert-manager/values.yaml
+#
+# Verify:
+#   kubectl get pods -n cert-manager
+#   kubectl get clusterissuers
+
+# Install Custom Resource Definitions
+installCRDs: true
+
+# Replica count for HA
+replicaCount: 1
+
+# Resource limits
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+# Webhook configuration
+webhook:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+# CA injector
+cainjector:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 256Mi
+
+# Prometheus metrics (enable when Prometheus is deployed, Story 0-19)
+prometheus:
+  enabled: false
+
+# Global options
+global:
+  logLevel: 2

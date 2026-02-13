@@ -1,7 +1,9 @@
 // Jest Root Configuration
 // Story: 0-10 Automated Test Execution on PR
+// Story: 0-17 Test Reporting Dashboard (Allure reporter)
+// Story: 0-18 Multi-Tenant Test Isolation Infrastructure (tenant-isolation project)
 // AC: 1, 3, 5, 7
-// Coverage thresholds, retry logic, project-based test discovery
+// Coverage thresholds, retry logic, project-based test discovery, Allure reporting
 
 /** @type {import('jest').Config} */
 module.exports = {
@@ -31,6 +33,17 @@ module.exports = {
         '^.+\\.tsx?$': 'ts-jest',
       },
       moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
+    },
+    // Tenant isolation integration tests (Story 0-18, AC7)
+    // Requires TEST_DATABASE_URL; skipped automatically if unavailable
+    {
+      displayName: 'tenant-isolation',
+      testMatch: ['<rootDir>/tests/integration/**/*.test.[jt]s?(x)'],
+      transform: {
+        '^.+\\.tsx?$': 'ts-jest',
+      },
+      moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
+      testTimeout: 60000,
     },
   ],
 
@@ -62,18 +75,29 @@ module.exports = {
   retryTimes: process.env.CI ? 3 : 0,
 
   // JUnit reporter for CI (feeds dorny/test-reporter)
+  // Allure reporter for test reporting dashboard (Story 0-17)
   reporters: [
     'default',
     ...(process.env.CI
-      ? [['jest-junit', {
-          outputDirectory: 'test-results',
-          outputName: 'junit.xml',
-          classNameTemplate: '{classname}',
-          titleTemplate: '{title}',
-          ancestorSeparator: ' > ',
-        }]]
+      ? [
+          ['jest-junit', {
+            outputDirectory: 'test-results',
+            outputName: 'junit.xml',
+            classNameTemplate: '{classname}',
+            titleTemplate: '{title}',
+            ancestorSeparator: ' > ',
+          }],
+          ['jest-allure', {
+            outputDir: 'allure-results',
+            disableWebdriverStepsReporting: true,
+            disableWebdriverScreenshotsReporting: false,
+          }],
+        ]
       : []),
   ],
+
+  // Allure setup for CI (Story 0-17)
+  setupFilesAfterEnv: process.env.CI ? ['jest-allure/dist/setup'] : [],
 
   // Test timeout
   testTimeout: 30000,

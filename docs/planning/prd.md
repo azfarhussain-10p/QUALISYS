@@ -12,7 +12,7 @@ QUALISYS is an **AI System Quality Assurance Platform** that revolutionizes soft
 
 **The Core Problem:** Software teams spend 40% of their time on manual testing activities, test automation scripts break constantly with UI changes requiring constant maintenance, and test coverage gaps lead to bugs escaping to production. The fundamental issue is that testing has not evolved to match modern development velocity - what development teams can build in days takes testing teams weeks to validate.
 
-QUALISYS transforms testing from a manual bottleneck into an intelligent, self-maintaining system. The platform ingests requirements documents (PRDs, SRS, RFPs), crawls application UI and APIs via Playwright, analyzes source code from repositories, and uses 6 specialized AI agents (3 MVP + 3 Post-MVP) to automatically generate comprehensive test artifacts - from manual test checklists to automated Playwright/Puppeteer scripts. The breakthrough innovation is **self-healing test automation**: when application UI changes cause tests to fail, QUALISYS automatically detects the changes, proposes fixes, and updates test scripts - dramatically reducing maintenance burden.
+QUALISYS transforms testing from a manual bottleneck into an intelligent, self-maintaining system. The platform ingests requirements documents (PRDs, SRS, RFPs), crawls application UI and APIs via Playwright, analyzes source code from repositories, and uses 7 specialized AI agents (3 MVP + 4 Post-MVP) to automatically generate comprehensive test artifacts - from manual test checklists to automated Playwright/Puppeteer scripts. The breakthrough innovation is **self-healing test automation**: when application UI changes cause tests to fail, QUALISYS automatically detects the changes, proposes fixes, and updates test scripts - dramatically reducing maintenance burden.
 
 **Target Users:** Project Managers and Customer Success Managers (project oversight, SLA compliance), Manual Test Engineers (guided test execution with evidence capture), Automation Engineers (AI-generated scripts with self-healing capabilities), SRE/Platform Engineers (infrastructure monitoring and performance testing), Business Analysts and Product Owners (requirements traceability and test coverage visibility).
 
@@ -24,7 +24,7 @@ QUALISYS transforms testing from a manual bottleneck into an intelligent, self-m
 
 **QUALISYS combines three breakthrough capabilities that no existing solution offers together:**
 
-1. **Multi-Agent AI System**: 6 specialized AI agents — MVP: BAConsultant AI Agent, QAConsultant AI Agent, AutomationConsultant AI Agent; Post-MVP: AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent — work in orchestrated pipelines with user-selectable workflows that adapt to project needs.
+1. **Multi-Agent AI System**: 7 specialized AI agents — MVP: BAConsultant AI Agent, QAConsultant AI Agent, AutomationConsultant AI Agent; Post-MVP: AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent, DatabaseConsultant AI Agent — work in orchestrated pipelines with user-selectable workflows that adapt to project needs.
 
 2. **Self-Healing Test Automation**: When application changes break tests, QUALISYS doesn't just report failures - it automatically detects DOM changes, proposes patched selectors using multiple fallback strategies (CSS/XPath, text anchors, accessibility labels, visual anchors), and updates tests with versioned audit trails.
 
@@ -192,7 +192,7 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 - **Slack**: Notifications and basic ChatOps
 
 **NOT in MVP:**
-- ❌ Post-MVP AI agents (AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent)
+- ❌ Post-MVP AI agents (AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent, DatabaseConsultant AI Agent)
 - ❌ Full self-healing with ML-suggested selectors (basic rules-based only)
 - ❌ Advanced SLA monitoring with auto-alerts
 - ❌ Cost-per-test analytics
@@ -205,7 +205,7 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 ### Growth Features (Post-MVP, 3-6 months)
 
 **Phase 1: Complete Multi-Agent Suite**
-- Add remaining agents: AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent
+- Add remaining agents: AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent, DatabaseConsultant AI Agent
 - Agent pipeline orchestration: Create complex multi-step workflows
 - Agent performance metrics and optimization
 

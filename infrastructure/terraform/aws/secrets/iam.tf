@@ -86,10 +86,11 @@ resource "aws_iam_policy" "secrets_read_llm" {
   })
 }
 
-# Task 6.3 - Integration secrets: oauth, email
+# Task 6.3 - Integration secrets: oauth, email, github, jira, slack
+# Story 0-22: Added GitHub App, Jira, Slack to integrations policy
 resource "aws_iam_policy" "secrets_read_integrations" {
   name        = "${var.project_name}-secrets-read-integrations"
-  description = "Read access to integration secrets (OAuth, email service)"
+  description = "Read access to integration secrets (OAuth, email, GitHub, Jira, Slack)"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -104,6 +105,9 @@ resource "aws_iam_policy" "secrets_read_integrations" {
         Resource = [
           aws_secretsmanager_secret.oauth_google.arn,
           aws_secretsmanager_secret.email_sendgrid.arn,
+          aws_secretsmanager_secret.github_app.arn,
+          aws_secretsmanager_secret.jira_api_token.arn,
+          aws_secretsmanager_secret.slack_webhook.arn,
         ]
       },
       {

@@ -1,0 +1,13 @@
+# Monitoring Namespace
+# Story: 0-19 Monitoring Infrastructure (Prometheus + Grafana)
+# AC: 1 - Prometheus deployed in Kubernetes monitoring namespace
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    name: monitoring
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

@@ -1,16 +1,19 @@
 # PR Checks Workflow
 # Story: 0-8 GitHub Actions Workflow Setup (base)
 # Story: 0-10 Automated Test Execution on PR (enhanced)
-# AC: 1 - All test suites run (unit, integration, E2E subset)
-# AC: 2 - Test results posted as PR comment
-# AC: 3 - Coverage report (80% target)
-# AC: 4 - Branch protection (tests must pass)
-# AC: 5 - Execution <10 minutes (parallelized)
-# AC: 6 - Failed tests show error messages and stack traces
-# AC: 7 - Flaky test retry (3x unit, 2x E2E)
-# AC: 8 - Coverage uploaded to Codecov
-# AC: 9 - Test matrix (Node.js 18, 20)
-# AC: 10 - Integration tests use test database
+# Story: 0-14 Test Database Provisioning (tenant schemas + RLS)
+# Story: 0-16 CI/CD Test Pipeline Integration (parallel, reporting, coverage)
+# Story: 0-17 Test Reporting Dashboard (Allure Server integration)
+# AC: 1 - Parallel test execution (unit, integration, E2E)
+# AC: 2 - Test results uploaded as artifacts (JUnit XML, coverage)
+# AC: 3 - Test summary PR comment with pass/fail counts and coverage
+# AC: 4 - Failed tests show stack traces and error logs
+# AC: 5 - Flaky test retry (3x unit, 2x E2E)
+# AC: 6 - Execution time tracked (target <10 min)
+# AC: 7 - Node.js matrix (18, 20)
+# AC: 8 - Database migrations + seed before integration tests
+# AC: 9 - Coverage threshold 80% enforced
+# AC: 10 - Artifact retention 30 days
 
 name: PR Checks
 
@@ -138,6 +141,7 @@ jobs:
     name: Unit Tests (Node ${{ matrix.node-version }})
     needs: [lint, format-check, type-check]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -161,7 +165,7 @@ jobs:
         env:
           CI: "true"
 
-      - name: Upload coverage to Codecov (AC8)
+      - name: Upload coverage to Codecov (AC9)
         if: matrix.node-version == '20'
         uses: codecov/codecov-action@v4
         with:
@@ -178,7 +182,8 @@ jobs:
           path: |
             coverage/
             test-results/
-          retention-days: 14
+            allure-results/
+          retention-days: 30
 
       - name: Report unit test results (AC2, AC6)
         if: always() && matrix.node-version == '20'
@@ -197,6 +202,7 @@ jobs:
     name: Integration Tests
     needs: [lint, format-check, type-check]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       postgres:
@@ -225,6 +231,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://test_user:test_password@localhost:5432/qualisys_test
+      TEST_DATABASE_URL: postgresql://test_user:test_password@localhost:5432/qualisys_test
       REDIS_URL: redis://localhost:6379
       NODE_ENV: test
 
@@ -241,8 +248,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Initialize test database (tenant schemas + RLS)
+        run: |
+          PGPASSWORD=test_password psql \
+            -h localhost -U test_user -d qualisys_test \
+            -f infrastructure/scripts/init-test-db.sql
+
       - name: Run database migrations
         run: npm run db:migrate:test
+
+      - name: Seed test data
+        run: npm run db:seed:test
+        env:
+          TEST_DATABASE_URL: postgresql://test_user:test_password@localhost:5432/qualisys_test
 
       - name: Run integration tests
         run: npm run test:integration
@@ -254,8 +272,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: integration-test-results
-          path: test-results/
-          retention-days: 14
+          path: |
+            test-results/
+            allure-results/
+          retention-days: 30
 
       - name: Report integration test results (AC2, AC6)
         if: always()
@@ -306,7 +326,8 @@ jobs:
           path: |
             e2e/playwright-report/
             e2e/test-results/
-          retention-days: 7
+            e2e/allure-results/
+          retention-days: 30
 
       - name: Report E2E test results (AC2, AC6)
         if: always()
@@ -318,8 +339,8 @@ jobs:
           fail-on-error: true
 
   # ===================================================================
-  # PR Summary Comment (AC2, AC6)
-  # Posts a consolidated test summary on the PR
+  # PR Summary Comment (AC2, AC3, AC4, AC6)
+  # Downloads artifacts, parses JUnit XML + coverage, posts PR comment
   # ===================================================================
   test-summary:
     name: Test Summary
@@ -328,36 +349,164 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Post test summary comment
+      - name: Download all test artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+        continue-on-error: true
+
+      - name: Parse results and post PR comment
         uses: actions/github-script@v7
         with:
           script: |
-            const unitNode18 = '${{ needs.unit-tests.result }}';
-            const integration = '${{ needs.integration-tests.result }}';
-            const e2e = '${{ needs.e2e-tests.result }}';
+            const fs = require('fs');
+            const path = require('path');
+
+            // --- Job-level results ---
+            const jobResults = {
+              unit: '${{ needs.unit-tests.result }}',
+              integration: '${{ needs.integration-tests.result }}',
+              e2e: '${{ needs.e2e-tests.result }}',
+            };
 
             const statusIcon = (s) => s === 'success' ? '✅' : s === 'skipped' ? '⏭️' : '❌';
-            const allPassed = unitNode18 === 'success' && integration === 'success' && e2e === 'success';
+            const allPassed = Object.values(jobResults).every(r => r === 'success');
 
-            const body = [
-              '## Test Results Summary',
-              '',
-              '| Suite | Status |',
-              '|-------|--------|',
-              `| Unit Tests (Node 18 + 20) | ${statusIcon(unitNode18)} ${unitNode18} |`,
-              `| Integration Tests | ${statusIcon(integration)} ${integration} |`,
-              `| E2E Tests (Critical) | ${statusIcon(e2e)} ${e2e} |`,
-              '',
-              allPassed
-                ? '**✅ All checks passed!**'
-                : '**❌ Some checks failed.** Review the failing jobs above for details and stack traces.',
-              '',
-              '---',
-              `*Coverage report available on [Codecov](https://codecov.io/gh/${{ github.repository }})*`,
-              `*Run: [${context.runId}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})*`,
-            ].join('\n');
+            // --- Parse JUnit XML for test counts (AC3) ---
+            function parseJUnit(dir) {
+              const counts = { tests: 0, passed: 0, failed: 0, skipped: 0, errors: 0, time: 0 };
+              try {
+                const walk = (d) => {
+                  for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
+                    const full = path.join(d, entry.name);
+                    if (entry.isDirectory()) walk(full);
+                    else if (entry.name.endsWith('.xml')) {
+                      const xml = fs.readFileSync(full, 'utf8');
+                      const t = xml.match(/tests="(\d+)"/);
+                      const f = xml.match(/failures="(\d+)"/);
+                      const e = xml.match(/errors="(\d+)"/);
+                      const s = xml.match(/skipped="(\d+)"/);
+                      const tm = xml.match(/time="([\d.]+)"/);
+                      if (t) counts.tests += parseInt(t[1]);
+                      if (f) counts.failed += parseInt(f[1]);
+                      if (e) counts.errors += parseInt(e[1]);
+                      if (s) counts.skipped += parseInt(s[1]);
+                      if (tm) counts.time += parseFloat(tm[1]);
+                    }
+                  }
+                };
+                if (fs.existsSync(dir)) walk(dir);
+                counts.passed = counts.tests - counts.failed - counts.errors - counts.skipped;
+              } catch (e) { /* artifacts may not exist yet */ }
+              return counts;
+            }
 
-            // Find existing bot comment to update (avoid spam)
+            // --- Parse lcov for coverage percentage (AC3, AC9) ---
+            function parseCoverage(dir) {
+              try {
+                const walk = (d) => {
+                  for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
+                    const full = path.join(d, entry.name);
+                    if (entry.isDirectory()) { const r = walk(full); if (r) return r; }
+                    else if (entry.name === 'lcov.info') return full;
+                  }
+                  return null;
+                };
+                const lcov = fs.existsSync(dir) ? walk(dir) : null;
+                if (!lcov) return null;
+                const content = fs.readFileSync(lcov, 'utf8');
+                let totalLines = 0, coveredLines = 0;
+                for (const line of content.split('\n')) {
+                  if (line.startsWith('LF:')) totalLines += parseInt(line.slice(3));
+                  if (line.startsWith('LH:')) coveredLines += parseInt(line.slice(3));
+                }
+                return totalLines > 0 ? ((coveredLines / totalLines) * 100).toFixed(1) : null;
+              } catch (e) { return null; }
+            }
+
+            // --- Extract failure messages from JUnit XML (AC4) ---
+            function extractFailures(dir) {
+              const failures = [];
+              try {
+                const walk = (d) => {
+                  for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
+                    const full = path.join(d, entry.name);
+                    if (entry.isDirectory()) walk(full);
+                    else if (entry.name.endsWith('.xml')) {
+                      const xml = fs.readFileSync(full, 'utf8');
+                      const matches = xml.match(/<failure[^>]*>[\s\S]*?<\/failure>/g) || [];
+                      for (const m of matches.slice(0, 5)) {
+                        const msg = m.replace(/<\/?failure[^>]*>/g, '').trim();
+                        if (msg) failures.push(msg.substring(0, 500));
+                      }
+                    }
+                  }
+                };
+                if (fs.existsSync(dir)) walk(dir);
+              } catch (e) { /* ignore */ }
+              return failures;
+            }
+
+            // --- Gather data ---
+            const unitCounts = parseJUnit('all-artifacts/unit-test-results-node-20');
+            const integrationCounts = parseJUnit('all-artifacts/integration-test-results');
+            const e2eCounts = parseJUnit('all-artifacts/playwright-report');
+            const coverage = parseCoverage('all-artifacts/unit-test-results-node-20');
+
+            const fmtTime = (s) => s > 0 ? `${Math.floor(s / 60)}m ${Math.round(s % 60)}s` : '-';
+
+            // --- Build PR comment (AC3, AC6) ---
+            const rows = [
+              { name: 'Unit Tests (Node 18 + 20)', status: jobResults.unit, c: unitCounts },
+              { name: 'Integration Tests', status: jobResults.integration, c: integrationCounts },
+              { name: 'E2E Tests (Critical)', status: jobResults.e2e, c: e2eCounts },
+            ];
+
+            let body = '## Test Results Summary\n\n';
+            body += '| Suite | Status | Passed | Failed | Skipped | Time |\n';
+            body += '|-------|--------|--------|--------|---------|------|\n';
+            for (const r of rows) {
+              const has = r.c.tests > 0;
+              body += `| ${r.name} | ${statusIcon(r.status)} ${r.status}`;
+              body += ` | ${has ? r.c.passed : '-'}`;
+              body += ` | ${has ? r.c.failed + r.c.errors : '-'}`;
+              body += ` | ${has ? r.c.skipped : '-'}`;
+              body += ` | ${fmtTime(r.c.time)} |\n`;
+            }
+
+            body += '\n';
+            if (coverage) {
+              const icon = parseFloat(coverage) >= 80 ? '✅' : '⚠️';
+              body += `**Coverage:** ${icon} ${coverage}% (threshold: 80%)\n\n`;
+            }
+
+            // --- Failed test details with stack traces (AC4) ---
+            if (!allPassed) {
+              const allFailures = [
+                ...extractFailures('all-artifacts/unit-test-results-node-20'),
+                ...extractFailures('all-artifacts/integration-test-results'),
+                ...extractFailures('all-artifacts/playwright-report'),
+              ].slice(0, 10);
+
+              if (allFailures.length > 0) {
+                body += '### Failed Test Details\n\n';
+                body += '<details>\n<summary>Stack traces and error logs</summary>\n\n';
+                for (const f of allFailures) {
+                  body += '```\n' + f + '\n```\n\n';
+                }
+                body += '</details>\n\n';
+              }
+            }
+
+            body += allPassed
+              ? '**✅ All checks passed!**'
+              : '**❌ Some checks failed.** Review the failing jobs above for details and stack traces.';
+            body += '\n\n---\n';
+            body += `*Coverage report available on [Codecov](https://codecov.io/gh/${{ github.repository }})*\n`;
+            body += `*Allure report: [reports.qualisys.io](https://reports.qualisys.io/allure-docker-service/projects/qualisys/reports/latest)*\n`;
+            body += `*Run: [${context.runId}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})*`;
+
+            // --- Upsert PR comment (avoid spam) ---
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -382,3 +531,49 @@ jobs:
                 body,
               });
             }
+
+  # ===================================================================
+  # Publish Allure Report (Story 0-17, AC7)
+  # Downloads Allure results from all test jobs, merges, and uploads
+  # to Allure Server at reports.qualisys.io
+  # ===================================================================
+  publish-allure-report:
+    name: Publish Allure Report
+    needs: [unit-tests, integration-tests, e2e-tests]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all test artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+        continue-on-error: true
+
+      - name: Merge Allure results
+        run: |
+          mkdir -p merged-allure-results
+          find all-artifacts -path "*/allure-results/*" -type f \
+            -exec cp {} merged-allure-results/ \; 2>/dev/null || true
+          echo "Merged $(ls merged-allure-results | wc -l) Allure result files"
+
+      - name: Upload to Allure Server
+        if: hashFiles('merged-allure-results/*') != ''
+        run: |
+          cd merged-allure-results
+          FILES=$(find . -type f -name "*.json" -o -name "*.txt" -o -name "*.png" -o -name "*.xml" | head -500)
+          if [ -n "$FILES" ]; then
+            tar czf /tmp/allure-results.tar.gz .
+            curl -sf -X POST \
+              -H "Content-Type: multipart/form-data" \
+              -F "results=@/tmp/allure-results.tar.gz" \
+              "${{ secrets.ALLURE_SERVER_URL }}/allure-docker-service/send-results?project_id=qualisys" || \
+              echo "::warning::Allure Server upload failed (server may not be deployed yet)"
+          fi
+
+      - name: Generate Allure Report
+        if: hashFiles('merged-allure-results/*') != ''
+        run: |
+          curl -sf -X GET \
+            "${{ secrets.ALLURE_SERVER_URL }}/allure-docker-service/generate-report?project_id=qualisys" || \
+            echo "::warning::Allure report generation failed (server may not be deployed yet)"

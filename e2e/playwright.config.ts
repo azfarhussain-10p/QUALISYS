@@ -1,7 +1,8 @@
 // Playwright E2E Test Configuration
 // Story: 0-10 Automated Test Execution on PR
+// Story: 0-17 Test Reporting Dashboard (Allure reporter)
 // AC: 1, 5, 7
-// Critical-path E2E tests on PR, full suite in nightly
+// Critical-path E2E tests on PR, full suite in nightly, Allure reporting
 
 import { defineConfig, devices } from '@playwright/test';
 
@@ -23,12 +24,13 @@ export default defineConfig({
   // Fail fast in CI — stop after first failure shard
   forbidOnly: !!process.env.CI,
 
-  // Reporters — JUnit for CI test-reporter, HTML for local debugging
+  // Reporters — JUnit for CI test-reporter, HTML for local debugging, Allure for dashboard (Story 0-17)
   reporter: process.env.CI
     ? [
         ['list'],
         ['junit', { outputFile: 'test-results/e2e-results.xml' }],
         ['html', { open: 'never', outputFolder: 'playwright-report' }],
+        ['allure-playwright', { outputFolder: 'allure-results', suiteTitle: 'E2E Tests' }],
       ]
     : [
         ['list'],

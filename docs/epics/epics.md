@@ -176,7 +176,7 @@ This document provides the complete epic and story breakdown for QUALISYS, decom
 | **3** | Manual Testing & Developer Integration | 3-4 weeks | QA-Manual, Dev, PM/CSM | FR33-34, FR41-48, FR91-95 | Manual test execution with evidence + GitHub PR integration |
 | **4** | Automated Execution & Self-Healing (Breakthrough) | 4-5 weeks | QA-Automation, Dev | FR49-57, FR58-66 | Automated Playwright tests with self-healing magic |
 | **5** | Complete Dashboards & Ecosystem Integration | 3-4 weeks | All personas | FR72-77, FR85-90, FR96-101, FR109-110 | Full visibility + TestRail/Slack integrations |
-| **6+** | Advanced Agents & Growth Features | Post-MVP | Power users | Post-MVP agents (AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent), email reports, advanced RBAC | Platform depth and breadth |
+| **6+** | Advanced Agents & Growth Features | Post-MVP | Power users | Post-MVP agents (AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent, DatabaseConsultant AI Agent), email reports, advanced RBAC | Platform depth and breadth |
 
 **Total MVP Duration:** 15-19 weeks (Epics 1-5)
 
@@ -510,7 +510,7 @@ Deliver core value engine: AI-powered test generation from requirements. Establi
 **AI Agent Platform Architecture (From Value Chain Analysis - High-Value Investment):**
 - LangChain for MVP (fast development), plan custom orchestrator for production
 - 3 MVP agents only (BAConsultant AI Agent, QAConsultant AI Agent, AutomationConsultant AI Agent)
-- 3 Post-MVP agents deferred to Epic 6+ (AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent)
+- 4 Post-MVP agents deferred to Epic 6+ (AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent, DatabaseConsultant AI Agent)
 - Agent outputs stored as JSON artifacts (versioned, editable)
 
 **LLM Cost & Latency Mitigation (From Pre-mortem & Risk Matrix - CRITICAL):**
@@ -2011,7 +2011,7 @@ Before moving to Epic 6+, Epic 5 must achieve:
 
 ### Objective
 
-Expand platform capabilities beyond MVP with 3 Post-MVP AI agents (AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent), enterprise features (advanced RBAC, SSO, compliance), and growth enablers (agent marketplace, vertical-specific agents, self-hosted LLM support). This epic transforms QUALISYS from "complete MVP" to "enterprise-ready platform with ecosystem."
+Expand platform capabilities beyond MVP with 4 Post-MVP AI agents (AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent, DatabaseConsultant AI Agent), enterprise features (advanced RBAC, SSO, compliance), and growth enablers (agent marketplace, vertical-specific agents, self-hosted LLM support). This epic transforms QUALISYS from "complete MVP" to "enterprise-ready platform with ecosystem." The DatabaseConsultant AI Agent completes full-stack quality coverage: UI → API → Automation → Database → Security → Performance.
 
 ### Features & Capabilities (Not FR-driven, Market-driven)
 
@@ -2178,20 +2178,35 @@ As a Compliance Officer, I want to export audit trail for SOC 2 audit, so that I
 - AC4: Content: All user actions (login, test execution, self-healing approvals, config changes), Timestamp, User, IP address, Action type
 - AC5: Immutability proof: Cryptographic hash chain (proves logs not tampered)
 
+**Story 6.8: DatabaseConsultant AI Agent**
+As a Dev or QA-Automation user, I want a DatabaseConsultant AI Agent that validates schema migrations, enforces data integrity, validates ETL pipelines, and profiles database performance, so that database changes are safe and compliant before reaching production.
+- AC1: Input: Migration script (SQL file) + database connection (read-only) + environment (dev/qa/stage/prod)
+- AC2: Schema Validation: Agent generates schema diff report (added/removed/modified tables, columns, indexes, constraints) with backward compatibility assessment
+- AC3: Data Integrity Checks: Agent verifies PK, FK, constraint integrity across tenant schemas; reports violations with sample records
+- AC4: ETL Validation: Agent compares source vs target row counts and checksums; flags data transformation discrepancies
+- AC5: Performance Profiling: Agent identifies slow queries, missing indexes, query plan regressions, and connection pool saturation
+- AC6: Risk Scoring: Agent assigns risk score (0-100) to each database change with human-readable explanation
+- AC7: CI/CD Integration: Agent acts as quality gate in CI/CD pipeline — blocks deployment when validation fails or risk score exceeds threshold
+- AC8: Human Approval Gate: High-risk changes (score >70) require dual approval (DB Architect + Dev Lead) before proceeding
+- AC9: Audit Trail: All validation runs, approvals, and risk assessments are logged with timestamps and approver identity
+- AC10: Integration: Exports performance metrics to Prometheus/Grafana dashboards; shares findings with QAConsultant, AutomationConsultant, Security Scanner, and Performance/Load agents
+- AC11: Security: Read-only database access by default; no production write operations without explicit approval; TLS 1.2+ connections; secrets via Vault/Key Vault
+
 ### Phasing Strategy (Epic 6+ Rollout)
 
-**Phase 1 (Weeks 1-2): Post-MVP Agents**
+**Phase 1 (Weeks 1-3): Post-MVP Agents**
 - Story 6.1: AI Log Reader/Summarizer Agent
 - Story 6.2: Security Scanner Orchestrator Agent
 - Story 6.3: Performance/Load Agent
-- **Outcome:** All 6 agents available (3 MVP + 3 Post-MVP), platform maturity demonstrated
+- Story 6.8: DatabaseConsultant AI Agent
+- **Outcome:** All 7 agents available (3 MVP + 4 Post-MVP), full-stack quality coverage (UI → API → Automation → Database → Security → Performance)
 
-**Phase 2 (Weeks 3-4): Enterprise Security**
+**Phase 2 (Weeks 4-5): Enterprise Security**
 - Story 6.4: SAML SSO
 - Story 6.7: SOC 2 Audit Trail
 - **Outcome:** Enterprise sales unblocked, can close Fortune 500 deals
 
-**Phase 3 (Weeks 5-6): Extensibility**
+**Phase 3 (Weeks 6-8): Extensibility**
 - Story 6.5: Agent SDK & Marketplace (beta)
 - Story 6.6: Self-Hosted LLM Support
 - **Outcome:** Community engagement starts, cost-conscious customers opt for self-hosted
@@ -2199,7 +2214,7 @@ As a Compliance Officer, I want to export audit trail for SOC 2 audit, so that I
 ### Epic 6+ Completion Criteria
 
 Epic 6+ is not blocking MVP launch, but achieves:
-- ✅ **Post-MVP agents:** AI Log Reader/Summarizer + Security Scanner Orchestrator + Performance/Load Agent functional
+- ✅ **Post-MVP agents:** AI Log Reader/Summarizer + Security Scanner Orchestrator + Performance/Load Agent + DatabaseConsultant AI Agent functional
 - ✅ **Enterprise ready:** SAML SSO working with 3 IdPs (Okta, Azure AD, Google), SOC 2 audit trail exportable
 - ✅ **Extensibility proven:** Agent SDK documented, 1 community agent published (proof of concept)
 - ✅ **Cost optimization:** Self-hosted LLM working (1 customer using it successfully)

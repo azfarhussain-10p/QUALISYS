@@ -17,23 +17,24 @@
 6. [Agent 4 — AI Log Reader / Summarizer](#6-agent-4--ai-log-reader--summarizer)
 7. [Agent 5 — Security Scanner Orchestrator](#7-agent-5--security-scanner-orchestrator)
 8. [Agent 6 — Performance / Load Agent](#8-agent-6--performance--load-agent)
-9. [Cross-Agent RBAC Matrix](#9-cross-agent-rbac-matrix)
-10. [Human-in-the-Loop Master Reference](#10-human-in-the-loop-master-reference)
-11. [Agent Interaction Workflow Diagram](#11-agent-interaction-workflow-diagram)
-12. [End-to-End Platform Workflow](#12-end-to-end-platform-workflow)
-13. [Governance & Artifact Lifecycle](#13-governance--artifact-lifecycle)
-14. [Success Metrics Summary](#14-success-metrics-summary)
+9. [Agent 7 — DatabaseConsultant AI Agent](#9-agent-7--databaseconsultant-ai-agent)
+10. [Cross-Agent RBAC Matrix](#10-cross-agent-rbac-matrix)
+11. [Human-in-the-Loop Master Reference](#11-human-in-the-loop-master-reference)
+12. [Agent Interaction Workflow Diagram](#12-agent-interaction-workflow-diagram)
+13. [End-to-End Platform Workflow](#13-end-to-end-platform-workflow)
+14. [Governance & Artifact Lifecycle](#14-governance--artifact-lifecycle)
+15. [Success Metrics Summary](#15-success-metrics-summary)
 
 ---
 
 ## 1. Executive Summary
 
-QUALISYS deploys **6 specialized AI agents** organized into two implementation tiers:
+QUALISYS deploys **7 specialized AI agents** organized into two implementation tiers:
 
 | Tier | Agents | Timeline |
 |------|--------|----------|
 | **MVP** (Epics 0-5) | BAConsultant AI Agent, QAConsultant AI Agent, AutomationConsultant AI Agent | Sprints 0-5 |
-| **Post-MVP** (Epic 6) | AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent | Growth Phase |
+| **Post-MVP** (Epic 6) | AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent, DatabaseConsultant AI Agent | Growth Phase |
 
 **Core Design Principles** (from Research Document 2026-02-03):
 
@@ -74,6 +75,7 @@ Requirements → BAConsultant → QAConsultant → AutomationConsultant → Exec
 | 4 | **AI Log Reader/Summarizer** | Epic 6, Story 6-1 | Log analysis, error pattern detection, negative test generation | Post-MVP |
 | 5 | **Security Scanner Orchestrator** | Epic 6, Story 6-2 | Vulnerability scanning, OWASP Top 10, security test generation | Post-MVP |
 | 6 | **Performance/Load Agent** | Epic 6, Story 6-3 | Load/stress testing, bottleneck identification, SLA validation | Post-MVP |
+| 7 | **DatabaseConsultant AI Agent** | Epic 6, Story 6-8 | Schema validation, data integrity, ETL validation, DB performance profiling | Post-MVP |
 
 ---
 
@@ -740,18 +742,118 @@ Generate load/stress test scripts, identify performance bottlenecks, validate ap
 
 ---
 
-## 9. Cross-Agent RBAC Matrix
+## 9. Agent 7 — DatabaseConsultant AI Agent
 
-Complete access matrix for all 6 agents across all 6 QUALISYS personas:
+### 9.1 Mission
 
-| Persona | BAConsultant | QAConsultant | AutomationConsultant | Log Reader | Security Scanner | Performance Agent |
-|---------|-------------|-------------|---------------------|------------|-----------------|-------------------|
-| **Owner/Admin** | Full | Full | Full | Full | Full | Full |
-| **PM/CSM** | Full | Read + Approve | Read-only | Full | Read-only | Read-only |
-| **QA-Automation** | Read-only | Full | Full (Primary) | Full | Full | Full |
-| **QA-Manual** | Read-only | Full (Primary) | No access | Read-only | No access | No access |
-| **Dev** | No access | Read-only | Execute only | Full | Read + Execute | Full |
-| **Viewer** | No access | No access | No access | Read-only | No access | Read-only |
+Ensure data integrity, schema safety, ETL validation, and database performance assurance within the QUALISYS platform. Acts as the intelligent database governance layer — validating migrations, detecting integrity violations, profiling query performance, and integrating with CI/CD pipelines for automated database quality gates.
+
+**Status:** Post-MVP (Epic 6, Story 6-8)
+
+### 9.2 Responsibilities
+
+| # | Responsibility | Description |
+|---|---------------|-------------|
+| R1 | **Schema Validation** | Validate migration scripts for breaking changes, backward compatibility, and schema drift detection |
+| R2 | **Data Integrity Checks** | Verify primary keys, foreign keys, constraints, referential integrity across tenant schemas |
+| R3 | **ETL Validation** | Compare source vs target row counts, checksums, and data transformation correctness |
+| R4 | **Database Performance Profiling** | Identify slow queries, missing indexes, query plan regressions, and connection pool saturation |
+| R5 | **CI/CD Database Quality Gate** | Block deployments when migration scripts introduce breaking changes or integrity violations |
+| R6 | **Risk Scoring** | Assign risk scores (0-100) to database changes based on impact analysis |
+
+### 9.3 Inputs
+
+| Input | Format | Source |
+|-------|--------|--------|
+| Migration Scripts | SQL files (e.g., `V45__add_index.sql`) | Version control / CI/CD pipeline |
+| Database Connection | Connection string (read-only by default) | Secrets Manager / Key Vault |
+| ETL Job Results | Source/target table metadata | ETL pipeline completion events |
+| Schema Snapshots | DDL exports / pg_dump | Automated or manual trigger |
+| Historical Patterns | Previous validation results | RAG Knowledge Base (vector store) |
+
+### 9.4 Outputs
+
+| Output | Description |
+|--------|-------------|
+| **Schema Diff Report** | Table-level change report (added/removed/modified columns, indexes, constraints) |
+| **Data Integrity Report** | PK/FK/constraint violation summary with sample records |
+| **ETL Validation Summary** | Source vs target counts, checksum match status, transformation verification |
+| **Performance Profile** | Query execution times, index usage, optimization recommendations |
+| **Risk Assessment** | Risk score (0-100) with human-readable explanation and approval recommendation |
+| **CI/CD Gate Decision** | Pass/fail/pending-approval status for pipeline integration |
+
+### 9.5 RBAC
+
+| Persona | Access Level |
+|---------|-------------|
+| **Owner/Admin** | Full |
+| **QA-Automation** | Full (trigger validations, view reports) |
+| **Dev** | Full (schema validation, performance profiling, recommendations) |
+| **PM/CSM** | Read-only (risk reports, integrity dashboards) |
+| **QA-Manual** | No access |
+| **Viewer** | Read-only (dashboards) |
+
+### 9.6 Human-in-the-Loop Scenarios
+
+| # | Scenario | Who Decides | Mandatory? |
+|---|---------|-------------|-----------|
+| H1 | **Migration Script Approval** | DB Architect or DevOps | **Yes** — no migration deploys without human sign-off |
+| H2 | **Risk Score > 70 Escalation** | DB Architect + Dev Lead | **Yes** — high-risk changes require dual approval |
+| H3 | **ETL Validation Failure** | QA Lead or Data Engineer | **Yes** — data discrepancies must be investigated |
+| H4 | **Performance Regression Review** | Dev team or DBA | Conditional — triggered when query time regresses >50% |
+| H5 | **Production Schema Change** | DevOps + DB Architect | **Yes** — production changes always require explicit approval |
+
+### 9.7 Job Description
+
+> **Title:** AI Database Quality Assurance & Governance Agent
+> **Summary:** Validate database schema migrations, enforce data integrity across multi-tenant schemas, profile query performance, and integrate with CI/CD pipelines as an automated quality gate. Ensure database changes are safe, performant, and compliant before reaching production. Operates under strict least-privilege access (read-only by default) with SOC 2-ready audit logging.
+
+### 9.8 Integration Points
+
+| Integration | Description |
+|-------------|-------------|
+| **CI/CD Pipeline** | Triggered on migration script push; blocks deployment on validation failure |
+| **QAConsultant AI Agent** | Receives test data requirements; validates test database integrity |
+| **AutomationConsultant AI Agent** | Validates database state before/after automated test execution |
+| **Monitoring (Prometheus/Grafana)** | Exports query performance metrics to existing dashboards |
+| **Security Scanner Orchestrator** | Shares SQL injection vulnerability findings for database hardening |
+| **Performance/Load Agent** | Receives database bottleneck data for load test scenario refinement |
+
+### 9.9 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/db/schema/validate` | Validate migration script |
+| POST | `/api/v1/db/data/integrity-check` | Run data integrity checks |
+| POST | `/api/v1/db/etl/validate` | Validate ETL job results |
+| POST | `/api/v1/db/performance/profile` | Profile query performance |
+| GET | `/api/v1/db/test-runs/{id}` | Get test run results |
+| POST | `/api/v1/db/human-approval` | Submit human approval decision |
+
+### 9.10 Capability Maturity Model
+
+| Level | Name | Capabilities |
+|-------|------|-------------|
+| 1 | Query Assistant | Basic query validation, syntax checking |
+| 2 | Structured Integrity Validator | PK/FK checks, constraint validation, schema diff |
+| 3 | CI/CD Governance Layer | Pipeline integration, automated gates, risk scoring |
+| 4 | Predictive Risk Intelligence | Historical pattern analysis, anomaly detection, proactive alerts |
+| 5 | Autonomous Advisory System | Self-tuning recommendations, cross-cloud intelligence (human-governed) |
+
+---
+
+## 10. Cross-Agent RBAC Matrix
+
+Complete access matrix for all 7 agents across all 6 QUALISYS personas:
+
+| Persona | BAConsultant | QAConsultant | AutomationConsultant | Log Reader | Security Scanner | Performance Agent | DatabaseConsultant |
+|---------|-------------|-------------|---------------------|------------|-----------------|-------------------|--------------------|
+| **Owner/Admin** | Full | Full | Full | Full | Full | Full | Full |
+| **PM/CSM** | Full | Read + Approve | Read-only | Full | Read-only | Read-only | Read-only |
+| **QA-Automation** | Read-only | Full | Full (Primary) | Full | Full | Full | Full |
+| **QA-Manual** | Read-only | Full (Primary) | No access | Read-only | No access | No access | No access |
+| **Dev** | No access | Read-only | Execute only | Full | Read + Execute | Full | Full |
+| **Viewer** | No access | No access | No access | Read-only | No access | Read-only | Read-only |
 
 **Legend:** Full = trigger + approve + view + modify | Read-only = view only | Execute only = run tests, view results | No access = not visible
 
@@ -776,6 +878,10 @@ Complete catalog of all human intervention points across all agents:
 | 9 | Security Scanner | Vulnerability Review | Security team | 24 hours |
 | 10 | Security Scanner | Security Test Approval | Security team | 24 hours |
 | 11 | Performance Agent | Load Profile Approval | QA-Automation or DevOps | Before execution |
+| 12 | DatabaseConsultant | Migration Script Approval | DB Architect or DevOps | Before deployment |
+| 13 | DatabaseConsultant | High-Risk Change Escalation (score >70) | DB Architect + Dev Lead | Before deployment |
+| 14 | DatabaseConsultant | ETL Validation Failure | QA Lead or Data Engineer | Before data release |
+| 15 | DatabaseConsultant | Production Schema Change | DevOps + DB Architect | Before apply |
 
 ### Conditional Approvals (Triggered by Thresholds)
 
@@ -790,6 +896,7 @@ Complete catalog of all human intervention points across all agents:
 | 7 | AutomationConsultant | Automation Readiness Gate | Readiness score < 15/25 | QA-Automation Lead |
 | 8 | Log Reader | Pattern Accuracy Review | New patterns detected | Dev or QA |
 | 9 | Performance Agent | Bottleneck Validation | New bottleneck identified | Dev team |
+| 10 | DatabaseConsultant | Performance Regression Review | Query time regresses >50% | Dev team or DBA |
 
 ### Governance Rule
 

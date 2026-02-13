@@ -1,0 +1,56 @@
+# Application ServiceMonitors
+# Story: 0-19 Monitoring Infrastructure (Prometheus + Grafana)
+# AC: 3 - Prometheus scrapes application pod metrics via /metrics endpoint
+#
+# These ServiceMonitors tell Prometheus to scrape the /metrics endpoint
+# on application pods in staging and production namespaces.
+#
+# Apply: kubectl apply -f infrastructure/kubernetes/monitoring/servicemonitors.yaml
+
+---
+# ServiceMonitor for qualisys-api (AC3, Task 2.1)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: qualisys-api
+  namespace: monitoring
+  labels:
+    app: qualisys-api
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: qualisys-api
+  namespaceSelector:
+    matchNames:
+      - staging
+      - production
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+
+---
+# ServiceMonitor for qualisys-web (AC3, Task 2.2)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: qualisys-web
+  namespace: monitoring
+  labels:
+    app: qualisys-web
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: qualisys-web
+  namespaceSelector:
+    matchNames:
+      - staging
+      - production
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s

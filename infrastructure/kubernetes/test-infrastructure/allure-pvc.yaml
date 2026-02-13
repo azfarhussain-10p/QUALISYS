@@ -1,0 +1,36 @@
+# Allure Server Persistent Volume Claims
+# Story: 0-17 Test Reporting Dashboard
+# AC: 1 - Persistent storage for test results and reports
+# AC: 8 - 90-day retention (storage sized for 90 days of data)
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: allure-results-pvc
+  namespace: test-infrastructure
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    app.kubernetes.io/component: allure-server
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: allure-reports-pvc
+  namespace: test-infrastructure
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    app.kubernetes.io/component: allure-server
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3
+  resources:
+    requests:
+      storage: 50Gi

@@ -1,0 +1,210 @@
+# kube-prometheus-stack Helm Values
+# Story: 0-19 Monitoring Infrastructure (Prometheus + Grafana)
+# AC: 1  - Prometheus deployed in monitoring namespace
+# AC: 2  - Node metrics via node-exporter
+# AC: 6  - Grafana with cluster overview dashboard
+# AC: 9-12 - Alert rules via PrometheusRule CRDs
+# AC: 13 - Grafana accessible at grafana.qualisys.io
+# AC: 14 - Alertmanager with Slack notifications
+#
+# Install:
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm repo update
+#   helm install monitoring prometheus-community/kube-prometheus-stack \
+#     --namespace monitoring --create-namespace \
+#     -f infrastructure/kubernetes/monitoring/kube-prometheus-stack-values.yaml
+#
+# Upgrade:
+#   helm upgrade monitoring prometheus-community/kube-prometheus-stack \
+#     --namespace monitoring \
+#     -f infrastructure/kubernetes/monitoring/kube-prometheus-stack-values.yaml
+
+# =============================================================================
+# Prometheus (AC1, AC2)
+# =============================================================================
+prometheus:
+  prometheusSpec:
+    # Retention: 15 days (NFR-OBS3)
+    retention: 15d
+    retentionSize: "45GB"
+
+    # Storage: 50GB persistent volume
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          # AWS: gp3, Azure: managed-csi
+          # Set via --set or per-environment override
+          storageClassName: gp3
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+
+    # Scrape all ServiceMonitors regardless of labels
+    serviceMonitorSelector: {}
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelector: {}
+    podMonitorSelectorNilUsesHelmValues: false
+
+    # Include PrometheusRule CRDs from all namespaces
+    ruleSelector: {}
+    ruleSelectorNilUsesHelmValues: false
+
+    # Resources
+    resources:
+      requests:
+        memory: 1Gi
+        cpu: 500m
+      limits:
+        memory: 2Gi
+        cpu: "1"
+
+    # Scrape interval (NFR-OBS3: 15-second)
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+
+# =============================================================================
+# Grafana (AC6, AC7, AC8, AC13)
+# =============================================================================
+grafana:
+  # Admin password set via secret — do NOT hardcode here
+  # Create secret: kubectl create secret generic grafana-admin \
+  #   --from-literal=admin-password=<password> -n monitoring
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+
+  # Persistent storage for dashboards and settings
+  persistence:
+    enabled: true
+    size: 10Gi
+
+  # Ingress (AC13: grafana.qualisys.io)
+  ingress:
+    enabled: true
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    hosts:
+      - grafana.qualisys.io
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - grafana.qualisys.io
+
+  # Prometheus data source (auto-configured)
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          url: http://monitoring-kube-prometheus-prometheus:9090
+          isDefault: true
+          access: proxy
+
+  # Dashboard providers — load ConfigMaps with label grafana_dashboard=1
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      folderAnnotation: grafana_folder
+      provider:
+        foldersFromFilesStructure: true
+
+# =============================================================================
+# Alertmanager (AC14)
+# =============================================================================
+alertmanager:
+  config:
+    global:
+      resolve_timeout: 5m
+      # Slack webhook URL set via secret
+      # kubectl create secret generic alertmanager-slack \
+      #   --from-literal=webhook-url=<url> -n monitoring
+      slack_api_url_file: /etc/alertmanager/secrets/alertmanager-slack/webhook-url
+
+    route:
+      receiver: slack-notifications
+      group_by: ["alertname", "namespace"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        - receiver: slack-critical
+          matchers:
+            - severity = critical
+          continue: true
+
+    receivers:
+      - name: slack-notifications
+        slack_configs:
+          - channel: "#alerts"
+            send_resolved: true
+            title: '{{ .Status | toUpper }}: {{ .CommonLabels.alertname }}'
+            text: >-
+              {{ range .Alerts }}
+              *{{ .Labels.alertname }}* ({{ .Labels.severity }})
+              {{ .Annotations.summary }}
+              {{ .Annotations.description }}
+              {{ end }}
+      - name: slack-critical
+        slack_configs:
+          - channel: "#alerts-critical"
+            send_resolved: true
+            title: 'CRITICAL: {{ .CommonLabels.alertname }}'
+            text: >-
+              {{ range .Alerts }}
+              {{ .Annotations.summary }}
+              {{ .Annotations.description }}
+              {{ end }}
+
+  alertmanagerSpec:
+    # Mount Slack webhook secret
+    secrets:
+      - alertmanager-slack
+
+# =============================================================================
+# Node Exporter (AC2: node CPU, memory, disk metrics)
+# =============================================================================
+nodeExporter:
+  enabled: true
+
+# =============================================================================
+# Kube State Metrics (AC9: pod restart counts, etc.)
+# =============================================================================
+kubeStateMetrics:
+  enabled: true
+
+# =============================================================================
+# Default rules from kube-prometheus-stack (provides baseline alerting)
+# =============================================================================
+defaultRules:
+  create: true
+  rules:
+    alertmanager: true
+    etcd: false  # Not applicable for managed K8s (EKS/AKS)
+    configReloaders: true
+    general: true
+    k8s: true
+    kubeApiserverAvailability: true
+    kubeApiserverBurnrate: true
+    kubeApiserverHistogram: true
+    kubeApiserverSlos: true
+    kubeControllerManager: false  # Not applicable for managed K8s
+    kubelet: true
+    kubeProxy: false  # Not applicable for managed K8s
+    kubePrometheusGeneral: true
+    kubePrometheusNodeRecording: true
+    kubeSchedulerAlerting: false  # Not applicable for managed K8s
+    kubeSchedulerRecording: false
+    kubeStateMetrics: true
+    network: true
+    node: true
+    nodeExporterAlerting: true
+    nodeExporterRecording: true
+    prometheus: true
+    prometheusOperator: true

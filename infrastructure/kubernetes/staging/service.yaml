@@ -1,0 +1,51 @@
+# Staging Services
+# Story: 0-11 Staging Auto-Deployment
+# Kubernetes ClusterIP services for internal routing
+
+# =============================================================================
+# qualisys-api Service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: qualisys-api
+  namespace: staging
+  labels:
+    app: qualisys-api
+    app.kubernetes.io/name: qualisys-api
+    app.kubernetes.io/part-of: qualisys
+    app.kubernetes.io/component: api
+    environment: staging
+spec:
+  type: ClusterIP
+  selector:
+    app: qualisys-api
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP
+---
+# =============================================================================
+# qualisys-web Service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: qualisys-web
+  namespace: staging
+  labels:
+    app: qualisys-web
+    app.kubernetes.io/name: qualisys-web
+    app.kubernetes.io/part-of: qualisys
+    app.kubernetes.io/component: web
+    environment: staging
+spec:
+  type: ClusterIP
+  selector:
+    app: qualisys-web
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP

@@ -1,0 +1,172 @@
+# Production Stable Deployment Manifests
+# Story: 0-12 Production Deployment with Approval Gate
+# AC: 4 - Canary strategy: stable deployment receives majority traffic
+# AC: 6 - Automatic rollback on failed health checks (Kubernetes default)
+#
+# Stable deployments run the current production version.
+# During canary rollout, stable replicas are scaled down as canary scales up.
+# Default: 9 stable + 1 canary = 10 total (90/10 split)
+
+# =============================================================================
+# qualisys-api-stable Deployment
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qualisys-api-stable
+  namespace: production
+  labels:
+    app: qualisys-api
+    app.kubernetes.io/name: qualisys-api
+    app.kubernetes.io/part-of: qualisys
+    app.kubernetes.io/component: api
+    track: stable
+    environment: production
+spec:
+  replicas: 9
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 180
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: qualisys-api
+      track: stable
+  template:
+    metadata:
+      labels:
+        app: qualisys-api
+        app.kubernetes.io/name: qualisys-api
+        app.kubernetes.io/part-of: qualisys
+        app.kubernetes.io/component: api
+        track: stable
+        environment: production
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: qualisys-api
+          image: CONTAINER_REGISTRY/qualisys-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3000"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: qualisys-secrets
+                  key: database-url
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: qualisys-secrets
+                  key: redis-url
+---
+# =============================================================================
+# qualisys-web-stable Deployment
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qualisys-web-stable
+  namespace: production
+  labels:
+    app: qualisys-web
+    app.kubernetes.io/name: qualisys-web
+    app.kubernetes.io/part-of: qualisys
+    app.kubernetes.io/component: web
+    track: stable
+    environment: production
+spec:
+  replicas: 9
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 180
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: qualisys-web
+      track: stable
+  template:
+    metadata:
+      labels:
+        app: qualisys-web
+        app.kubernetes.io/name: qualisys-web
+        app.kubernetes.io/part-of: qualisys
+        app.kubernetes.io/component: web
+        track: stable
+        environment: production
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: qualisys-web
+          image: CONTAINER_REGISTRY/qualisys-web:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3000"
+            - name: API_URL
+              value: "https://app.qualisys.io/api"

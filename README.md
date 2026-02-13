@@ -1,5 +1,8 @@
 # QUALISYS
 
+[![PR Checks](https://github.com/10pearls/qualisys/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/10pearls/qualisys/actions/workflows/pr-checks.yml)
+[![codecov](https://codecov.io/gh/10pearls/qualisys/branch/main/graph/badge.svg)](https://codecov.io/gh/10pearls/qualisys)
+
 **AI System Quality Assurance Platform**
 
 > Revolutionizing software testing through intelligent document ingestion, Git repository codebase analysis, multi-agent AI capabilities, and self-healing test automation. QUALISYS creates a new category - "AI System Quality Assurance" - providing comprehensive testing across all AI types while addressing the unique challenges of testing in the non-deterministic AI era.
@@ -11,13 +14,14 @@
 | Metric | Value |
 |--------|-------|
 | **Current Phase** | Phase 4: Implementation |
-| **Current Epic** | Epic 0 - Infrastructure Foundation |
+| **Current Epic** | Epic 1 - Foundation & Administration |
 | **Track** | Enterprise BMad Method |
-| **Total Stories** | 107 (100 MVP + 7 Post-MVP) |
+| **Total Stories** | 108 (100 MVP + 8 Post-MVP) |
 | **Epics** | 6 (Epic 0-5 MVP, Epic 6 Post-MVP) |
-| **Status** | 🚧 Infrastructure Setup (Sprint 0) |
+| **Status** | Sprint 1 - Foundation & Administration |
+| **Completed** | Epic 0 (22/22 stories) |
 | **Version** | 0.1.0 (Pre-release) |
-| **Last Updated** | 2026-02-06 |
+| **Last Updated** | 2026-02-12 |
 
 ---
 
@@ -28,7 +32,7 @@ QUALISYS is an **AI System Quality Assurance Platform** that transforms testing 
 **The Core Problem:** Software teams spend 40% of their time on manual testing activities, test automation scripts break constantly with UI changes, and test coverage gaps lead to bugs escaping to production. Traditional testing tools were built for deterministic software and cannot handle AI's non-deterministic nature.
 
 **The Solution:** QUALISYS combines three breakthrough capabilities:
-1. **Multi-Agent AI System** - 6 specialized AI agents (3 MVP + 3 Post-MVP) work in orchestrated pipelines
+1. **Multi-Agent AI System** - 7 specialized AI agents (3 MVP + 4 Post-MVP) work in orchestrated pipelines
 2. **Self-Healing Test Automation** - Automatically detects DOM changes and proposes fixes
 3. **End-to-End Testing Lifecycle** - Complete coverage from requirements ingestion to executive dashboards
 
@@ -76,13 +80,14 @@ docs/
 ## ✨ Key Features
 
 ### 🤖 Multi-Agent AI System
-- **6 specialized AI agents** for comprehensive test generation:
+- **7 specialized AI agents** for comprehensive test generation:
   - **BAConsultant AI Agent**: Requirements analysis, gap/ambiguity detection, coverage matrix, user story creation with quality scoring (MVP)
   - **QAConsultant AI Agent**: Test strategy, manual test checklists, BDD/Gherkin scenarios, checklist-driven testing, synthetic test data, sprint readiness validation (MVP)
   - **AutomationConsultant AI Agent**: Playwright/Puppeteer/REST-Assured script generation, framework architecture, DOM crawling and discovery, automation suite management, CI/CD integration (MVP)
   - **AI Log Reader/Summarizer**: Test execution log analysis (Post-MVP)
   - **Security Scanner Orchestrator**: Security testing automation (Post-MVP)
   - **Performance/Load Agent**: Load testing and performance validation (Post-MVP)
+  - **DatabaseConsultant AI Agent**: Schema validation, data integrity, ETL validation, DB performance profiling (Post-MVP)
 - Intelligent orchestration and pipeline management
 - User-selectable or automated agent workflows
 
@@ -183,11 +188,11 @@ QUALISYS serves 6 distinct personas with role-optimized interfaces:
 
 ## 🗺️ Roadmap & Epics
 
-The QUALISYS MVP is organized into 6 epics with 107 total stories (100 MVP + 7 Post-MVP):
+The QUALISYS MVP is organized into 6 epics with 108 total stories (100 MVP + 8 Post-MVP):
 
-### Epic 0: Infrastructure Foundation (P0 CRITICAL) - 🚧 In Progress
-**Status**: Sprint 0 (Pre-Implementation Setup)  
-**Stories**: 22 stories  
+### Epic 0: Infrastructure Foundation (P0 CRITICAL) - ✅ Complete
+**Status**: Complete (22/22 stories done, retrospective complete)
+**Stories**: 22 stories
 **Goal**: Provision complete cloud infrastructure, CI/CD pipelines, test infrastructure, and development environment.
 
 **Key Deliverables:**
@@ -202,9 +207,9 @@ The QUALISYS MVP is organized into 6 epics with 107 total stories (100 MVP + 7 P
 
 **Success Criteria**: Deploy "Hello World" service to staging via CI/CD on either AWS or Azure, execute sample test suite, provision tenant schemas, view live metrics.
 
-### Epic 1: Foundation & Administration (P1 HIGH)
-**Status**: Contexted (ready for Sprint 1)  
-**Stories**: 13 stories  
+### Epic 1: Foundation & Administration (P1 HIGH) - 🚧 In Progress
+**Status**: Active (Sprint 1 - Story 1-1 ready-for-dev, Story 1-2 drafted)
+**Stories**: 13 stories (1 ready-for-dev, 1 drafted, 11 backlog)
 **Goal**: User account management, organization setup, project creation, basic RBAC.
 
 **Key Features:**
@@ -264,18 +269,18 @@ The QUALISYS MVP is organized into 6 epics with 107 total stories (100 MVP + 7 P
 - Integration health monitoring
 
 ### Epic 6: Advanced Features (Post-MVP)
-**Status**: Backlog (P2)  
-**Stories**: 7 stories
+**Status**: Backlog (P2)
+**Stories**: 8 stories
 **Goal**: Advanced AI agents, ML-based self-healing, enterprise features.
 
 **Key Features:**
-- Remaining 3 Post-MVP AI agents (AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent)
+- Remaining 4 Post-MVP AI agents (AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent, DatabaseConsultant AI Agent)
 - ML-suggested robust selectors
 - Advanced SLA monitoring
 - Cost tracking per test/story point
 - SOC2/ISO compliance preparation
 
-**Estimated MVP Timeline**: 15-19 weeks (Epics 1-5) + 2-3 weeks Sprint 0 (Epic 0)
+**Estimated MVP Timeline**: 15-19 weeks (Epics 1-5) | Sprint 0 (Epic 0): ✅ Complete
 
 ---
 
@@ -310,35 +315,43 @@ The QUALISYS MVP is organized into 6 epics with 107 total stories (100 MVP + 7 P
 
 ### Development Setup
 
-**Note**: Epic 0 (Infrastructure Foundation) is currently in progress. The development environment setup will be documented once Epic 0 stories are complete.
+Epic 0 (Infrastructure Foundation) is complete. The local development environment is fully operational.
 
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd QUALISYS
 
-# Install dependencies
-pip install -r requirements.txt
-npm install
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your local configuration
 
-# Set up local development environment (Podman Compose)
-# This will be available after Epic 0 Story 0.21 completion
+# Start local services (PostgreSQL, Redis, MailCatcher, API, Web)
 podman-compose up -d
 
-# Run database migrations
-alembic upgrade head
+# Seed development data (3 tenants, 10 users, sample projects)
+podman-compose exec api npx ts-node scripts/dev-seed.ts
 
-# Start development servers
-npm run dev          # Frontend (Next.js)
-uvicorn main:app --reload     # Backend (FastAPI)
+# Access the application
+# Web:  http://localhost:3000
+# API:  http://localhost:3001
+# Mail: http://localhost:1080
+# Test credentials: admin@tenant-dev-1.test / password123
 ```
+
+For the full local development guide, see [docs/local-development.md](./docs/local-development.md).
 
 ### Configuration
 
-Create `.env` file (template will be provided after Epic 0):
+Copy the environment template and customize:
+```bash
+cp .env.example .env
+```
+
+Key variables (see `.env.example` for full list):
 ```bash
 # Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/qualisys
+DATABASE_URL=postgresql://qualisys:qualisys@localhost:5432/qualisys_master
 
 # Cache
 REDIS_URL=redis://localhost:6379
@@ -346,24 +359,8 @@ REDIS_URL=redis://localhost:6379
 # LLM Provider (MVP uses OpenAI)
 OPENAI_API_KEY=your-openai-key
 
-# Vector Database (using pgvector in PostgreSQL)
-# No separate vector DB URL needed
-
-# Development LLM (optional, for local testing)
-OLLAMA_BASE_URL=http://localhost:11434
-
 # Cloud Provider (aws or azure)
 CLOUD_PROVIDER=aws
-
-# AWS Credentials (when CLOUD_PROVIDER=aws)
-AWS_ACCESS_KEY_ID=your-key
-AWS_SECRET_ACCESS_KEY=your-secret
-AWS_REGION=us-east-1
-
-# Azure Credentials (when CLOUD_PROVIDER=azure)
-# AZURE_SUBSCRIPTION_ID=your-subscription-id
-# AZURE_TENANT_ID=your-tenant-id
-# AZURE_CLIENT_ID=your-client-id
 ```
 
 ### Project Structure
@@ -393,7 +390,7 @@ QUALISYS/
 └── .claude/              # Claude Code commands (optional, auto-generated)
 ```
 
-**For detailed setup instructions, see**: [Epic 0 Technical Specification](./docs/tech-specs/tech-spec-epic-0.md)
+**For detailed setup instructions, see**: [Local Development Guide](./docs/local-development.md) | [Infrastructure README](./infrastructure/README.md)
 
 ---
 
@@ -431,7 +428,7 @@ When a team member pulls the project for the first time, they should:
    npm install
    ```
 
-5. ✅ **Start Local Services** (after Epic 0 Story 0.21 completion)
+5. ✅ **Start Local Services**
    ```bash
    podman-compose up -d  # or docker-compose up -d
    ```
@@ -473,7 +470,7 @@ When a team member pulls the project for the first time, they should:
 
 - **Documentation**: Start with [docs/index.md](./docs/index.md)
 - **Architecture Questions**: See [docs/architecture/architecture.md](./docs/architecture/architecture.md)
-- **Setup Issues**: Check [Epic 0 Tech Spec](./docs/tech-specs/tech-spec-epic-0.md) Story 0.21
+- **Setup Issues**: See [Local Development Guide](./docs/local-development.md) or [Epic 0 Tech Spec](./docs/tech-specs/tech-spec-epic-0.md)
 - **BMad Method**: See [CLAUDE.md](./CLAUDE.md) for workflow guidance
 
 ---
@@ -612,6 +609,6 @@ Built with:
 
 ---
 
-**Status**: 🚧 Phase 4: Implementation (Epic 0 - Infrastructure Foundation)  
-**Version**: 0.1.0 (Pre-release)  
-**Last Updated**: 2026-02-06
+**Status**: Phase 4: Implementation (Epic 1 - Foundation & Administration)
+**Version**: 0.1.0 (Pre-release)
+**Last Updated**: 2026-02-12

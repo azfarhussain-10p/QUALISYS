@@ -1,0 +1,144 @@
+# QUALISYS Alert Rules (PrometheusRule CRD)
+# Story: 0-19 Monitoring Infrastructure (Prometheus + Grafana)
+# AC: 9  - Pod crash loop alert
+# AC: 10 - High CPU/memory usage alerts (>80%)
+# AC: 11 - Database connection pool exhaustion alert
+# AC: 12 - API response time >500ms (p95) alert
+#
+# Apply: kubectl apply -f infrastructure/kubernetes/monitoring/alert-rules.yaml
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: qualisys-alerts
+  namespace: monitoring
+  labels:
+    app: qualisys
+    release: monitoring
+spec:
+  groups:
+    # =========================================================================
+    # Kubernetes Alerts (AC9, AC10)
+    # =========================================================================
+    - name: qualisys.kubernetes
+      rules:
+        # AC9: Pod crash loop — restarts > 3 in 5min (Task 5.1)
+        - alert: PodCrashLooping
+          expr: |
+            increase(kube_pod_container_status_restarts_total[5m]) > 3
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash looping"
+            description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has restarted {{ $value | printf \"%.0f\" }} times in the last 5 minutes."
+
+        # AC10: High CPU usage >80% (Task 5.2)
+        - alert: HighCPUUsage
+          expr: |
+            100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High CPU usage on {{ $labels.instance }}"
+            description: "CPU usage is {{ $value | printf \"%.1f\" }}% on node {{ $labels.instance }} (threshold: 80%)."
+
+        # AC10: Critical CPU usage >95%
+        - alert: CriticalCPUUsage
+          expr: |
+            100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Critical CPU usage on {{ $labels.instance }}"
+            description: "CPU usage is {{ $value | printf \"%.1f\" }}% on node {{ $labels.instance }} (threshold: 95%)."
+
+        # AC10: High memory usage >80% (Task 5.3)
+        - alert: HighMemoryUsage
+          expr: |
+            (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High memory usage on {{ $labels.instance }}"
+            description: "Memory usage is {{ $value | printf \"%.1f\" }}% on node {{ $labels.instance }} (threshold: 80%)."
+
+        # AC10: Critical memory usage >95%
+        - alert: CriticalMemoryUsage
+          expr: |
+            (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 95
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Critical memory usage on {{ $labels.instance }}"
+            description: "Memory usage is {{ $value | printf \"%.1f\" }}% on node {{ $labels.instance }} (threshold: 95%)."
+
+    # =========================================================================
+    # Database Alerts (AC11)
+    # =========================================================================
+    - name: qualisys.database
+      rules:
+        # AC11: Database connection pool exhaustion >90% (Task 5.4)
+        - alert: DatabaseConnectionPoolExhaustion
+          expr: |
+            pg_stat_activity_count / on() pg_settings_max_connections > 0.9
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "PostgreSQL connection pool near exhaustion"
+            description: "Connection usage is {{ $value | printf \"%.1f\" }}% of max_connections (threshold: 90%)."
+
+        # AC11: Connection pool warning at >75%
+        - alert: DatabaseConnectionPoolHigh
+          expr: |
+            pg_stat_activity_count / on() pg_settings_max_connections > 0.75
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "PostgreSQL connection pool usage elevated"
+            description: "Connection usage is {{ $value | printf \"%.1f\" }}% of max_connections."
+
+    # =========================================================================
+    # Application Alerts (AC12)
+    # =========================================================================
+    - name: qualisys.application
+      rules:
+        # AC12: API response time >500ms p95 (Task 5.5)
+        - alert: HighAPILatency
+          expr: |
+            histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High API latency detected"
+            description: "P95 latency is {{ $value | printf \"%.3f\" }}s (threshold: 0.5s) over the last 5 minutes."
+
+        # AC12: Critical API latency >2s p95
+        - alert: CriticalAPILatency
+          expr: |
+            histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 2.0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Critical API latency detected"
+            description: "P95 latency is {{ $value | printf \"%.3f\" }}s (threshold: 2.0s) over the last 5 minutes."
+
+        # 5xx error rate >5%
+        - alert: HighErrorRate
+          expr: |
+            (sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))) > 0.05
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "High 5xx error rate detected"
+            description: "5xx error rate is {{ $value | printf \"%.2f\" }}% (threshold: 5%) over the last 5 minutes."

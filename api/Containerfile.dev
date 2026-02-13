@@ -1,0 +1,29 @@
+# API Development Container
+# Story: 0-21 Local Development Environment (Podman Compose)
+# AC: 4  - API hot reload (ts-node-dev)
+# AC: 12 - Health check endpoint
+#
+# Uses node:20-alpine to match production Dockerfile (api/Dockerfile).
+# Source code is mounted via compose.yml volume — changes trigger hot reload.
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install wget for health checks (alpine minimal doesn't include curl)
+RUN apk add --no-cache wget
+
+# Install dependencies first (cached layer)
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+# Install ts-node-dev for hot reload
+RUN npm install -g ts-node-dev
+
+# Copy source (overwritten by volume mount in compose.yml)
+COPY . .
+
+EXPOSE 3001
+
+# Hot reload: watches src/ and restarts on changes
+CMD ["npx", "ts-node-dev", "--respawn", "--transpile-only", "--poll", "src/index.ts"]

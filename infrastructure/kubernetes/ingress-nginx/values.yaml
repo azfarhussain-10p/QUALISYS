@@ -1,0 +1,130 @@
+# NGINX Ingress Controller - Helm Values
+# Story: 0-13 Load Balancer & Ingress Configuration
+# AC: 1 - NGINX Ingress Controller installed (cloud-agnostic)
+# AC: 6 - Health checks configured for backend services
+#
+# Install:
+#   helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+#   helm repo update
+#   helm install ingress-nginx ingress-nginx/ingress-nginx \
+#     --namespace ingress-nginx --create-namespace \
+#     -f infrastructure/kubernetes/ingress-nginx/values.yaml
+#
+# Verify:
+#   kubectl get pods -n ingress-nginx
+#   kubectl get svc -n ingress-nginx
+
+controller:
+  # High availability: 2 replicas minimum
+  replicaCount: 2
+
+  # Use ingressClassName instead of deprecated annotation
+  ingressClassResource:
+    name: nginx
+    enabled: true
+    default: true
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+  # Service configuration - LoadBalancer for external traffic
+  service:
+    type: LoadBalancer
+    externalTrafficPolicy: Local
+    annotations:
+      # AWS: Network Load Balancer
+      # Set only when CLOUD_PROVIDER=aws; for Azure the default LB is used
+      service.beta.kubernetes.io/aws-load-balancer-type: nlb
+      service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+      # Azure: Standard Load Balancer (default, no annotation needed)
+      # service.beta.kubernetes.io/azure-load-balancer-internal: "false"
+
+  # Pod anti-affinity: spread controller pods across nodes
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - ingress-nginx
+            topologyKey: kubernetes.io/hostname
+
+  # Health check configuration
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: 10254
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: 10254
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  # Metrics for Prometheus (Story 0-19)
+  metrics:
+    enabled: true
+    port: 10254
+    serviceMonitor:
+      enabled: false  # Enable when Prometheus is deployed (Story 0-19)
+
+  # Custom error pages backend
+  extraArgs:
+    default-backend-service: ingress-nginx/nginx-errors
+
+  # Config map settings
+  config:
+    # Security headers (applied globally)
+    use-forwarded-headers: "true"
+    compute-full-forwarded-for: "true"
+    # Hide server version
+    server-tokens: "false"
+    # Custom error pages
+    custom-http-errors: "502,503,504"
+    # SSL configuration
+    ssl-protocols: "TLSv1.2 TLSv1.3"
+    ssl-ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
+    # HSTS (applied globally)
+    hsts: "true"
+    hsts-max-age: "31536000"
+    hsts-include-subdomains: "true"
+    # Logging
+    log-format-upstream: '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" $request_length $request_time [$proxy_upstream_name] [$proxy_alternative_upstream_name] $upstream_addr $upstream_response_length $upstream_response_time $upstream_status $req_id'
+
+  # Update strategy for zero-downtime upgrades
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+
+# Default backend for custom error pages
+defaultBackend:
+  enabled: true
+  name: nginx-errors
+  image:
+    registry: registry.k8s.io
+    image: ingress-nginx/nginx-errors
+    tag: "v20230505"
+  resources:
+    requests:
+      cpu: 10m
+      memory: 16Mi
+    limits:
+      cpu: 50m
+      memory: 64Mi

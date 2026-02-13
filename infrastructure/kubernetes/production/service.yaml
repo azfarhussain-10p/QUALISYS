@@ -1,0 +1,58 @@
+# Production Services
+# Story: 0-12 Production Deployment with Approval Gate
+# AC: 4 - Traffic splitting via shared app label selector
+#
+# Services select pods by the `app` label which is shared between
+# stable and canary deployments. Traffic is split proportionally
+# by replica count (e.g., 9 stable + 1 canary = 90/10 split).
+#
+# This is a simple, native Kubernetes approach to canary traffic splitting
+# that doesn't require a service mesh or custom ingress controller config.
+
+# =============================================================================
+# qualisys-api Service (selects both stable + canary pods)
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: qualisys-api-stable
+  namespace: production
+  labels:
+    app: qualisys-api
+    app.kubernetes.io/name: qualisys-api
+    app.kubernetes.io/part-of: qualisys
+    app.kubernetes.io/component: api
+    environment: production
+spec:
+  type: ClusterIP
+  selector:
+    app: qualisys-api
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP
+---
+# =============================================================================
+# qualisys-web Service (selects both stable + canary pods)
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: qualisys-web-stable
+  namespace: production
+  labels:
+    app: qualisys-web
+    app.kubernetes.io/name: qualisys-web
+    app.kubernetes.io/part-of: qualisys
+    app.kubernetes.io/component: web
+    environment: production
+spec:
+  type: ClusterIP
+  selector:
+    app: qualisys-web
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP

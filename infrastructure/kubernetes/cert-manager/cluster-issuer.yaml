@@ -1,0 +1,51 @@
+# Let's Encrypt ClusterIssuers
+# Story: 0-13 Load Balancer & Ingress Configuration
+# AC: 4 - SSL certificates provisioned via cert-manager (Let's Encrypt)
+# AC: 5 - HTTPS enforced with HTTP to HTTPS redirect
+#
+# Apply after cert-manager is running:
+#   kubectl apply -f infrastructure/kubernetes/cert-manager/cluster-issuer.yaml
+#
+# Verify:
+#   kubectl get clusterissuers
+#   kubectl describe clusterissuer letsencrypt-staging
+#   kubectl describe clusterissuer letsencrypt-prod
+#
+# Usage:
+#   1. Use letsencrypt-staging for testing (higher rate limits, untrusted certs)
+#   2. Switch to letsencrypt-prod when validated (trusted certs, strict rate limits)
+#   3. Reference in Ingress: cert-manager.io/cluster-issuer: letsencrypt-prod
+
+---
+# Staging ClusterIssuer (for testing - untrusted certificates)
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: devops@qualisys.io
+    privateKeySecretRef:
+      name: letsencrypt-staging-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx
+
+---
+# Production ClusterIssuer (for real certificates - trusted by browsers)
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: devops@qualisys.io
+    privateKeySecretRef:
+      name: letsencrypt-prod-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx

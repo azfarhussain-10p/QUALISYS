@@ -1,0 +1,68 @@
+# Staging Ingress Configuration
+# Story: 0-11 Staging Auto-Deployment (initial)
+# Story: 0-13 Load Balancer & Ingress Configuration (enhanced)
+# AC: 3 - Staging domain configured: staging.qualisys.dev
+# AC: 5 - HTTPS enforced with HTTP to HTTPS redirect
+# AC: 7 - Rate limiting configured (1000 req/min per IP = ~17 rps)
+#
+# Requires: NGINX Ingress Controller (ingress-nginx), cert-manager with letsencrypt-prod ClusterIssuer
+#
+# DNS Setup (post-apply):
+#   Create A record: staging.qualisys.dev -> <ingress-controller-lb-ip>
+#   See infrastructure/terraform/aws/dns/ or infrastructure/terraform/azure/modules/dns/
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: staging-ingress
+  namespace: staging
+  labels:
+    app.kubernetes.io/part-of: qualisys
+    environment: staging
+  annotations:
+    # SSL via cert-manager
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # HTTPS redirect
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # Rate limiting: 1000 req/min per IP (~17 rps)
+    nginx.ingress.kubernetes.io/limit-rps: "17"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
+    nginx.ingress.kubernetes.io/limit-connections: "10"
+    # Request size limit (file uploads)
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    # Timeouts
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains";
+      more_set_headers "X-Frame-Options: SAMEORIGIN";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+      more_set_headers "Permissions-Policy: camera=(), microphone=(), geolocation=()";
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - staging.qualisys.dev
+      secretName: staging-tls
+  rules:
+    - host: staging.qualisys.dev
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: qualisys-api
+                port:
+                  number: 3000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: qualisys-web
+                port:
+                  number: 3000

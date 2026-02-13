@@ -1,0 +1,89 @@
+# Allure Docker Service - Deployment + Service
+# Story: 0-17 Test Reporting Dashboard
+# AC: 1 - Allure Server configured
+# AC: 2 - Pass/fail trends (KEEP_HISTORY=25)
+# AC: 3 - Execution time trends (native Allure feature)
+# AC: 4 - Flaky test detection (retry tracking via Allure)
+# AC: 9 - Suite filtering (via project_id parameter)
+# AC: 10 - Latest build status (Allure overview page)
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: allure-server
+  namespace: test-infrastructure
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    app.kubernetes.io/component: allure-server
+    app.kubernetes.io/name: allure-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: allure-server
+  template:
+    metadata:
+      labels:
+        app: allure-server
+        app.kubernetes.io/name: allure-server
+    spec:
+      containers:
+        - name: allure-server
+          image: frankescobar/allure-docker-service:2.21.0
+          ports:
+            - containerPort: 5050
+              name: http
+          env:
+            - name: CHECK_RESULTS_EVERY_SECONDS
+              value: "30"
+            - name: KEEP_HISTORY
+              value: "25"
+            - name: KEEP_HISTORY_LATEST
+              value: "10"
+          volumeMounts:
+            - name: allure-results
+              mountPath: /app/allure-results
+            - name: allure-reports
+              mountPath: /app/default-reports
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /allure-docker-service/version
+              port: 5050
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /allure-docker-service/version
+              port: 5050
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      volumes:
+        - name: allure-results
+          persistentVolumeClaim:
+            claimName: allure-results-pvc
+        - name: allure-reports
+          persistentVolumeClaim:
+            claimName: allure-reports-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: allure-server
+  namespace: test-infrastructure
+  labels:
+    app.kubernetes.io/managed-by: qualisys
+    app.kubernetes.io/component: allure-server
+spec:
+  selector:
+    app: allure-server
+  ports:
+    - port: 5050
+      targetPort: 5050
+      name: http

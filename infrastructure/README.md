@@ -163,14 +163,24 @@ infrastructure/
 │   │   └── outputs.tf          # Secret ARNs, policy ARNs, IRSA role ARN
 │   ├── aws/                    # AWS-specific Terraform root
 │   │   ├── README.md           # AWS setup guide
+│   │   ├── dns/                # Route 53 DNS zones and records (Story 0-13)
+│   │   │   ├── main.tf         # DNS zones (qualisys.io, qualisys.dev) and A records
+│   │   │   ├── variables.tf    # Domain name variables
+│   │   │   └── outputs.tf      # Zone IDs, name servers, domain URLs
 │   │   └── ...                 # VPC, EKS, RDS, ElastiCache, ECR, Secrets
 │   ├── azure/                  # Azure-specific Terraform root
 │   │   ├── README.md           # Azure setup guide
+│   │   ├── modules/dns/        # Azure DNS zones and records (Story 0-13)
+│   │   │   ├── main.tf         # DNS zones (qualisys.io, qualisys.dev) and A records
+│   │   │   ├── variables.tf    # Resource group, public IP variables
+│   │   │   └── outputs.tf      # Name servers, domain URLs
 │   │   └── ...                 # VNet, AKS, PostgreSQL, Redis, ACR, Key Vault
 │   └── shared/                 # Cross-cloud outputs
 │       └── outputs.tf          # Normalized outputs for CI/CD
 ├── scripts/
-│   └── db-init.sql             # PostgreSQL initialization (app_user, RLS test)
+│   ├── db-init.sql             # PostgreSQL initialization (app_user, RLS test)
+│   ├── init-test-db.sql        # Test database initialization (tenant schemas, RLS) (Story 0-14)
+│   └── isolation-test.sql      # RLS isolation verification (6 tests) (Story 0-14)
 ├── kubernetes/
 │   ├── shared/                 # Cloud-agnostic K8s manifests
 │   │   ├── namespaces/
@@ -179,6 +189,21 @@ infrastructure/
 │   │   └── rbac/
 │   │       ├── roles.yaml          # ClusterRoles: developer, devops, ci-cd
 │   │       └── bindings.yaml       # ClusterRoleBindings + RoleBindings
+│   ├── ingress-nginx/          # NGINX Ingress Controller (Story 0-13)
+│   │   ├── values.yaml             # Helm values (2 replicas, resources, metrics)
+│   │   └── custom-error-pages.yaml # Branded 502/503/504 error pages
+│   ├── cert-manager/           # SSL Certificate Management (Story 0-13)
+│   │   ├── values.yaml             # Helm values for cert-manager
+│   │   └── cluster-issuer.yaml     # Let's Encrypt ClusterIssuers (staging + prod)
+│   ├── staging/                # Staging application manifests (Story 0-11, 0-13)
+│   │   ├── deployment.yaml     # API + Web deployments (rolling update, probes)
+│   │   ├── service.yaml        # ClusterIP services
+│   │   └── ingress.yaml        # NGINX ingress with SSL, rate limiting, security headers
+│   ├── production/             # Production application manifests (Story 0-12, 0-13)
+│   │   ├── stable-deployment.yaml  # Stable API + Web deployments (9 replicas)
+│   │   ├── canary-deployment.yaml  # Canary API + Web deployments (1 replica)
+│   │   ├── service.yaml            # ClusterIP services (traffic splitting)
+│   │   └── ingress.yaml            # NGINX ingress for app.qualisys.io + api.qualisys.io
 │   ├── aws/                    # AWS-specific K8s configs
 │   │   ├── aws-auth-configmap.yaml # IAM-to-K8s RBAC mapping
 │   │   ├── cluster-autoscaler/
@@ -526,6 +551,396 @@ PGPASSWORD=$MASTER_PASS psql \
 2. Check RLS is enabled on table: `SELECT rowsecurity FROM pg_tables WHERE tablename = '<table>'`
 3. Verify `app_user` has NOBYPASSRLS: `SELECT rolbypassrls FROM pg_roles WHERE rolname = 'app_user'`
 4. Superusers bypass RLS — ensure application uses `app_user`, never master user
+
+## Test Database (qualisys_test)
+
+> Story 0-14: Test Database Provisioning
+
+A dedicated test database provides isolated tenant schemas for integration testing. The `test_user` role has NO SUPERUSER and NO BYPASSRLS privileges, ensuring RLS policies are enforced during tests.
+
+### Test Database Scripts
+
+| Script | Location | Purpose |
+|--------|----------|---------|
+| `init-test-db.sql` | `infrastructure/scripts/` | Creates `qualisys_test` DB, `test_user` role, tenant schemas, RLS policies |
+| `isolation-test.sql` | `infrastructure/scripts/` | Verifies cross-tenant isolation (6 tests) |
+| `db-reset.ts` | `scripts/` | Truncates all tables, preserves schema structure |
+| `seed.ts` | `scripts/` | Idempotent seed: 3 tenants, 10 users, 5 projects, 25 test cases (Story 0-15) |
+
+### Test Tenant Schemas
+
+| Schema | Tenant UUID | Purpose |
+|--------|-------------|---------|
+| `tenant_test_1` | `11111111-1111-1111-1111-111111111111` | Primary test tenant |
+| `tenant_test_2` | `22222222-2222-2222-2222-222222222222` | Cross-tenant isolation target |
+| `tenant_test_3` | `33333333-3333-3333-3333-333333333333` | Additional isolation verification |
+
+### Initialization
+
+```bash
+# Local (Docker/Podman on port 5433)
+PGPASSWORD=test_password psql \
+  -h localhost -p 5433 -U test_user -d qualisys_test \
+  -f infrastructure/scripts/init-test-db.sql
+
+# CI/CD (GitHub Actions service container on port 5432)
+PGPASSWORD=test_password psql \
+  -h localhost -U test_user -d qualisys_test \
+  -f infrastructure/scripts/init-test-db.sql
+```
+
+### CI/CD Pipeline Integration (Story 0-16)
+
+In the PR Checks workflow, the integration-tests job runs the full database lifecycle:
+
+1. **PostgreSQL service container** starts on port 5432
+2. `init-test-db.sql` — Creates tenant schemas + RLS policies
+3. `npm run db:migrate:test` — Runs database migrations
+4. `npm run db:seed:test` — Seeds deterministic test data (3 tenants, 10 users)
+5. `npm run test:integration` — Runs integration tests against seeded database
+
+All test artifacts (JUnit XML, coverage) are retained for 30 days.
+
+### Isolation Verification
+
+```bash
+PGPASSWORD=test_password psql \
+  -h localhost -p 5433 -U test_user -d qualisys_test \
+  -f infrastructure/scripts/isolation-test.sql
+```
+
+### Connection Strings
+
+```
+# Local development (Docker/Podman)
+TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/qualisys_test
+
+# CI/CD (GitHub Actions)
+TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5432/qualisys_test
+```
+
+## Multi-Tenant Test Isolation Infrastructure
+
+> Story 0-18: Multi-Tenant Test Isolation Infrastructure
+
+Programmatic tenant isolation utilities for integration and E2E tests. Each test gets a unique schema with full RLS policies, enabling parallel test execution without data leakage.
+
+### Test Utilities
+
+| File | Purpose |
+|------|---------|
+| `src/test-utils/tenant-isolation.ts` | Core utilities: `createTestTenant()`, `cleanupTestTenant()`, `setTenantContext()`, `seedTestTenant()` |
+| `src/test-utils/tenant-fixtures.ts` | Jest lifecycle hooks: `useTenantIsolation()`, `withTenantIsolation()` |
+| `src/test-utils/index.ts` | Public exports |
+| `tests/integration/tenant-isolation.test.ts` | RLS isolation verification tests (AC4-AC6, AC8-AC9) |
+| `tests/conftest.py` | Pytest fixtures for Python integration tests |
+
+### How It Works
+
+1. `createTestTenant(pool)` creates a unique schema (`tenant_<uuid>`) with 4 tables (users, projects, test_cases, test_executions)
+2. RLS policies + FORCE ROW LEVEL SECURITY are applied to all tables
+3. Tests use `setTenantContext(client, tenantId)` to set `app.current_tenant` via `SET LOCAL`
+4. After test: transaction is rolled back + schema is dropped via `DROP SCHEMA CASCADE`
+
+### Performance
+
+- Tenant provisioning: <5 seconds (4 tables + 4 RLS policies in single transaction)
+- Cleanup: <1 second (DROP SCHEMA CASCADE)
+- Parallel safety: UUID-based tenant IDs prevent conflicts across Jest workers
+
+### Isolation Verification Tests
+
+The `tests/integration/tenant-isolation.test.ts` suite verifies:
+
+| Test | What it verifies |
+|------|-----------------|
+| AC4 | Tenant A SELECT on Tenant B schema returns 0 rows |
+| AC5 | Tenant A UPDATE/DELETE on Tenant B data affects 0 rows |
+| AC6 | `SET LOCAL row_security = off` fails with permission denied |
+| AC8 | 5 parallel test suites with no data conflicts |
+| AC9 | Provisioning completes in <5 seconds |
+
+### Running Isolation Tests
+
+```bash
+# Requires a running PostgreSQL instance with test_user (NOSUPERUSER, NOBYPASSRLS)
+TEST_DATABASE_URL=postgresql://test_user:test_password@localhost:5433/qualisys_test \
+  npx jest tests/integration/tenant-isolation.test.ts
+```
+
+## Monitoring Infrastructure (Prometheus + Grafana)
+
+> Story 0-19: Monitoring Infrastructure (Prometheus + Grafana)
+
+### Overview
+
+QUALISYS uses Prometheus for metrics collection and Grafana for visualization, deployed via the `kube-prometheus-stack` Helm chart in the `monitoring` namespace. Alertmanager routes alerts to Slack channels.
+
+### Components
+
+| Component | Purpose | Source |
+|-----------|---------|--------|
+| Prometheus | Metrics collection & storage (15-day retention, 50Gi PVC) | kube-prometheus-stack Helm chart |
+| Grafana | Dashboard visualization at `grafana.qualisys.io` | kube-prometheus-stack Helm chart |
+| Alertmanager | Alert routing to Slack (`#alerts`, `#alerts-critical`) | kube-prometheus-stack Helm chart |
+| node-exporter | Node CPU, memory, disk metrics (AC2) | kube-prometheus-stack Helm chart |
+| kube-state-metrics | Pod restart counts, resource requests (AC9) | kube-prometheus-stack Helm chart |
+| postgres-exporter | PostgreSQL connection pool, query metrics (AC4) | Standalone Deployment |
+| redis-exporter | Redis cache hit rate, memory, clients (AC5) | Standalone Deployment |
+
+### Kubernetes Resources
+
+| Resource | File | Purpose |
+|----------|------|---------|
+| Namespace | `infrastructure/kubernetes/monitoring/namespace.yaml` | `monitoring` namespace with PSS labels |
+| Helm values | `infrastructure/kubernetes/monitoring/kube-prometheus-stack-values.yaml` | Prometheus, Grafana, Alertmanager config |
+| ServiceMonitors | `infrastructure/kubernetes/monitoring/servicemonitors.yaml` | Application metrics scraping |
+| PostgreSQL exporter | `infrastructure/kubernetes/monitoring/postgres-exporter.yaml` | Deployment + Service + ServiceMonitor |
+| Redis exporter | `infrastructure/kubernetes/monitoring/redis-exporter.yaml` | Deployment + Service + ServiceMonitor |
+| Alert rules | `infrastructure/kubernetes/monitoring/alert-rules.yaml` | PrometheusRule CRD (crash loop, CPU, memory, DB, latency) |
+| Cluster dashboard | `infrastructure/kubernetes/monitoring/grafana-dashboards/cluster-overview-dashboard.yaml` | Grafana ConfigMap |
+| App dashboard | `infrastructure/kubernetes/monitoring/grafana-dashboards/application-dashboard.yaml` | RED metrics (request rate, errors, duration) |
+| DB dashboard | `infrastructure/kubernetes/monitoring/grafana-dashboards/database-dashboard.yaml` | PostgreSQL + Redis metrics |
+| App metrics | `api/src/metrics/prometheus.ts` | Express middleware + `/metrics` endpoint |
+
+### Installation
+
+```bash
+# 1. Create monitoring namespace
+kubectl apply -f infrastructure/kubernetes/monitoring/namespace.yaml
+
+# 2. Create secrets (one-time setup)
+kubectl create secret generic grafana-admin \
+  --from-literal=admin-user=admin \
+  --from-literal=admin-password=<password> -n monitoring
+
+kubectl create secret generic alertmanager-slack \
+  --from-literal=webhook-url=<slack-webhook-url> -n monitoring
+
+kubectl create secret generic postgres-exporter-secret \
+  --from-literal=datasource='postgresql://monitor_user:password@db-host:5432/qualisys?sslmode=require' -n monitoring
+
+kubectl create secret generic redis-exporter-secret \
+  --from-literal=redis_addr='redis://redis-host:6379' \
+  --from-literal=redis_password='<password>' -n monitoring
+
+# 3. Install kube-prometheus-stack
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+helm install monitoring prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  -f infrastructure/kubernetes/monitoring/kube-prometheus-stack-values.yaml
+
+# 4. Apply custom resources
+kubectl apply -f infrastructure/kubernetes/monitoring/servicemonitors.yaml
+kubectl apply -f infrastructure/kubernetes/monitoring/postgres-exporter.yaml
+kubectl apply -f infrastructure/kubernetes/monitoring/redis-exporter.yaml
+kubectl apply -f infrastructure/kubernetes/monitoring/alert-rules.yaml
+kubectl apply -f infrastructure/kubernetes/monitoring/grafana-dashboards/
+
+# 5. Verify
+kubectl get pods -n monitoring
+kubectl get servicemonitors -n monitoring
+kubectl get prometheusrules -n monitoring
+```
+
+### Alert Rules
+
+| Alert | Severity | Condition | AC |
+|-------|----------|-----------|-----|
+| PodCrashLooping | critical | >3 restarts in 5min | AC9 |
+| HighCPUUsage | warning | >80% for 5min | AC10 |
+| CriticalCPUUsage | critical | >95% for 5min | AC10 |
+| HighMemoryUsage | warning | >80% for 5min | AC10 |
+| CriticalMemoryUsage | critical | >95% for 5min | AC10 |
+| DatabaseConnectionPoolExhaustion | critical | >90% max_connections for 2min | AC11 |
+| DatabaseConnectionPoolHigh | warning | >75% max_connections for 5min | AC11 |
+| HighAPILatency | warning | p95 >500ms for 5min | AC12 |
+| CriticalAPILatency | critical | p95 >2s for 5min | AC12 |
+| HighErrorRate | critical | 5xx >5% for 5min | AC12 |
+
+### Application Metrics
+
+The `api/src/metrics/prometheus.ts` module provides Express middleware for automatic HTTP metric collection:
+
+```typescript
+import { metricsMiddleware, metricsHandler } from './metrics/prometheus';
+
+app.use(metricsMiddleware);       // Instrument all routes
+app.get('/metrics', metricsHandler); // Expose /metrics endpoint
+```
+
+Exported metrics: `http_requests_total`, `http_request_duration_seconds`, `http_requests_in_flight`, plus default Node.js process metrics.
+
+### Grafana Dashboards
+
+| Dashboard | UID | Panels |
+|-----------|-----|--------|
+| Cluster Overview | `qualisys-cluster-overview` | Node CPU, memory, disk; pod count; restarts; resource requests vs capacity |
+| Application Performance | `qualisys-app-performance` | Request rate, error rate, p50/p95/p99 latency, status codes, Node.js memory |
+| Database & Cache | `qualisys-db-performance` | PG connections, pool utilization, TPS, cache hit rate, deadlocks; Redis clients, memory, hit rate, ops/s |
+
+Dashboards are loaded automatically via Grafana sidecar from ConfigMaps with label `grafana_dashboard=1`.
+
+## Log Aggregation (CloudWatch / Azure Monitor)
+
+> Story 0-20: Log Aggregation (ELK or CloudWatch)
+
+### Overview
+
+QUALISYS uses centralized log aggregation via CloudWatch Logs (AWS) or Azure Monitor Logs (Azure). Fluent Bit runs as a DaemonSet on every node, shipping structured JSON logs with PII redaction. Application logs include `trace_id` and `tenant_id` for cross-service correlation.
+
+### Components
+
+| Component | Purpose | Cloud Provider |
+|-----------|---------|---------------|
+| CloudWatch Logs / Azure Monitor | Log storage and search | AWS / Azure |
+| Fluent Bit DaemonSet | Log collection and shipping | Cloud-agnostic |
+| Pino Logger | Structured JSON logging (TypeScript) | Application |
+| PII Redaction (Lua) | Mask emails and names in logs | Fluent Bit filter |
+| Metric Filters / Alert Rules | Log-based alerting | AWS / Azure |
+
+### Log Groups / Workspaces
+
+| Log Group (AWS) / Workspace (Azure) | Retention | Environment |
+|--------------------------------------|-----------|-------------|
+| `/qualisys/staging/api` | 30 days | Staging |
+| `/qualisys/staging/worker` | 30 days | Staging |
+| `/qualisys/production/api` | 90 days | Production |
+| `/qualisys/production/worker` | 90 days | Production |
+| `/qualisys/kubernetes/system` | 30 days | Shared |
+
+### Kubernetes Resources
+
+| Resource | File | Purpose |
+|----------|------|---------|
+| ConfigMap | `infrastructure/kubernetes/logging/fluent-bit-configmap.yaml` | Fluent Bit config, parsers, PII Lua script |
+| DaemonSet | `infrastructure/kubernetes/logging/fluent-bit-daemonset.yaml` | Fluent Bit pods + ServiceAccount + RBAC |
+
+### Terraform Modules
+
+| Module | Path | Purpose |
+|--------|------|---------|
+| AWS Logging | `infrastructure/terraform/aws/logging/` | CloudWatch log groups, KMS, IRSA, metric filters, alarms |
+| Azure Logging | `infrastructure/terraform/azure/modules/logging/` | Log Analytics workspaces, Workload Identity, alert rules |
+
+### Installation
+
+```bash
+# 1. Apply Terraform (AWS)
+cd infrastructure/terraform/aws/logging
+terraform init && terraform apply
+
+# 2. Deploy Fluent Bit
+kubectl apply -f infrastructure/kubernetes/logging/fluent-bit-configmap.yaml
+kubectl apply -f infrastructure/kubernetes/logging/fluent-bit-daemonset.yaml
+
+# 3. Verify logs are flowing
+kubectl get pods -n monitoring -l app=fluent-bit
+kubectl logs -n monitoring -l app=fluent-bit --tail=20
+```
+
+### Log-Based Alerts
+
+| Alert | Condition | Provider |
+|-------|-----------|----------|
+| Error Rate Spike | >10 errors/min | CloudWatch Alarm / Azure Scheduled Query |
+| High 5xx Rate | >5% of requests | CloudWatch Alarm / Azure Scheduled Query |
+
+### Structured Logger Usage
+
+```typescript
+import { loggingMiddleware } from './logger';
+
+app.use(loggingMiddleware); // Adds trace_id + tenant_id to all logs
+```
+
+### Sample Log Entry
+
+```json
+{
+  "timestamp": "2026-01-24T10:15:30.123Z",
+  "level": "info",
+  "message": "HTTP Request",
+  "trace_id": "abc-123-def-456",
+  "tenant_id": "tenant_acme",
+  "service": "qualisys-api",
+  "method": "POST",
+  "path": "/api/v1/test-cases",
+  "status": 201,
+  "duration_ms": 145
+}
+```
+
+### CloudWatch Logs Insights — Common Queries
+
+```sql
+-- Find all errors in last hour
+fields @timestamp, @message, trace_id, tenant_id
+| filter level = "error"
+| sort @timestamp desc
+| limit 100
+
+-- Trace a request across services
+fields @timestamp, @message, level
+| filter trace_id = "abc-123-def"
+| sort @timestamp asc
+
+-- Count errors by tenant
+fields tenant_id
+| filter level = "error"
+| stats count() as error_count by tenant_id
+| sort error_count desc
+```
+
+## Test Reporting Dashboard (Allure Server)
+
+> Story 0-17: Test Reporting Dashboard
+
+### Overview
+
+Allure Server provides test trend dashboards, flaky test detection, and execution time tracking at `https://reports.qualisys.io`.
+
+### Kubernetes Resources
+
+| Resource | File | Purpose |
+|----------|------|---------|
+| Namespace | `infrastructure/kubernetes/test-infrastructure/namespace.yaml` | test-infrastructure namespace |
+| Deployment + Service | `infrastructure/kubernetes/test-infrastructure/allure-deployment.yaml` | Allure Server (frankescobar/allure-docker-service:2.21.0) |
+| PVCs | `infrastructure/kubernetes/test-infrastructure/allure-pvc.yaml` | 20Gi results + 50Gi reports storage |
+| Ingress | `infrastructure/kubernetes/test-infrastructure/allure-ingress.yaml` | TLS + basic auth at reports.qualisys.io |
+| CronJob | `infrastructure/kubernetes/test-infrastructure/allure-cleanup-cronjob.yaml` | 90-day data retention cleanup (daily 2 AM) |
+
+### Deployment
+
+```bash
+# Create namespace and resources
+kubectl apply -f infrastructure/kubernetes/test-infrastructure/
+
+# Create basic auth secret (one-time setup)
+htpasswd -c auth qualisys-team
+kubectl create secret generic allure-basic-auth \
+  --from-file=auth -n test-infrastructure
+
+# Verify deployment
+kubectl get pods -n test-infrastructure
+kubectl get ingress -n test-infrastructure
+```
+
+### CI/CD Integration
+
+The PR Checks workflow automatically uploads Allure results after tests complete. Set `ALLURE_SERVER_URL` in GitHub repository secrets:
+
+```
+ALLURE_SERVER_URL=https://reports.qualisys.io
+```
+
+### Codecov Configuration
+
+Coverage trends are tracked via Codecov (`codecov.yml` in project root):
+- 80% project target with 2% threshold
+- Patch coverage enforced at 80%
+- Flags: `unit` and `integration` with carryforward
 
 ## Redis Caching Architecture
 
@@ -1352,6 +1767,102 @@ gh secret set CODECOV_TOKEN --body "<codecov-upload-token>"
 2. Check which files are below threshold: `coverage/lcov-report/index.html`
 3. Add tests for uncovered code paths
 4. If new file added without tests, either add tests or exclude from coverage in `jest.config.js`
+
+## Third-Party Service Accounts & API Keys
+
+### Secret Inventory
+
+| Service | Category | AWS Path | Azure KV Name | Epic | Rotation |
+|---------|----------|----------|---------------|------|----------|
+| OpenAI | LLM | `qualisys/llm/openai` | `llm-openai-api-key` | 2 | Quarterly |
+| Anthropic | LLM | `qualisys/llm/anthropic` | `llm-anthropic-api-key` | 2 | Quarterly |
+| Google OAuth | Auth | `qualisys/oauth/google` | `oauth-google-client-*` | 1 | Yearly |
+| SendGrid | Email | `qualisys/email/sendgrid` | `email-sendgrid-api-key` | 1 | Yearly |
+| GitHub App | Integration | `qualisys/integrations/github-app` | `integrations-github-app` | 3 | Yearly |
+| Jira | Integration | `qualisys/integrations/jira` | `integrations-jira-api-token` | 5 | Yearly |
+| Slack | Integration | `qualisys/integrations/slack-webhook` | `integrations-slack-webhook` | 5 | On compromise |
+
+### Provisioning
+
+After `terraform apply`, update placeholder secrets with real values:
+
+```bash
+# AWS
+aws secretsmanager put-secret-value --secret-id qualisys/llm/openai --secret-string '{"api_key":"sk-..."}'
+
+# Azure
+az keyvault secret set --vault-name qualisys-secrets --name llm-openai-api-key --value "sk-..."
+```
+
+### Kubernetes Access
+
+ExternalSecrets Operator syncs cloud secrets to K8s namespaces (refreshInterval: 1h):
+
+```bash
+kubectl apply -f infrastructure/kubernetes/secrets/cluster-secret-store-aws.yaml
+kubectl apply -n production -f infrastructure/kubernetes/secrets/external-secrets.yaml
+kubectl apply -n staging -f infrastructure/kubernetes/secrets/external-secrets.yaml
+```
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `terraform/aws/secrets/main.tf` | AWS Secrets Manager resources (Story 0-7 + 0-22) |
+| `terraform/azure/modules/secrets/` | Azure Key Vault resources (Story 0-22) |
+| `kubernetes/secrets/cluster-secret-store-*.yaml` | ClusterSecretStore for AWS/Azure |
+| `kubernetes/secrets/external-secrets.yaml` | ExternalSecret resources |
+| `docs/secrets/README.md` | Full documentation: provisioning, rotation, rate limits |
+
+## Local Development Environment (Podman Compose)
+
+### Overview
+
+Local development uses Podman Compose to run all services without cloud dependencies.
+
+> **10Pearls Policy**: Docker Desktop is NOT approved. Use Podman Desktop or Podman CLI.
+
+### Services
+
+| Service | Image | Port | Health Check |
+|---------|-------|------|--------------|
+| PostgreSQL | `postgres:15-alpine` | 5432 | `pg_isready` |
+| Redis | `redis:7-alpine` | 6379 | `redis-cli ping` |
+| MailCatcher | `schickling/mailcatcher` | 1080 (UI), 1025 (SMTP) | HTTP GET |
+| API | `api/Containerfile.dev` | 3001 | HTTP GET `/health` |
+| Web | `web/Containerfile.dev` | 3000 | HTTP GET `/` |
+
+### Quick Start
+
+```bash
+cp .env.example .env
+podman-compose up -d
+podman-compose exec api npx ts-node scripts/dev-seed.ts
+```
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `compose.yml` | Service definitions, networks, volumes |
+| `.env.example` | Environment variable template |
+| `api/Containerfile.dev` | API dev container (ts-node-dev hot reload) |
+| `web/Containerfile.dev` | Web dev container (Next.js fast refresh) |
+| `scripts/init-local-db.sql` | PostgreSQL schema initialization |
+| `scripts/dev-seed.ts` | Development data seeding |
+| `docs/local-development.md` | Full setup guide with troubleshooting |
+
+### Database Schemas
+
+| Schema | Tenant ID | Purpose |
+|--------|-----------|---------|
+| `public` | — | Tenant registry |
+| `tenant_dev_1` | `aaaaaaaa-...` | Enterprise plan dev tenant |
+| `tenant_dev_2` | `bbbbbbbb-...` | Free plan dev tenant |
+
+### Troubleshooting
+
+See [docs/local-development.md](../docs/local-development.md) for full troubleshooting guide covering port conflicts, Podman machine issues, SELinux, hot reload, and database reset.
 
 ---
 
