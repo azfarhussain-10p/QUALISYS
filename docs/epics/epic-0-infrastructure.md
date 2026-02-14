@@ -1,63 +1,131 @@
-# Epic 0: Infrastructure Foundation
+<div align="center">
 
-**Epic Owner:** DevOps Lead + Architect
-**Sprint Assignment:** Sprint 0 (Pre-Implementation Setup)
-**Duration Estimate:** 2-3 weeks
-**Priority:** P0 CRITICAL - BLOCKING for all feature development
+# Epic 0 — Infrastructure Foundation
 
----
+**QUALISYS — AI System Quality Assurance Platform**
 
-## Epic Goal
+</div>
 
-Provision complete cloud infrastructure, CI/CD pipelines, test infrastructure, and development environment to enable Epic 1-5 implementation. This epic addresses the **5 P0 CRITICAL gaps** identified in the Implementation Readiness Assessment (2025-12-12).
-
-**Success Criteria:**
-- ✅ Developers can deploy "Hello World" service to staging via CI/CD
-- ✅ Sample test suite passes in CI/CD with coverage reporting
-- ✅ All Epic 1 stories have infrastructure dependencies resolved
-- ✅ Team can develop locally with Podman Compose
-- ✅ Monitoring dashboards show infrastructure health
+| Attribute | Detail |
+|-----------|--------|
+| **Epic** | 0 — Infrastructure Foundation |
+| **Epic Owner** | DevOps Lead + Architect |
+| **Sprint** | Sprint 0 (Pre-Implementation Setup) |
+| **Duration** | 2–3 weeks |
+| **Priority** | P0 CRITICAL — Blocking for all feature development |
+| **Stories** | 22 stories across 5 sections |
+| **Status** | DRAFT — Ready for Sprint 0 Planning |
 
 ---
 
-## Functional Requirements Covered
-
-**Infrastructure Enablers (Not explicitly in PRD, but required for NFR1-NFR20):**
-- **NFR1-NFR5:** Multi-tenant security, performance, scalability
-- **NFR6-NFR8:** Performance targets (<200ms API, 99.9% uptime)
-- **NFR9-NFR11:** Data retention, backup/recovery, disaster recovery
-- **NFR16-NFR19:** Audit logging, monitoring, alerting
-- **NFR20:** Technical documentation
-
-**Architectural Dependencies:**
-- Multi-tenant PostgreSQL database (schema-level isolation)
-- Redis caching layer
-- Kubernetes orchestration (EKS/GKE/AKS)
-- Container registry (ECR/GCR/ACR)
-- Pre-warmed Playwright container pool (Epic 2 dependency)
-- Integration Gateway infrastructure (Epic 5 dependency)
+> **P0 CRITICAL:** This epic addresses the 5 P0 CRITICAL gaps identified in the Implementation Readiness Assessment (2025-12-12). All feature epics (1–5) are blocked until Epic 0 is complete.
 
 ---
 
-## Value Delivered
+### Stakeholder Guide
 
-**Without Epic 0:**
-- ❌ Developers blocked Day 1: "Where do I deploy code?"
-- ❌ No CI/CD: Manual builds, deployment errors
-- ❌ No test infrastructure: Cannot validate story DoD
-- ❌ Chaotic setup: Each dev configures differently
-- ❌ 1-2 weeks lost to ad-hoc infrastructure creation
-
-**With Epic 0:**
-- ✅ Professional start: Infrastructure ready, process defined
-- ✅ Automated CI/CD: PRs auto-tested, deployments repeatable
-- ✅ Test infrastructure: 2,080 tests executable from Day 1
-- ✅ Consistent dev environment: Podman Compose onboarding <1 hour
-- ✅ Development flows smoothly from Sprint 1 onward
+| Stakeholder | Sections of Interest | Purpose |
+|-------------|---------------------|---------|
+| **DevOps Lead** | All sections — primary owner | Infrastructure provisioning, CI/CD, monitoring |
+| **Architect** | Sections 3, 5 (Cloud Infra), 8 (Monitoring) | Multi-tenant design, network topology, observability |
+| **Tech Lead** | Sections 6 (CI/CD), 9 (Dev Environment) | Pipeline configuration, dev workflow |
+| **QA Lead** | Section 7 (Test Infrastructure) | Test databases, data factories, reporting |
+| **Developer** | Sections 6 (CI/CD), 9 (Dev Environment) | Local setup, PR workflow, deployment |
+| **PM / Scrum Master** | Part I (Overview), Part III (Governance) | Dependencies, risks, acceptance criteria |
 
 ---
 
-## Key Architectural Decisions
+### Table of Contents
+
+**Part I — Overview & Context**
+- [1. Executive Summary](#1-executive-summary)
+- [2. Requirements & Dependencies](#2-requirements--dependencies)
+- [3. Key Architectural Decisions](#3-key-architectural-decisions)
+- [4. Epic Dependency Map](#4-epic-dependency-map)
+
+**Part II — Infrastructure Stories (22 stories)**
+- [5. Section A — Cloud Infrastructure Provisioning](#5-section-a--cloud-infrastructure-provisioning) (Stories 0.1–0.7)
+- [6. Section B — CI/CD Pipeline Infrastructure](#6-section-b--cicd-pipeline-infrastructure) (Stories 0.8–0.12)
+- [7. Section C — Test Infrastructure](#7-section-c--test-infrastructure) (Stories 0.13–0.18)
+- [8. Section D — Monitoring & Observability](#8-section-d--monitoring--observability) (Stories 0.19–0.20)
+- [9. Section E — Development Environment](#9-section-e--development-environment) (Stories 0.21–0.22)
+
+**Part III — Governance & Validation**
+- [10. Epic Dependencies](#10-epic-dependencies)
+- [11. Risk Assessment](#11-risk-assessment)
+- [12. Success Metrics](#12-success-metrics)
+- [13. Acceptance Criteria & Sign-Off](#13-acceptance-criteria--sign-off)
+
+---
+
+
+# Part I — Overview & Context
+
+> **Audience:** All Stakeholders | **Purpose:** Scope, dependencies, architecture decisions
+
+---
+
+## 1. Executive Summary
+
+Provision complete cloud infrastructure, CI/CD pipelines, test infrastructure, and development environment to enable Epic 1–5 implementation.
+
+### Without vs With Epic 0
+
+| Dimension | Without Epic 0 | With Epic 0 |
+|-----------|---------------|-------------|
+| **Day 1 Experience** | Developers blocked: "Where do I deploy?" | Infrastructure ready, process defined |
+| **CI/CD** | Manual builds, deployment errors | PRs auto-tested, deployments repeatable |
+| **Test Infrastructure** | Cannot validate story DoD | 2,080 tests executable from Day 1 |
+| **Dev Environment** | Each dev configures differently | Podman Compose onboarding <1 hour |
+| **Timeline Impact** | 1–2 weeks lost to ad-hoc setup | Development flows smoothly from Sprint 1 |
+
+### Success Criteria
+
+| # | Criterion | Validation |
+|:-:|-----------|-----------|
+| 1 | Deploy "Hello World" to staging via CI/CD | Smoke test passes |
+| 2 | Sample test suite passes in CI/CD with coverage | Coverage report generated |
+| 3 | All Epic 1 infrastructure dependencies resolved | Dependency checklist green |
+| 4 | Local development with Podman Compose | New dev setup <30 min |
+| 5 | Monitoring dashboards show infrastructure health | Grafana dashboards live |
+
+### Story Distribution
+
+| Section | Stories | Focus Area | Effort |
+|---------|:-------:|-----------|:------:|
+| A — Cloud Infrastructure | 7 | IAM, VPC, K8s, DB, Redis, Registry, Secrets | 8–11 days |
+| B — CI/CD Pipeline | 5 | GitHub Actions, Docker, Tests, Staging, Production | 7–10 days |
+| C — Test Infrastructure | 6 | Load Balancer, Test DB, Data Factories, Reporting | 7–10 days |
+| D — Monitoring | 2 | Prometheus + Grafana, Log Aggregation | 4 days |
+| E — Dev Environment | 2 | Podman Compose, Third-Party API Keys | 2–3 days |
+| **Total** | **22** | | **~28–38 days** |
+
+---
+
+## 2. Requirements & Dependencies
+
+### Non-Functional Requirements Coverage
+
+| NFR Range | Domain | Epic 0 Enablers |
+|-----------|--------|-----------------|
+| NFR1–NFR5 | Multi-tenant security | IAM, RLS, schema isolation, secret management |
+| NFR6–NFR8 | Performance & uptime | VPC, K8s, load balancer, autoscaling |
+| NFR9–NFR11 | Data retention & recovery | DB backups, disaster recovery, retention policies |
+| NFR16–NFR19 | Audit & monitoring | Prometheus, Grafana, ELK, alerting |
+| NFR20 | Technical documentation | README, runbooks, troubleshooting guides |
+
+### Architectural Dependencies
+
+| Infrastructure Component | Required By | Story |
+|-------------------------|-------------|:-----:|
+| PostgreSQL (schema-level isolation) | All feature epics | 0.4 |
+| Redis caching layer | Epic 2+ (LLM caching) | 0.5 |
+| Kubernetes orchestration (EKS/GKE/AKS) | All deployments | 0.3 |
+| Container registry (ECR/GCR/ACR) | All deployments | 0.6 |
+| Pre-warmed Playwright container pool | Epic 4 (self-healing) | 0.3 |
+| Integration Gateway infrastructure | Epic 5 (integrations) | 0.13 |
+
+## 3. Key Architectural Decisions
 
 **Cloud Platform:** AWS + Azure — Two Roots architecture (updated 2026-02-09)
 
@@ -92,11 +160,89 @@ Provision complete cloud infrastructure, CI/CD pipelines, test infrastructure, a
 - ELK Stack (Elasticsearch, Logstash, Kibana) or CloudWatch for logs
 - Alerting via PagerDuty/Slack
 
+## 4. Epic Dependency Map
+
+> Epic 0 is a prerequisite for ALL feature epics. The diagram below shows which stories unblock which epics.
+
+```mermaid
+flowchart TD
+    subgraph "Section A — Cloud Infrastructure"
+        S01["0.1 IAM Setup"]
+        S02["0.2 VPC & Network"]
+        S03["0.3 Kubernetes Cluster"]
+        S04["0.4 PostgreSQL DB"]
+        S05["0.5 Redis Cache"]
+        S06["0.6 Container Registry"]
+        S07["0.7 Secret Management"]
+    end
+
+    subgraph "Section B — CI/CD"
+        S08["0.8 GitHub Actions"]
+        S09["0.9 Docker Builds"]
+        S10["0.10 PR Test Automation"]
+        S11["0.11 Staging Deploy"]
+        S12["0.12 Production Deploy"]
+    end
+
+    subgraph "Section C — Test Infra"
+        S13["0.13 Load Balancer"]
+        S14["0.14 Test Database"]
+        S15["0.15 Data Factories"]
+        S16["0.16 CI/CD Test Pipeline"]
+        S17["0.17 Test Reporting"]
+        S18["0.18 Multi-Tenant Test Isolation"]
+    end
+
+    S01 --> S02 --> S03
+    S02 --> S04
+    S02 --> S05
+    S01 --> S06
+    S01 --> S07
+    S03 --> S08
+    S06 --> S08
+    S06 --> S09
+    S08 --> S10
+    S08 --> S11
+    S03 --> S13
+    S04 --> S14
+    S14 --> S15
+    S10 --> S16
+    S14 --> S16
+    S16 --> S17
+    S14 --> S18
+    S15 --> S18
+
+    E1["Epic 1<br/>Foundation"]
+    E2["Epic 2<br/>AI Agents"]
+    E3["Epic 3<br/>Manual Test"]
+    E4["Epic 4<br/>Self-Healing"]
+    E5["Epic 5<br/>Integrations"]
+
+    S04 & S07 & S11 --> E1
+    S05 --> E2
+    E1 --> E2
+    E1 --> E3
+    E1 --> E4
+    E1 --> E5
+
+    style E1 fill:#e8f5e9,stroke:#4caf50,color:#000
+    style E2 fill:#fff3e0,stroke:#ff9800,color:#000
+    style E3 fill:#fff3e0,stroke:#ff9800,color:#000
+    style E4 fill:#ffebee,stroke:#f44336,color:#000
+    style E5 fill:#fff3e0,stroke:#ff9800,color:#000
+```
+
 ---
 
-## Stories (22 stories total)
+# Part II — Infrastructure Stories
 
-### Section A: Cloud Infrastructure Provisioning (Stories 0.1-0.7)
+> **Audience:** DevOps, Architects, QA Leads, Developers | **Purpose:** Detailed story breakdown with acceptance criteria
+
+---
+
+## 5. Section A — Cloud Infrastructure Provisioning
+
+**Stories 0.1–0.7** | **Estimated Effort:** 8–11 days
 
 ---
 
@@ -292,7 +438,9 @@ As a DevOps Engineer, I want to configure a secret management system, so that we
 
 ---
 
-### Section B: CI/CD Pipeline Infrastructure (Stories 0.8-0.12)
+## 6. Section B — CI/CD Pipeline Infrastructure
+
+**Stories 0.8–0.12** | **Estimated Effort:** 7–10 days
 
 ---
 
@@ -433,7 +581,9 @@ As a DevOps Lead, I want production deployments to require manual approval, so t
 
 ---
 
-### Section C: Test Infrastructure (Stories 0.13-0.18)
+## 7. Section C — Test Infrastructure
+
+**Stories 0.13–0.18** | **Estimated Effort:** 7–10 days
 
 ---
 
@@ -606,7 +756,9 @@ As a QA Engineer, I want multi-tenant test isolation mechanisms, so that tests d
 
 ---
 
-### Section D: Monitoring & Observability (Stories 0.19-0.20)
+## 8. Section D — Monitoring & Observability
+
+**Stories 0.19–0.20** | **Estimated Effort:** 4 days
 
 ---
 
@@ -676,7 +828,9 @@ As a Developer, I want centralized log aggregation, so that I can debug issues a
 
 ---
 
-### Section E: Development Environment (Stories 0.21-0.22)
+## 9. Section E — Development Environment
+
+**Stories 0.21–0.22** | **Estimated Effort:** 2–3 days
 
 ---
 
@@ -742,108 +896,109 @@ As a DevOps Engineer, I want to provision all third-party service accounts and A
 
 ---
 
-## Epic Dependencies
+# Part III — Governance & Validation
 
-**Epic 0 is a prerequisite for ALL feature epics:**
-
-- **Epic 1 (Foundation & Administration)** requires:
-  - Story 0.4: PostgreSQL database
-  - Story 0.7: Secret management (for JWT secrets)
-  - Story 0.11: Staging deployment
-  - Story 0.21: Local dev environment
-
-- **Epic 2 (AI Agent Platform)** requires:
-  - Story 0.22: OpenAI/Anthropic API keys
-  - Story 0.5: Redis (for LLM response caching)
-  - All Epic 0 infrastructure
-
-- **Epic 3 (Manual Testing & Developer Integration)** requires:
-  - Story 0.22: GitHub App credentials
-  - All Epic 0 infrastructure
-
-- **Epic 4 (Advanced Testing Capabilities)** requires:
-  - Playwright container pool infrastructure (can be added during Epic 4)
-  - All Epic 0 infrastructure
-
-- **Epic 5 (Complete Integration Ecosystem)** requires:
-  - Story 0.22: Jira, Slack integration credentials
-  - All Epic 0 infrastructure
+> **Audience:** PM, Scrum Master, DevOps Lead, Tech Lead | **Purpose:** Risk management, metrics, sign-off
 
 ---
 
-## Risk Assessment
+## 10. Epic Dependencies
 
-**High Risks:**
-1. **Cloud Platform Decision Delayed:** Team must decide AWS/GCP/Azure ASAP
-   - Mitigation: Default to AWS (most documentation), can migrate later if needed
+> Epic 0 is a prerequisite for ALL feature epics.
 
-2. **Kubernetes Learning Curve:** Team may lack Kubernetes experience
-   - Mitigation: Provide Kubernetes training, use managed services (EKS), document common operations
-
-3. **Infrastructure Costs:** Cloud resources can be expensive
-   - Mitigation: Start with smallest instances (t3.micro/small), autoscale only when needed, set up billing alerts
-
-4. **Terraform State Management:** State file conflicts in team setting
-   - Mitigation: Use remote state backend (S3 + DynamoDB locking), document Terraform workflow
-
-**Medium Risks:**
-1. **DNS Propagation Delays:** Domain setup can take 24-48 hours
-   - Mitigation: Start domain registration early, use temporary domains if needed
-
-2. **SSL Certificate Provisioning:** Let's Encrypt rate limits
-   - Mitigation: Use staging certificates during testing, production certs only once
+| Feature Epic | Critical Story Dependencies | Additional Requirements |
+|-------------|---------------------------|------------------------|
+| **Epic 1** — Foundation & Admin | 0.4 (PostgreSQL), 0.7 (Secrets), 0.11 (Staging), 0.21 (Local Dev) | Base infrastructure |
+| **Epic 2** — AI Agent Platform | 0.5 (Redis), 0.22 (OpenAI/Anthropic API keys) | All Epic 0 infra |
+| **Epic 3** — Manual Test & GitHub | 0.22 (GitHub App credentials) | All Epic 0 infra |
+| **Epic 4** — Self-Healing | Playwright container pool (can be added during Epic 4) | All Epic 0 infra |
+| **Epic 5** — Integrations | 0.22 (JIRA, Slack credentials) | All Epic 0 infra |
 
 ---
 
-## Success Metrics
+## 11. Risk Assessment
 
-**Infrastructure Health:**
-- ✅ 99.9% uptime for staging/production environments
-- ✅ <2s deployment time from code merge to staging
-- ✅ <10min CI/CD pipeline execution time
-- ✅ 0 critical security vulnerabilities in infrastructure
-
-**Developer Productivity:**
-- ✅ <30min local environment setup for new developers
-- ✅ <5min to run full test suite locally
-- ✅ 100% of PRs have automated test results
-- ✅ 0 "where do I deploy?" questions after Epic 0 completion
-
-**Cost Efficiency:**
-- ✅ Infrastructure costs <$500/month during Sprint 0-3 (dev/staging only)
-- ✅ Autoscaling reduces idle resource costs by 30%
+| # | Level | Risk | Mitigation |
+|:-:|:-----:|------|-----------|
+| 1 | :red_circle: **High** | Cloud Platform Decision Delayed | Default to AWS (most documentation), can migrate later |
+| 2 | :red_circle: **High** | Kubernetes Learning Curve | Training, use managed EKS, document common operations |
+| 3 | :red_circle: **High** | Infrastructure Costs | Start with smallest instances (t3.micro), autoscale only when needed, billing alerts |
+| 4 | :red_circle: **High** | Terraform State Management | Remote state backend (S3 + DynamoDB locking), document workflow |
+| 5 | :yellow_circle: **Medium** | DNS Propagation Delays (24–48h) | Start domain registration early, use temporary domains |
+| 6 | :yellow_circle: **Medium** | SSL Certificate Provisioning | Use staging certificates during testing, production certs only once |
 
 ---
 
-## Acceptance Criteria for Epic 0 Completion
+## 12. Success Metrics
 
-**Before Sprint 1 begins, validate:**
-
-1. ✅ **Infrastructure Smoke Test:** Deploy "Hello World" service to staging via CI/CD
-2. ✅ **Database Smoke Test:** Create tenant schema, insert data, query with RLS
-3. ✅ **Test Infrastructure Smoke Test:** Run sample test suite in CI/CD with coverage report
-4. ✅ **Monitoring Smoke Test:** Grafana dashboards show live metrics from staging
-5. ✅ **Developer Onboarding Test:** New team member sets up local environment in <30min
-6. ✅ **Documentation Complete:** README documents all infrastructure, credentials, troubleshooting
-
-**Sign-off Required From:**
-- ✅ DevOps Lead (infrastructure provisioned correctly)
-- ✅ Tech Lead (CI/CD pipeline functional)
-- ✅ QA Lead (test infrastructure operational)
-- ✅ Architect (multi-tenant design implemented correctly)
+| Category | Metric | Target |
+|----------|--------|--------|
+| **Infrastructure Health** | Staging/production uptime | 99.9% |
+| | Deployment time (merge → staging) | <2 seconds |
+| | CI/CD pipeline execution time | <10 minutes |
+| | Critical security vulnerabilities | 0 |
+| **Developer Productivity** | Local environment setup (new dev) | <30 minutes |
+| | Full test suite execution (local) | <5 minutes |
+| | PRs with automated test results | 100% |
+| | "Where do I deploy?" questions | 0 |
+| **Cost Efficiency** | Infrastructure costs (Sprint 0–3) | <$500/month |
+| | Idle resource cost reduction via autoscaling | 30% |
 
 ---
 
-**Epic 0 Status:** DRAFT - Ready for Sprint 0 Planning
+## 13. Acceptance Criteria & Sign-Off
 
-**Next Steps:**
-1. Review Epic 0 with team (approve story scope)
-2. Assign stories to DevOps/Backend engineers
-3. Create Sprint 0 in sprint-status.yaml
-4. Begin Story 0.1 (Cloud account setup)
+> Before Sprint 1 begins, all smoke tests must pass and all sign-offs must be obtained.
+
+### Smoke Tests
+
+| # | Smoke Test | Validation |
+|:-:|-----------|-----------|
+| 1 | **Infrastructure** | Deploy "Hello World" service to staging via CI/CD |
+| 2 | **Database** | Create tenant schema, insert data, query with RLS |
+| 3 | **Test Infrastructure** | Run sample test suite in CI/CD with coverage report |
+| 4 | **Monitoring** | Grafana dashboards show live metrics from staging |
+| 5 | **Developer Onboarding** | New team member sets up local environment in <30 min |
+| 6 | **Documentation** | README documents all infrastructure, credentials, troubleshooting |
+
+### Required Sign-Offs
+
+| Role | Validates |
+|------|----------|
+| **DevOps Lead** | Infrastructure provisioned correctly |
+| **Tech Lead** | CI/CD pipeline functional |
+| **QA Lead** | Test infrastructure operational |
+| **Architect** | Multi-tenant design implemented correctly |
+
+### Next Steps
+
+| # | Action | Owner |
+|:-:|--------|-------|
+| 1 | Review Epic 0 with team (approve story scope) | Scrum Master |
+| 2 | Assign stories to DevOps/Backend engineers | Tech Lead |
+| 3 | Create Sprint 0 in `sprint-status.yaml` | Scrum Master |
+| 4 | Begin Story 0.1 (Cloud account setup) | DevOps Lead |
 
 ---
 
-_Epic 0 created by Bob (Scrum Master) on 2025-12-12 to address P0 CRITICAL gaps from Implementation Readiness Assessment._
+<div align="center">
 
-_2026-02-09: PM Agent (John) — Multi-cloud course correction: updated Cloud Platform to AWS + Azure (Two Roots architecture)._
+---
+
+**QUALISYS — Epic 0: Infrastructure Foundation**
+*22 Stories | 5 Sections | 2–3 Week Sprint 0*
+
+| Metric | Value |
+|--------|-------|
+| Document | Epic 0 — Infrastructure Foundation |
+| Sections | 13 sections across 3 parts |
+| Stories | 22 across 5 infrastructure domains |
+| Estimated Effort | 28–38 days |
+| Status | DRAFT — Ready for Sprint 0 Planning |
+
+*Created by Bob (Scrum Master) — 2025-12-12*
+*Updated 2026-02-09: Multi-cloud course correction — AWS + Azure (Two Roots architecture)*
+
+---
+
+</div>
