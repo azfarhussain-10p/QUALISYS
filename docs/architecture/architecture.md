@@ -1,60 +1,250 @@
-# Architecture
+<h1 align="center">QUALISYS — System Architecture</h1>
 
-## Project Context
+<p align="center">
+  <strong>AI System Quality Assurance Platform</strong><br>
+  <em>Scale-Adaptive, Security-First, Multi-Tenant Architecture</em>
+</p>
 
-**Project:** QUALISYS - AI-Powered Testing Platform
-**Type:** Multi-tenant SaaS B2B Enterprise
-**Domain:** Software Testing & Quality Assurance
-**Date:** 2025-12-09
+| | |
+|---|---|
+| **Document** | System Architecture Specification |
+| **Product** | QUALISYS — AI System Quality Assurance Platform |
+| **Type** | Multi-tenant SaaS B2B Enterprise |
+| **Domain** | Software Testing & Quality Assurance |
+| **Version** | 1.0 |
+| **Date** | 2025-12-09 (Updated 2026-02-15) |
+| **Author** | Winston (Architect Agent) — Requested by Azfar |
+| **Status** | Approved — Implementation Phase |
 
-**Scope:** 110 functional requirements across 14 capability categories covering the complete testing lifecycle - from requirements ingestion through AI-powered test generation to self-healing automated execution and enterprise integrations.
+---
 
-**Key Capabilities:**
-- 7 specialized AI agents (3 MVP + 4 Post-MVP) for intelligent test generation
-- Self-healing test automation (breakthrough differentiator)
-- Multi-tenant architecture with 6 role-based personas
-- Integration-first strategy (JIRA, TestRail, Testworthy, GitHub, Slack)
-- Real-time test execution with containerized Playwright runners
-- Comprehensive dashboards for all user roles
+## Table of Contents
 
-**Functional Requirement Categories:**
-1. User Account & Access Management (FR1-FR10)
-2. Project Management (FR11-FR15)
-3. Document Ingestion & Analysis (FR16-FR25)
-4. AI Agent Orchestration (FR26-FR31)
-5. Test Artifact Generation (FR32-FR40)
-6. Test Execution - Manual Testing (FR41-FR48)
-7. Test Execution - Automated Testing (FR49-FR57)
-8. Self-Healing Test Automation (FR58-FR66)
-9. Dashboards & Reporting (FR67-FR77)
-10. JIRA Integration (FR78-FR84)
-11. TestRail/Testworthy Integration (FR85-FR90)
-12. GitHub Integration (FR91-FR95)
-13. Slack Integration (FR96-FR101)
-14. Administration & Configuration (FR102-FR110)
+### Part I — Executive Overview
+- [1. Executive Summary](#1-executive-summary)
+- [2. Project Context](#2-project-context)
 
-**UX Complexity:**
+### Part II — Risk & Strategic Analysis
+- [3. Risk Analysis & Preventive Architecture](#3-risk-analysis--preventive-architecture)
+- [4. Strategic Positioning & Architectural Priorities (SWOT)](#4-strategic-positioning--architectural-priorities-swot)
+
+### Part III — Architecture Foundation
+- [5. First Principles Architectural Foundation](#5-first-principles-architectural-foundation)
+- [6. Architectural Decision Rationale (Five Whys)](#6-architectural-decision-rationale-five-whys)
+- [7. Multi-Perspective Analysis & Implementation Roadmap](#7-multi-perspective-analysis--implementation-roadmap)
+
+### Part IV — Stakeholder & Security
+- [8. Stakeholder Architecture Alignment](#8-stakeholder-architecture-alignment)
+- [9. Security Threat Model & Mitigations](#9-security-threat-model--mitigations)
+
+### Part V — Technology & System Design
+- [10. Technology Stack Decision Analysis](#10-technology-stack-decision-analysis)
+- [11. Decision Summary](#11-decision-summary)
+- [12. Project Structure](#12-project-structure)
+- [13. Epic to Architecture Mapping](#13-epic-to-architecture-mapping)
+- [14. Technology Stack Details](#14-technology-stack-details)
+
+### Part VI — Patterns & Implementation
+- [15. Novel UX & Technical Patterns](#15-novel-ux--technical-patterns)
+- [16. Implementation Patterns](#16-implementation-patterns)
+- [17. Consistency Rules](#17-consistency-rules)
+
+### Part VII — Data & API
+- [18. Data Architecture](#18-data-architecture)
+- [19. API Contracts](#19-api-contracts)
+
+### Part VIII — Operations & Deployment
+- [20. Security Architecture](#20-security-architecture)
+- [21. Performance Considerations](#21-performance-considerations)
+- [22. Deployment Architecture](#22-deployment-architecture)
+- [23. Development Environment](#23-development-environment)
+
+### Part IX — Decision Records
+- [24. Architecture Decision Records (ADRs)](#24-architecture-decision-records-adrs)
+
+---
+
+# Part I — Executive Overview
+
+---
+
+## 1. Executive Summary
+
+**QUALISYS: AI-Powered Testing Platform — Scale Adaptive Architecture**
+
+QUALISYS is a multi-tenant SaaS B2B platform that revolutionizes software testing through AI-powered test generation, intelligent test execution, and breakthrough self-healing automation. This architecture document defines a pragmatic, security-first system designed to serve 500+ enterprise tenants executing 10,000+ tests daily while maintaining exceptional reliability, performance, and cost efficiency.
+
+### 1.1 Core Architecture Thesis
+
+**Self-healing is the platform, not a feature.** QUALISYS differentiates through AI that automatically repairs broken tests when application UIs change — reducing QA engineer maintenance burden by 70% and compressing release cycles by 25%. This architecture allocates 70% of AI/ML engineering resources to the Self-Healing Engine (not test generation), reflecting its strategic importance as the core competitive moat.
+
+### 1.2 Architectural Approach
+
+This architecture embraces necessary complexity (multi-tenancy, 7 AI agents, self-healing intelligence) while implementing comprehensive safeguards (security layers, approval workflows, monitoring, circuit breakers). Key principle: **Accept complexity where it creates value, enforce simplicity everywhere else.**
+
+**Strategic Architecture Decisions:**
+
+1. **Four-Pillar Multi-Tenancy** — Data isolation (PostgreSQL schemas + RLS), Performance isolation (Kubernetes quotas), Cost isolation (token budgets), Failure isolation (circuit breakers)
+2. **Self-Healing Safety Architecture** — Mandatory approval workflows for production tests, confidence scoring (>80% threshold), "test the test" validation, 7-day rollback window, immutable audit trails
+3. **LLM Independence Strategy** — Multi-provider approach (OpenAI primary, Anthropic + vLLM fallback) with AgentOrchestrator abstraction prevents vendor lock-in and cost volatility
+4. **Vite + React over Next.js** — First principles analysis reveals 10x faster builds, smaller bundles, and simpler architecture when SSR/API routes unnecessary
+5. **Cost-Optimized Stack** — Open-source monitoring (Grafana + Prometheus saves $120K/year vs Datadog), pgvector, BullMQ optimize unit economics
+6. **Security-First** — Pre-mortem and red team analysis identified 18 critical exploits requiring mandatory mitigation before launch
+
+### 1.3 High-Level System Architecture
+
+```mermaid
+graph TB
+    subgraph "Frontend — Vite + React 18"
+        UI[Persona-Based UI<br/>6 Role-Optimized Bundles]
+        SSE[SSE Client<br/>Real-Time Updates]
+    end
+
+    subgraph "API Gateway — FastAPI"
+        AUTH[Auth Middleware<br/>OAuth 2.0 / SAML 2.0 / MFA]
+        TENANT[Tenant Context<br/>Schema Routing]
+        RATE[Rate Limiter<br/>Per-Tenant Quotas]
+    end
+
+    subgraph "Core Services"
+        AGENTS[AI Agent Orchestrator<br/>7 Specialized Agents]
+        HEALING[Self-Healing Engine<br/>DOM Differ → Confidence Scorer]
+        RUNNER[Test Runner Service<br/>Pre-Warmed Playwright Pool]
+        GATEWAY[Integration Gateway<br/>JIRA · GitHub · Slack]
+    end
+
+    subgraph "AI / LLM Layer"
+        OPENAI[OpenAI GPT-4<br/>Primary]
+        CLAUDE[Anthropic Claude<br/>Fallback]
+        VLLM[vLLM Self-Hosted<br/>Cost Optimization]
+    end
+
+    subgraph "Data Layer"
+        PG[(PostgreSQL 15+<br/>Schema-per-Tenant + RLS)]
+        PGVEC[(pgvector<br/>Embeddings)]
+        REDIS[(Redis 7+<br/>Cache · Queue · Budgets)]
+        S3[(Object Storage<br/>Screenshots · Logs)]
+    end
+
+    subgraph "Infrastructure — Kubernetes"
+        K8S[EKS / AKS<br/>Auto-Scaling]
+        PROM[Prometheus + Grafana<br/>Observability]
+        ARGO[ArgoCD<br/>GitOps Deployment]
+    end
+
+    UI -->|REST + SSE| AUTH
+    AUTH --> TENANT --> RATE
+    RATE --> AGENTS & HEALING & RUNNER & GATEWAY
+    AGENTS --> OPENAI & CLAUDE & VLLM
+    HEALING --> OPENAI
+    HEALING --> PGVEC
+    RUNNER -->|Isolated Pods| K8S
+    GATEWAY -->|DLQ + Retry| REDIS
+    AGENTS & HEALING & RUNNER --> PG
+    RUNNER --> S3
+    SSE -.->|Server-Sent Events| RATE
+```
+
+### 1.4 Scale Adaptive System Design
+
+| Track | Timeline | Tenants | Tests/Day | Focus |
+|-------|----------|---------|-----------|-------|
+| **MVP** | Months 1-3 | 10-50 | 1K | Speed to market, core differentiation, security fundamentals |
+| **Scale** | Months 4-6 | 100+ | 5K | Complete feature set, performance optimization, SOC 2 Type I |
+| **Enterprise** | Months 7-12 | 500+ | 10K+ | Ecosystem, multi-region, compliance certifications, 99.9% SLA |
+
+### 1.4 Technology Stack Summary
+
+| Layer | Technology | Rationale |
+|-------|-----------|-----------|
+| **Frontend** | Vite + React (8.95/10) | Developer experience, build speed, bundle size |
+| **Backend** | FastAPI | Type-safe Python, async, auto-documentation |
+| **Database** | PostgreSQL 15+ with schemas + pgvector | Multi-tenancy, embeddings, industry standard |
+| **Cache/Queue** | Redis 7+ + BullMQ | LLM cache, token budgets, job processing |
+| **AI** | LangChain (MVP) → Custom (Phase 2), OpenAI + multi-provider | Speed to market, vendor independence |
+| **Infrastructure** | Kubernetes (EKS/AKS), Podman, Playwright pre-warmed pools | Enterprise orchestration, test isolation |
+| **Observability** | Grafana + Prometheus + Loki | Open-source, $120K/year savings |
+| **Security** | OAuth 2.0 + SAML 2.0, RBAC, Secrets Manager, Pod Security | Enterprise-grade, zero-trust |
+
+### 1.5 Architecture Validation
+
+This architecture has been validated through:
+
+| Method | Key Finding |
+|--------|------------|
+| Pre-mortem Analysis | 8 failure modes identified with preventive measures |
+| SWOT Analysis | Strategic positioning confirms differentiation |
+| First Principles | Core truths validated (self-healing = maintenance solution) |
+| Five Whys | Root causes confirm all major decisions |
+| Six Thinking Hats | Multi-perspective integration balances risks and benefits |
+| Stakeholder Mapping | All 6 personas' needs addressed with prioritization |
+| Red Team Analysis | 18 exploits identified with CRITICAL mitigations |
+| Decision Matrix | Technology stack objectively evaluated with weighted criteria |
+
+---
+
+## 2. Project Context
+
+| Attribute | Value |
+|-----------|-------|
+| **Project** | QUALISYS — AI-Powered Testing Platform |
+| **Type** | Multi-tenant SaaS B2B Enterprise |
+| **Domain** | Software Testing & Quality Assurance |
+| **Functional Requirements** | 147 across 16 capability categories |
+| **AI Agents** | 7 specialized (3 MVP + 4 Post-MVP) |
+| **Personas** | 6 distinct role-optimized interfaces |
+
+### 2.1 Functional Requirement Categories
+
+| # | Category | FRs |
+|---|----------|-----|
+| 1 | User Account & Access Management | FR1-FR10 |
+| 2 | Project Management | FR11-FR15 |
+| 3 | Document Ingestion & Analysis | FR16-FR25 |
+| 4 | AI Agent Orchestration | FR26-FR31 |
+| 5 | Test Artifact Generation | FR32-FR40 |
+| 6 | Test Execution — Manual Testing | FR41-FR48 |
+| 7 | Test Execution — Automated Testing | FR49-FR57 |
+| 8 | Self-Healing Test Automation | FR58-FR66 |
+| 9 | Dashboards & Reporting | FR67-FR77 |
+| 10 | JIRA Integration | FR78-FR84 |
+| 11 | TestRail/Testworthy Integration | FR85-FR90 |
+| 12 | GitHub Integration | FR91-FR95 |
+| 13 | Slack Integration | FR96-FR101 |
+| 14 | Administration & Configuration | FR102-FR110 |
+| 15 | Agent Extensibility & Custom Agents | FR-CA1-FR-CA9 |
+| 16 | Agent Skills Integration | FR-SK1-FR-SK28 |
+
+### 2.2 UX Complexity
+
 - 6 distinct personas with role-optimized interfaces
 - 6 critical user flows designed
 - Novel UX patterns: Agent Cards, Self-Healing Diff Viewer, Real-time Test Timeline
 - Design system: Tailwind CSS + shadcn/ui
 
-**Architectural Challenges:**
-- Multi-tenancy with strict data isolation
-- AI/LLM orchestration (6 agents, LangChain)
-- Self-healing intelligence (DOM change detection, selector fallback strategies)
-- Real-time execution (WebSocket updates, parallel runners)
-- Enterprise integrations (bi-directional sync with external platforms)
-- Scalability (500 tenants, 10K+ test executions/day)
-- Security & compliance (RBAC, SSO, encryption, audit trails)
+### 2.3 Architectural Challenges
 
-## Risk Analysis & Preventive Architecture
+| Challenge | Complexity |
+|-----------|-----------|
+| Multi-tenancy with strict data isolation | High |
+| AI/LLM orchestration (7 agents, LangChain) | High |
+| Self-healing intelligence (DOM change detection, selector fallback strategies) | High |
+| Real-time execution (SSE updates, parallel runners) | Medium |
+| Enterprise integrations (bi-directional sync with external platforms) | Medium |
+| Scalability (500 tenants, 10K+ test executions/day) | High |
+| Security & compliance (RBAC, SSO, encryption, audit trails) | High |
 
-**Pre-mortem Analysis: Critical Failure Modes Identified**
+---
+
+# Part II — Risk & Strategic Analysis
+
+---
+
+## 3. Risk Analysis & Preventive Architecture
 
 This section identifies potential catastrophic failure points discovered through pre-mortem analysis (imagining QUALISYS failed 18 months post-launch and working backwards). Each failure mode has corresponding preventive architectural measures.
 
-### Identified Failure Modes
+### 3.1 Identified Failure Modes
 
 **Failure Mode 1: Multi-Tenant Data Leakage**
 - **Scenario:** Customer A's test results appear in Customer B's dashboard
@@ -141,7 +331,7 @@ This section identifies potential catastrophic failure points discovered through
   - Connection limits per tenant with queuing for excess connections
   - Load testing: simulate 1000+ concurrent connections before launch
 
-### Early Warning Indicators
+### 3.2 Early Warning Indicators
 
 The architecture must include monitoring for these warning signs:
 
@@ -154,7 +344,7 @@ The architecture must include monitoring for these warning signs:
 7. **Vendor dependency health:** Monthly review of vendor pricing, contract terms, exit costs
 8. **Real-time connection stability:** Alert if WebSocket disconnection rate >5%
 
-### Architecture Principles Derived from Risk Analysis
+### 3.3 Architecture Principles Derived from Risk Analysis
 
 1. **Multi-tenancy is non-negotiable:** Schema-level isolation, not application-level filters
 2. **AI is assistant, not autonomous:** Human approval for critical AI actions (self-healing production tests)
@@ -165,11 +355,13 @@ The architecture must include monitoring for these warning signs:
 7. **Vendor independence:** Abstraction layers for all external dependencies with proven migration path
 8. **Real-time is hard:** Stateless design, graceful degradation, load tested before launch
 
-## Strategic Positioning & Architectural Priorities
+---
 
-**SWOT Analysis: Competitive Landscape and Architectural Implications**
+## 4. Strategic Positioning & Architectural Priorities (SWOT)
 
-### Internal Strengths (Architectural Advantages)
+**Competitive Landscape and Architectural Implications**
+
+### 4.1 Internal Strengths (Architectural Advantages)
 
 **S1: Differentiated Self-Healing Architecture**
 - Unique competitive advantage: AI-powered DOM change detection with multi-strategy selector fallback
@@ -204,7 +396,7 @@ The architecture must include monitoring for these warning signs:
 - Each persona sees only relevant features = lower cognitive load, faster adoption
 - **Architectural implication:** Per-persona bundles, separate dashboards, role-based API optimization
 
-### Internal Weaknesses (Architectural Risks)
+### 4.2 Internal Weaknesses (Architectural Risks)
 
 **W1: Architectural Complexity**
 - 6 AI agents + self-healing + real-time updates + integrations = many moving parts
@@ -236,7 +428,7 @@ The architecture must include monitoring for these warning signs:
 - Feature growth increases bundle complexity over time
 - **Architectural mitigation:** Aggressive code splitting by route and role, lazy loading, bundle size budgets in CI
 
-### External Opportunities (Market Advantages)
+### 4.3 External Opportunities (Market Advantages)
 
 **O1: Perfect AI Testing Market Timing**
 - 750M applications using LLMs in 2025 = massive testing demand wave
@@ -272,7 +464,7 @@ The architecture must include monitoring for these warning signs:
 - "Shopify of testing agents" positioning
 - **Architectural implication:** Agent SDK, secure sandboxing, marketplace discovery/ratings, billing integration
 
-### External Threats (Market Risks)
+### 4.4 External Threats (Market Risks)
 
 **T1: Big Tech Market Entry**
 - Microsoft (GitHub + Playwright ownership) could bundle testing into GitHub Actions
@@ -307,7 +499,7 @@ The architecture must include monitoring for these warning signs:
 - Customer lawsuits, contract cancellations, investor confidence loss
 - **Defense strategy:** Conservative confidence thresholds, mandatory approval for production, liability insurance, incident response plan
 
-### Strategic Architectural Priorities (SWOT Synthesis)
+### 4.5 Strategic Architectural Priorities (SWOT Synthesis)
 
 **Priority 1: LLM Independence Architecture** (Addresses W2, T3, T4)
 - Multi-provider abstraction layer: OpenAI, Anthropic, Cohere, self-hosted (Ollama, vLLM)
@@ -353,7 +545,7 @@ The architecture must include monitoring for these warning signs:
 - API-first design: Public API for all features (dogfood internal usage)
 - **Impact:** Network effects, competitive moat, community-driven growth, defensibility against open source
 
-### Competitive Positioning from SWOT
+### 4.6 Competitive Positioning from SWOT
 
 **Against DeepEval (LLM evaluation focus):**
 - QUALISYS advantage: Full testing lifecycle (not just evaluation), self-healing, team collaboration
@@ -367,13 +559,17 @@ The architecture must include monitoring for these warning signs:
 - QUALISYS advantage: AI-native (not bolt-on AI features), intelligent test generation, self-healing automation
 - Architecture differentiator: 7 specialized AI agents (BAConsultant, QAConsultant, AutomationConsultant + 4 Post-MVP including DatabaseConsultant AI Agent), LLM orchestration, modern cloud-native stack
 
-## First Principles Architectural Foundation
+---
 
-**Fundamental Truths Derived from First Principles Analysis**
+# Part III — Architecture Foundation
+
+---
+
+## 5. First Principles Architectural Foundation
 
 This section questions common assumptions and rebuilds architectural decisions from fundamental truths rather than industry conventions.
 
-### Core Architectural Truths
+### 5.1 Core Architectural Truths
 
 **Truth #1: QUALISYS is a Test Maintenance Platform, Not Just a Test Generation Platform**
 - **Questioned assumption:** "AI-powered testing = faster test generation"
@@ -494,7 +690,7 @@ This section questions common assumptions and rebuilds architectural decisions f
   - Implementation 2: CustomOrchestrator (production - efficient, controlled)
   - Metrics to trigger replacement: token efficiency <50%, P95 latency >10s, cost/test >$0.10
 
-### First Principles Architectural Decisions
+### 5.2 First Principles Architectural Decisions
 
 **Decision 1: Self-Healing Engine as Core System Architecture**
 - **Architecture:** Dedicated Self-Healing Engine service (not feature layer)
@@ -506,6 +702,30 @@ This section questions common assumptions and rebuilds architectural decisions f
   - Audit Logger: Version control for all self-healing changes
 - **Resource allocation:** 70% of AI/ML engineering effort (not 30%)
 - **Success metric:** 80% of UI-change test failures auto-fixed without human intervention
+
+```mermaid
+graph TB
+    A[Test Execution Fails] --> B[DOM Differ<br/>Compare Snapshots]
+    B --> C[Selector Suggester<br/>CSS · XPath · Text · ARIA · Visual]
+    C --> D[Confidence Scorer<br/>ML Model 0-100%]
+    D --> E{Confidence<br/>Level?}
+    E -->|> 80% HIGH| F[Auto-Apply Fix<br/>+ Notify User]
+    E -->|50-80% MEDIUM| G[Suggest Fix<br/>Require Approval]
+    E -->|< 50% LOW| H[Flag for<br/>Manual Review]
+    F --> I[Test the Test<br/>Verify Fix Validity]
+    G --> J{User<br/>Approves?}
+    J -->|Yes| I
+    J -->|No| K[Reject + Log<br/>Feedback Loop]
+    I --> L{Fix<br/>Valid?}
+    L -->|Yes| M[Apply + Audit Log<br/>7-Day Rollback Window]
+    L -->|No| H
+    H --> N[Human Engineer<br/>Manual Fix]
+
+    style F fill:#22c55e,color:#fff
+    style G fill:#eab308,color:#000
+    style H fill:#ef4444,color:#fff
+    style M fill:#3b82f6,color:#fff
+```
 
 **Decision 2: Four-Pillar Multi-Tenancy Architecture**
 - **Pillar 1 - Data Isolation:**
@@ -525,6 +745,27 @@ This section questions common assumptions and rebuilds architectural decisions f
   - Circuit breakers: tenant A's failures don't cascade to tenant B
   - Tenant-scoped error handling: errors logged with tenant context
   - Blast radius containment: misconfiguration isolated to single tenant
+
+```mermaid
+graph LR
+    subgraph "Four-Pillar Multi-Tenancy"
+        direction TB
+        P1["🔒 Pillar 1: Data Isolation<br/>PostgreSQL Schemas + RLS"]
+        P2["⚡ Pillar 2: Performance Isolation<br/>K8s Quotas + Priority Queues"]
+        P3["💰 Pillar 3: Cost Isolation<br/>Token Budgets + Hard Limits"]
+        P4["🛡️ Pillar 4: Failure Isolation<br/>Circuit Breakers + Blast Radius"]
+    end
+
+    REQ[Incoming Request] --> JWT[JWT Extraction<br/>tenant_id + role]
+    JWT --> SCHEMA[SET search_path<br/>tenant_xyz]
+    SCHEMA --> P1
+    JWT --> QUOTA[Resource Quota<br/>CPU · Memory]
+    QUOTA --> P2
+    JWT --> BUDGET[Token Meter<br/>Redis INCR]
+    BUDGET --> P3
+    JWT --> CB[Circuit Breaker<br/>Tenant-Scoped]
+    CB --> P4
+```
 
 **Decision 3: Token Budget as First-Class System Component**
 - **Tracking:** TokenMeter service logs every LLM API call
@@ -599,7 +840,7 @@ This section questions common assumptions and rebuilds architectural decisions f
   - P95 latency >10 seconds (too slow)
   - Cost per test >$0.10 (too expensive)
 
-### Architectural Principles from First Principles
+### 5.3 Architectural Principles from First Principles
 
 1. **Question every assumption:** "Best practice" may not apply to your specific constraints
 2. **Decompose complex problems:** Multi-tenancy = 4 problems; solve each independently
@@ -610,13 +851,13 @@ This section questions common assumptions and rebuilds architectural decisions f
 7. **Match technology to needs:** Framework popularity ≠ right choice; analyze requirements
 8. **Plan for replacement:** MVP speed ≠ production efficiency; abstract to enable migration
 
-## Architectural Decision Rationale (Five Whys Analysis)
+---
 
-**Root Cause Validation for Major Architectural Decisions**
+## 6. Architectural Decision Rationale (Five Whys Analysis)
 
 This section documents the root cause reasoning behind critical architectural decisions, derived from iterative "Five Whys" analysis.
 
-### Decision: Multi-Tenancy Architecture
+### 6.1 Decision: Multi-Tenancy Architecture
 
 **Why #1:** Why does QUALISYS need multi-tenancy?
 - To serve multiple customer organizations on shared infrastructure
@@ -639,7 +880,7 @@ This section documents the root cause reasoning behind critical architectural de
 
 ---
 
-### Decision: Self-Healing Automation as Core Feature
+### 6.2 Decision: Self-Healing Automation as Core Feature
 
 **Why #1:** Why does QUALISYS need self-healing tests?
 - To reduce test maintenance burden when application UI changes
@@ -662,7 +903,7 @@ This section documents the root cause reasoning behind critical architectural de
 
 ---
 
-### Decision: 8 Specialized AI Agents
+### 6.3 Decision: Specialized AI Agents
 
 **Why #1:** Why does QUALISYS need 8 different AI agents?
 - Different aspects of testing require different specialized knowledge
@@ -685,7 +926,7 @@ This section documents the root cause reasoning behind critical architectural de
 
 ---
 
-### Decision: Containerized Playwright Test Runners
+### 6.4 Decision: Containerized Playwright Test Runners
 
 **Why #1:** Why run Playwright tests in Docker containers?
 - To isolate tests from each other and from the host system
@@ -708,7 +949,7 @@ This section documents the root cause reasoning behind critical architectural de
 
 ---
 
-### Decision: Integration-First Strategy (JIRA, TestRail, GitHub, Slack)
+### 6.5 Decision: Integration-First Strategy
 
 **Why #1:** Why does QUALISYS need integrations?
 - To fit into customers' existing workflows
@@ -731,7 +972,7 @@ This section documents the root cause reasoning behind critical architectural de
 
 ---
 
-### Decision: Real-Time Dashboard Updates
+### 6.6 Decision: Real-Time Dashboard Updates
 
 **Why #1:** Why do dashboards need real-time updates?
 - Users want to see test execution progress live
@@ -754,7 +995,7 @@ This section documents the root cause reasoning behind critical architectural de
 
 ---
 
-### Decision: LangChain for AI Agent Orchestration (MVP)
+### 6.7 Decision: LangChain for AI Agent Orchestration (MVP)
 
 **Why #1:** Why use LangChain instead of custom AI orchestration?
 - Faster MVP development (abstractions vs building from scratch)
@@ -777,7 +1018,7 @@ This section documents the root cause reasoning behind critical architectural de
 
 ---
 
-### Decision: PostgreSQL Schemas for Tenant Isolation
+### 6.8 Decision: PostgreSQL Schemas for Tenant Isolation
 
 **Why #1:** Why use PostgreSQL schemas for tenant isolation?
 - Schema-level isolation prevents data leakage better than application-level WHERE clauses
@@ -800,7 +1041,7 @@ This section documents the root cause reasoning behind critical architectural de
 
 ---
 
-### Summary: Root Causes Validate Architectural Decisions
+### 6.9 Summary: Root Causes Validate Architectural Decisions
 
 **Validated Decision #1:** Multi-tenancy compensates for AI SaaS variable cost structure
 - **Design:** Four-pillar architecture (data, performance, cost, failure isolation)
@@ -826,13 +1067,13 @@ This section documents the root cause reasoning behind critical architectural de
 **Validated Decision #8:** Schema isolation optimizes security/economics trade-off
 - **Design:** PostgreSQL schemas + row-level security policies for defense-in-depth
 
-## Multi-Perspective Analysis & Implementation Roadmap
+---
 
-**Six Thinking Hats: Comprehensive Perspective Integration**
+## 7. Multi-Perspective Analysis & Implementation Roadmap
 
 This section examines QUALISYS architecture through six distinct lenses (Facts, Emotions, Risks, Benefits, Alternatives, Synthesis) to ensure balanced decision-making. Each perspective reveals critical insights that inform the final architecture and implementation roadmap.
 
-### Perspective Integration Summary
+### 7.1 Perspective Integration Summary
 
 **From Facts (White Hat):** Market validates opportunity ($3.82B by 2032), technology stack is proven, 110 FRs provide clear scope.
 
@@ -846,7 +1087,7 @@ This section examines QUALISYS architecture through six distinct lenses (Facts, 
 
 **From Synthesis (Blue Hat):** Reduce MVP scope (4 core agents not 8, 2 integrations not 5) to decrease complexity and accelerate market entry while maintaining differentiation.
 
-### Unified Architectural Principles (Six Perspectives Synthesized)
+### 7.2 Unified Architectural Principles (Six Perspectives Synthesized)
 
 1. **Security First:** Multi-tenancy breach is existential → Zero-trust architecture, defense-in-depth, regular security audits mandatory
 2. **Complexity with Safeguards:** Accept complexity (agents, multi-tenancy) but add guardrails (monitoring, circuit breakers, approval workflows)
@@ -855,7 +1096,36 @@ This section examines QUALISYS architecture through six distinct lenses (Facts, 
 5. **Scale with Efficiency:** Pre-warmed container pools cost money but deliver differentiated user experience worth the investment
 6. **Integration as Competitive Moat:** Not features but competitive protection mechanisms → Architect resilience from day one
 
-### Recommended Implementation Roadmap (Three-Phase Strategy)
+### 7.3 Recommended Implementation Roadmap (Three-Phase Strategy)
+
+```mermaid
+graph LR
+    subgraph "Phase 1 — MVP (Months 1-3)"
+        M1[3 AI Agents<br/>BA · QA · Automation]
+        M2[Self-Healing Engine<br/>Core Differentiator]
+        M3[JIRA + GitHub<br/>2 Integrations]
+        M4[10-50 Tenants<br/>1K Tests/Day]
+    end
+
+    subgraph "Phase 2 — Scale (Months 4-6)"
+        S1[+4 Agents<br/>7 Total]
+        S2[Visual Regression<br/>Predictive Testing]
+        S3[+TestRail · Slack<br/>5 Integrations]
+        S4[100+ Tenants<br/>5K Tests/Day]
+    end
+
+    subgraph "Phase 3 — Enterprise (Months 7-12)"
+        E1[Agent Marketplace<br/>Community Ecosystem]
+        E2[Federated Learning<br/>On-Premise Deploy]
+        E3[SOC 2 Type II<br/>ISO 27001 · HIPAA]
+        E4[500+ Tenants<br/>10K+ Tests/Day]
+    end
+
+    M1 --> S1 --> E1
+    M2 --> S2 --> E2
+    M3 --> S3 --> E3
+    M4 --> S4 --> E4
+```
 
 **Phase 1 - MVP: Speed to Market (Months 1-3)**
 
@@ -942,7 +1212,7 @@ This section examines QUALISYS architecture through six distinct lenses (Facts, 
 - Vertical-specific agents enable 2-3x pricing premium
 - Integration depth creates high switching costs
 
-### Critical Success Factors (From Multi-Perspective Analysis)
+### 7.4 Critical Success Factors (From Multi-Perspective Analysis)
 
 **From White Hat (Facts):** Execute on proven market opportunity with validated technology stack
 **From Red Hat (Emotions):** Build customer trust through transparency and comprehensive safeguards
@@ -951,13 +1221,17 @@ This section examines QUALISYS architecture through six distinct lenses (Facts, 
 **From Green Hat (Alternatives):** Extensible architecture enables Phase 2+ innovations
 **From Blue Hat (Synthesis):** MVP scope reduction (4 agents, 2 integrations) accelerates time-to-market while maintaining core differentiation
 
-## Stakeholder Architecture Alignment
+---
 
-**Persona-Centric Architecture: Mapping 6 User Personas to Architectural Decisions**
+# Part IV — Stakeholder & Security
+
+---
+
+## 8. Stakeholder Architecture Alignment
 
 Architecture serves people. This section maps QUALISYS's 6 user personas by interest/influence to ensure architectural decisions align with stakeholder needs and priorities.
 
-### Stakeholder Influence-Interest Matrix
+### 8.1 Stakeholder Influence-Interest Matrix
 
 **High Influence + High Interest (Key Partners):**
 - **Owner/Admin:** Business success depends on platform reliability, security, cost efficiency
@@ -971,7 +1245,7 @@ Architecture serves people. This section maps QUALISYS's 6 user personas by inte
 **Low Influence + Low Interest (Monitor):**
 - **Viewer:** Read-only stakeholder, minimal platform interaction
 
-### Architectural Decisions Mapped to Stakeholder Needs
+### 8.2 Architectural Decisions Mapped to Stakeholder Needs
 
 **Decision 1: Multi-Tenancy Security (Owner/Admin Priority)**
 - **Need:** Prevent existential data breach, maintain customer trust
@@ -1013,7 +1287,7 @@ Architecture serves people. This section maps QUALISYS's 6 user personas by inte
 - **Architecture:** Per-tenant metering, hard limits, real-time dashboards, 80% alerts
 - **Impact:** Owner maintains unit economics, scales confidently without cost surprises
 
-### Architectural Trade-Off Resolution via Stakeholder Prioritization
+### 8.3 Architectural Trade-Off Resolution via Stakeholder Prioritization
 
 **Trade-Off 1: LangChain (speed) vs Custom Orchestration (efficiency)**
 - **Competing needs:** Owner (time to market) vs Owner (cost control)
@@ -1040,7 +1314,7 @@ Architecture serves people. This section maps QUALISYS's 6 user personas by inte
 - **Resolution:** Confidence-based - High confidence (>85%) auto-apply for non-production only, production requires approval
 - **Rationale:** QA-Automation influence > QA-Manual, safety over convenience for production
 
-### Stakeholder Engagement Strategy by Persona
+### 8.4 Stakeholder Engagement Strategy by Persona
 
 **Owner/Admin (Key Partner):**
 - **Engagement:** Quarterly business reviews (ROI, cost savings, security posture)
@@ -1072,7 +1346,7 @@ Architecture serves people. This section maps QUALISYS's 6 user personas by inte
 - **Deliverables:** Pre-built report templates, PDF/CSV export
 - **Success metric:** Minimal support tickets, self-explanatory UI (no training needed)
 
-### Architectural Validation: All Stakeholders Served
+### 8.5 Architectural Validation: All Stakeholders Served
 
 ✅ **Owner/Admin:** Multi-tenancy security, token budget controls, compliance certifications
 ✅ **QA-Automation:** Self-healing transparency, pre-warmed pools, API access, agent customization
@@ -1083,13 +1357,13 @@ Architecture serves people. This section maps QUALISYS's 6 user personas by inte
 
 **Conclusion:** Architecture successfully balances competing stakeholder needs through prioritization by influence and strategic trade-offs that satisfy high-influence stakeholders (Owner, QA-Automation) while keeping others satisfied (PM/CSM, Dev, QA-Manual) and monitoring low-influence stakeholders (Viewer).
 
-## Security Threat Model & Mitigations
+---
 
-**Red Team Analysis: Adversarial Security Perspective**
+## 9. Security Threat Model & Mitigations
 
-This section examines QUALISYS from an attacker's perspective to identify vulnerabilities before adversaries do. Six major attack vectors with 18 specific exploits identified, prioritized by risk severity.
+This section examines QUALISYS from an attacker's perspective (Red Team Analysis) to identify vulnerabilities before adversaries do. **Six major attack vectors with 18 specific exploits identified**, prioritized by risk severity.
 
-### Attack Vector 1: Multi-Tenant Data Exfiltration (CRITICAL)
+### 9.1 Attack Vector 1: Multi-Tenant Data Exfiltration (CRITICAL)
 
 **Attacker Goal:** Access Customer B's test data while authenticated as Customer A
 
@@ -1124,7 +1398,7 @@ This section examines QUALISYS from an attacker's perspective to identify vulner
   - Rate limit pagination requests per tenant
 - **Detection:** Monitor for pagination crossing tenant boundaries
 
-### Attack Vector 2: Self-Healing Code Injection (CRITICAL)
+### 9.2 Attack Vector 2: Self-Healing Code Injection (CRITICAL)
 
 **Attacker Goal:** Inject malicious test code via self-healing mechanism
 
@@ -1159,7 +1433,7 @@ This section examines QUALISYS from an attacker's perspective to identify vulner
   - Git integration: all fixes version-controlled automatically
 - **Detection:** Alert on fixes that break tests after initial success
 
-### Attack Vector 3: LLM Cost Exhaustion (HIGH)
+### 9.3 Attack Vector 3: LLM Cost Exhaustion (HIGH)
 
 **Attacker Goal:** Economic denial of service via excessive LLM API calls
 
@@ -1193,7 +1467,7 @@ This section examines QUALISYS from an attacker's perspective to identify vulner
   - Require manual approval for large documents
 - **Detection:** Alert on requests exceeding thresholds
 
-### Attack Vector 4: Container Escape (CRITICAL)
+### 9.4 Attack Vector 4: Container Escape (CRITICAL)
 
 **Attacker Goal:** Escape Playwright container, access host or other tenants
 
@@ -1229,7 +1503,7 @@ This section examines QUALISYS from an attacker's perspective to identify vulner
   - Volume mount read-only where possible
 - **Detection:** File integrity monitoring, alert on unexpected writes
 
-### Attack Vector 5: Integration Credential Theft (HIGH)
+### 9.5 Attack Vector 5: Integration Credential Theft (HIGH)
 
 **Attacker Goal:** Steal JIRA/GitHub/Slack API keys
 
@@ -1266,7 +1540,7 @@ This section examines QUALISYS from an attacker's perspective to identify vulner
   - Request timeout: 5 seconds max
 - **Detection:** Monitor outbound requests for private IPs, alert on attempts
 
-### Attack Vector 6: AI Model Poisoning (MEDIUM)
+### 9.6 Attack Vector 6: AI Model Poisoning (MEDIUM)
 
 **Attacker Goal:** Degrade self-healing effectiveness or introduce backdoors
 
@@ -1290,7 +1564,7 @@ This section examines QUALISYS from an attacker's perspective to identify vulner
   - Model A/B testing: validate before deployment
 - **Detection:** Monitor for coordinated account creation, bulk approvals
 
-### Risk Prioritization & Mitigation Timeline
+### 9.7 Risk Prioritization & Mitigation Timeline
 
 **CRITICAL (Block launch until resolved):**
 1. ✅ Schema isolation SQL injection → Parameterized queries, penetration testing
@@ -1308,7 +1582,7 @@ This section examines QUALISYS from an attacker's perspective to identify vulner
 9. Confidence manipulation → Adversarial training
 10. Model poisoning → Curated training data
 
-### Security Architecture Principles (From Red Team)
+### 9.8 Security Architecture Principles (From Red Team)
 
 1. **Defense-in-Depth:** Layer controls (schema + RLS + query validation + audit)
 2. **Zero-Trust:** Never trust user input, always validate, assume breach
@@ -1316,7 +1590,7 @@ This section examines QUALISYS from an attacker's perspective to identify vulner
 4. **Continuous Monitoring:** Real-time alerting, daily audits, anomaly detection
 5. **Incident Response:** Documented playbooks, breach notification <72h, cyber insurance ($1M+ coverage)
 
-### Ongoing Security Posture
+### 9.9 Ongoing Security Posture
 
 **Pre-Launch (Mandatory):**
 - Penetration testing by third-party firm (focus: multi-tenancy, container escape)
@@ -1337,7 +1611,7 @@ This section examines QUALISYS from an attacker's perspective to identify vulner
 - Intrusion detection: File system monitoring, network anomaly detection
 - Red team exercises: Internal team simulates attacks quarterly
 
-### Compliance Impact
+### 9.10 Compliance Impact
 
 **SOC 2 Type II (Required for enterprise sales):**
 - Access controls: RBAC, MFA, SSO
@@ -1360,13 +1634,17 @@ This section examines QUALISYS from an attacker's perspective to identify vulner
 
 **Conclusion:** Red Team Analysis identifies 18 exploits across 6 attack vectors. CRITICAL mitigations (schema isolation, container security, credential protection, prompt injection) MUST be implemented before customer launch. Architecture achieves security through defense-in-depth, zero-trust principles, and continuous monitoring.
 
-## Technology Stack Decision Analysis
+---
 
-**Decision Matrix: Objective Technology Evaluation**
+# Part V — Technology & System Design
+
+---
+
+## 10. Technology Stack Decision Analysis
 
 This section evaluates critical technology choices using weighted criteria for objective comparison. Five key decisions analyzed with quantitative scoring.
 
-### Recommended Technology Stack (Decision Matrix Results)
+### 10.1 Recommended Technology Stack (Decision Matrix Results)
 
 **Frontend Framework: Vite + React (8.95/10)**
 - **Winner rationale:** 10x faster builds than Next.js, smaller bundles, simpler architecture
@@ -1399,7 +1677,7 @@ This section evaluates critical technology choices using weighted criteria for o
 - **Key criteria:** Cost control (8/10), vendor independence (10/10), reliability through redundancy (9/10)
 - **Decision:** Multi-provider from day one. Phase 1: OpenAI primary. Phase 2: Add Anthropic + vLLM.
 
-### Complete Technology Stack Architecture
+### 10.2 Complete Technology Stack Architecture
 
 **Backend:**
 - Language: Python 3.11+
@@ -1453,7 +1731,7 @@ This section evaluates critical technology choices using weighted criteria for o
 - Email: SendGrid or AWS SES
 - Error Tracking: Sentry (optional)
 
-### Key Insights from Decision Matrix
+### 10.3 Key Insights from Decision Matrix
 
 **1. Simplicity Beats Features for MVP**
 - pgvector over Pinecone: Simpler (existing PostgreSQL) > faster (managed vector DB)
@@ -1484,7 +1762,7 @@ This section evaluates critical technology choices using weighted criteria for o
 - LangChain → Custom: AgentOrchestrator abstraction planned from day one
 - **Principle:** Architect for change, not just current requirements
 
-### Technology Risk Mitigation
+### 10.4 Technology Risk Mitigation
 
 **Risk: Vite Less Mature than Next.js for Enterprise**
 - **Mitigation:** Vite adoption growing (500K+ weekly downloads), stable 4.x release
@@ -1506,7 +1784,7 @@ This section evaluates critical technology choices using weighted criteria for o
 - **Start simple:** OpenAI only for MVP, add providers incrementally Phase 2
 - **Testing:** Comprehensive integration tests for provider failover scenarios
 
-### Technology Stack Validation Against Requirements
+### 10.5 Technology Stack Validation Against Requirements
 
 ✅ **Multi-Tenancy:** PostgreSQL schemas + RLS isolates tenant data
 ✅ **Self-Healing:** Python ML libs (scikit-learn, transformers) for confidence scoring
@@ -1521,134 +1799,9 @@ This section evaluates critical technology choices using weighted criteria for o
 
 **Conclusion:** Technology stack balances simplicity (MVP speed), cost efficiency (unit economics), and strategic flexibility (vendor independence, upgrade paths). Weighted decision matrices provide objective rationale for every major choice.
 
-## Executive Summary
+---
 
-**QUALISYS: AI-Powered Testing Platform - Scale Adaptive Architecture**
-
-QUALISYS is a multi-tenant SaaS B2B platform that revolutionizes software testing through AI-powered test generation, intelligent test execution, and breakthrough self-healing automation. This architecture document defines a pragmatic, security-first system designed to serve 500+ enterprise tenants executing 10,000+ tests daily while maintaining exceptional reliability, performance, and cost efficiency.
-
-### Core Architecture Thesis
-
-**Self-healing is the platform, not a feature.** QUALISYS differentiates through AI that automatically repairs broken tests when application UIs change - reducing QA engineer maintenance burden by 70% and compressing release cycles by 25%. This architecture allocates 70% of AI/ML engineering resources to the Self-Healing Engine (not test generation), reflecting its strategic importance as the core competitive moat.
-
-### Architectural Approach: Pragmatic Complexity with Strategic Safeguards
-
-This architecture embraces necessary complexity (multi-tenancy, 6 AI agents, self-healing intelligence) while implementing comprehensive safeguards (security layers, approval workflows, monitoring, circuit breakers). Key principle: **Accept complexity where it creates value, enforce simplicity everywhere else.**
-
-**Strategic Architecture Decisions:**
-
-1. **Four-Pillar Multi-Tenancy** - Data isolation (PostgreSQL schemas + RLS), Performance isolation (Kubernetes quotas), Cost isolation (token budgets), Failure isolation (circuit breakers)
-
-2. **MVP Scope Reduction** - Start with 4 core agents (not 8) and 2 integrations (JIRA + GitHub, not 5) to accelerate market entry by 3 months while maintaining differentiation
-
-3. **Self-Healing Safety Architecture** - Mandatory approval workflows for production tests, confidence scoring (>80% threshold), "test the test" validation, 7-day rollback window, immutable audit trails
-
-4. **LLM Independence Strategy** - Multi-provider approach (OpenAI primary, Anthropic + vLLM fallback) with AgentOrchestrator abstraction prevents vendor lock-in and cost volatility
-
-5. **Vite + React over Next.js** - First principles analysis reveals 10x faster builds, smaller bundles, and simpler architecture when SSR/API routes unnecessary (behind login, FastAPI backend exists)
-
-6. **Cost-Optimized Stack** - Open-source monitoring (Grafana + Prometheus saves $120K/year vs Datadog), pgvector (leverages PostgreSQL, zero vendor cost), BullMQ (reuses Redis) optimize unit economics
-
-7. **Security-First Implementation** - Pre-mortem and red team analysis identified 18 critical exploits requiring mandatory mitigation before launch (schema isolation, container security, prompt injection protection, credential management)
-
-### Scale Adaptive System Design
-
-Architecture supports three tracks based on deployment complexity:
-
-**MVP Track (Months 1-3):** 4 agents, 2 integrations, 10-50 tenants, 1K tests/day
-- Focus: Speed to market, core differentiation (self-healing), security fundamentals
-- Stack: Vite + React, FastAPI, PostgreSQL + pgvector, Redis + BullMQ, Kubernetes
-- Success metric: <10 minute time to first test suite, >80% self-healing confidence
-
-**Scale Track (Months 4-6):** 6 agents, 5 integrations, 100+ tenants, 5K tests/day
-- Focus: Complete feature set, performance optimization, SOC 2 Type I
-- Enhancements: Remaining 4 agents, visual regression, predictive test selection, LangChain → Custom orchestration
-- Success metric: <3 second dashboard load, $0.50-$5 cost per 1K tests
-
-**Enterprise Track (Months 7-12):** Agent marketplace, 500+ tenants, 10K+ tests/day
-- Focus: Ecosystem, enterprise features, multi-region, compliance certifications
-- Enhancements: Federated self-healing, on-premise deployment, advanced RBAC, SOC 2 Type II + ISO 27001
-- Success metric: 99.9% uptime SLA, agent marketplace revenue, vertical pricing (2-3x)
-
-### Technology Stack Rationale
-
-All technology choices validated through weighted decision matrices (objective scoring):
-
-- **Frontend:** Vite + React (8.95/10) - Developer experience, build speed, bundle size
-- **Backend:** FastAPI - Type-safe Python, async, auto-documentation
-- **Database:** PostgreSQL 15+ with schemas (multi-tenancy) + pgvector (embeddings)
-- **Cache/Queue:** Redis 7+ (LLM cache, token budgets, BullMQ job processing)
-- **AI:** LangChain (MVP) → Custom (Phase 2), OpenAI (primary) + multi-provider
-- **Infrastructure:** Kubernetes (EKS/GKE/AKS), Docker, Playwright pre-warmed pools
-- **Observability:** Grafana + Prometheus + Loki (open-source, $120K/year savings)
-- **Security:** OAuth 2.0 + SAML 2.0, RBAC, Secrets Manager, Pod Security Policies
-
-### Risk Mitigation & Security Posture
-
-**CRITICAL risks identified (must resolve before launch):**
-1. Multi-tenant data breach via SQL injection → Parameterized queries, penetration testing
-2. Container escape to host → Pod security policies, minimal images, weekly CVE patches
-3. Self-healing prompt injection → Input sanitization, output validation, sandboxing
-4. Integration credential theft → Volume-mounted secrets, log sanitization, SSRF protection
-
-**Ongoing security posture:**
-- Pre-launch: Third-party penetration testing, security code review, infrastructure hardening
-- Post-launch: Quarterly pentests, bug bounty program ($500-$10K payouts), SOC 2 Type II audit (month 9)
-- Monitoring: Real-time SIEM, daily cross-tenant audits, intrusion detection, quarterly red team exercises
-
-### Market Positioning & Strategic Value
-
-**Opportunity:** $1.01B (2025) → $3.82B (2032) market growing at 20.9% CAGR. 750M LLM applications need testing infrastructure. $1.9B lost annually to undetected LLM failures.
-
-**Differentiation:** Self-healing automation (competitors don't have), multi-agent specialization (<5% hallucination vs 15% general LLM), integration-first strategy (creates switching costs).
-
-**First-mover advantage:** Category creation opportunity in "AI System Quality Assurance" - speed to market critical for capturing mindshare before well-funded competitors enter.
-
-### Success Metrics
-
-**MVP (Month 3):**
-- 10 pilot customers, >4/5 satisfaction rating
-- <10 minute time to first test suite (vs weeks with traditional tools)
-- >80% self-healing auto-fix rate (high confidence threshold)
-- $0.50-$5 cost per 1K tests generated (token optimization via caching)
-
-**Scale (Month 6):**
-- 100+ tenants, 5K tests/day
-- <3 second dashboard load, <5 second test start time (pre-warmed pools)
-- 70%+ cache hit rate (LLM cost efficiency)
-- SOC 2 Type I certification initiated
-
-**Enterprise (Month 12):**
-- 500+ tenants, 10K+ tests/day
-- 99.9% uptime SLA with financial penalties
-- Agent marketplace launched (community ecosystem)
-- SOC 2 Type II + ISO 27001 certified
-
-### Architecture Validation
-
-This architecture has been validated through:
-- ✅ **Pre-mortem Analysis:** 8 failure modes identified with preventive measures
-- ✅ **SWOT Analysis:** Strategic positioning confirms differentiation and addresses weaknesses
-- ✅ **First Principles:** Core truths validated (self-healing = maintenance solution, multi-tenancy = economic necessity)
-- ✅ **Five Whys:** Root causes confirm all major decisions have sound foundational reasoning
-- ✅ **Six Thinking Hats:** Multi-perspective integration balances facts, risks, benefits, alternatives
-- ✅ **Stakeholder Mapping:** All 6 personas' needs addressed with prioritization by influence
-- ✅ **Red Team Analysis:** 18 exploits identified with CRITICAL mitigations mandatory pre-launch
-- ✅ **Decision Matrix:** Technology stack objectively evaluated with weighted criteria
-
-### Implementation Commitment
-
-This architecture represents a commitment to:
-1. **Security First:** Multi-tenancy breach is existential - zero-trust, defense-in-depth mandatory
-2. **Customer Trust:** Transparency (show AI reasoning), approval workflows, comprehensive audit trails
-3. **Cost Discipline:** Token budgets, caching, open-source stack optimize unit economics from day one
-4. **Vendor Independence:** Abstraction layers (AgentOrchestrator, vector DB, queue) enable migration, prevent lock-in
-5. **Developer Experience:** Modern tooling (Vite, TypeScript, FastAPI) compounds velocity and quality
-6. **Pragmatic Complexity:** Accept necessary complexity (self-healing, multi-tenancy) with appropriate safeguards
-
-**This architecture balances speed to market (MVP in 3 months), technical excellence (security, scalability, reliability), and strategic positioning (differentiation, cost efficiency, vendor independence) to build a category-leading AI testing platform.**
-
-## Decision Summary
+## 11. Decision Summary
 
 | Category | Decision | Version | Affects Epics | Rationale |
 | -------- | -------- | ------- | ------------- | --------- |
@@ -1676,7 +1829,9 @@ This architecture represents a commitment to:
 | Code Splitting | Per-persona dynamic imports | v1.0 | Frontend epic | Six personas = 6 bundles. QA-Manual bundle ≠ PM/CSM bundle. Performance principle: Load only what's needed. |
 | Compliance Target | SOC 2 Type II (month 9) | v2.0 | All security epics | Enterprise sales requirement. RBAC, audit logging, encryption, incident response, change management mandatory. |
 
-## Project Structure
+---
+
+## 12. Project Structure
 
 **Monorepo Strategy**: Single repository with clear service boundaries for simplified deployment and shared type safety.
 
@@ -1856,7 +2011,9 @@ qualisys/
 6. **Infrastructure as Code**: Kubernetes + Terraform for reproducible deployments
 7. **Observability**: Dedicated monitoring directory with Grafana/Prometheus/Loki configs
 
-## Epic to Architecture Mapping
+---
+
+## 13. Epic to Architecture Mapping
 
 **Purpose**: Maps PRD epics to specific architecture components, ensuring traceability from requirements to implementation.
 
@@ -1887,9 +2044,11 @@ qualisys/
 | **Error Handling** | Exception handlers in `api/main.py`, dead letter queues | Standardized error responses, circuit breakers |
 | **Token Budget Control** | `core/llm_provider.py`, Redis atomic counters | Per-tenant LLM token metering, 80% alerts, 100% suspension |
 
-## Technology Stack Details
+---
 
-### Core Technologies
+## 14. Technology Stack Details
+
+### 14.1 Core Technologies
 
 **Frontend Stack:**
 
@@ -1963,7 +2122,7 @@ qualisys/
 | **TOTP** | RFC 6238 | MFA | Time-based OTP for Owner/Admin roles, security compliance |
 | **External Secrets Operator** | 0.9+ | Secret management | Kubernetes secrets sync from AWS Secrets Manager / GCP Secret Manager |
 
-### Version Verification Log
+### 14.2 Version Verification Log
 
 **Purpose**: Document verification of technology versions to ensure currency and compatibility.
 
@@ -2021,7 +2180,7 @@ qualisys/
 - pgvector (MVP) vs Pinecone: **~$18K/year saved** (10M vectors @ $70/month vs Pinecone $140/month)
 - BullMQ vs AWS SQS: **~$6K/year saved** (high message volume)
 
-### Integration Points
+### 14.3 Integration Points
 
 **MVP Integrations (Phase 1):**
 
@@ -2071,17 +2230,40 @@ qualisys/
 
 **Integration Architecture Patterns:**
 
+```mermaid
+graph TB
+    REQ[Integration Request<br/>JIRA · GitHub · Slack] --> RL{Rate Limit<br/>Check}
+    RL -->|Within Limit| CB{Circuit<br/>Breaker}
+    RL -->|Exceeded| QUEUE[Queue for Later<br/>BullMQ]
+    CB -->|Closed| API[External API Call]
+    CB -->|Open| DLQ[Dead Letter Queue<br/>7-Day Retention]
+    API --> RES{Response?}
+    RES -->|2xx Success| OK[Process Response<br/>Update Dashboard]
+    RES -->|5xx / Timeout| RETRY[Exponential Backoff<br/>1s → 2s → 4s → 8s → 16s]
+    RETRY --> COUNT{Attempts<br/>< 5?}
+    COUNT -->|Yes| API
+    COUNT -->|No, 5 failures| DLQ
+    DLQ --> NOTIFY[Notify Admin<br/>Health Dashboard Alert]
+    DLQ --> REPLAY[Manual Replay UI<br/>When Service Recovers]
+
+    style OK fill:#22c55e,color:#fff
+    style DLQ fill:#ef4444,color:#fff
+    style RETRY fill:#eab308,color:#000
+```
+
 1. **Dead Letter Queue**: All failed integration calls (HTTP 5xx, timeouts) go to DLQ for manual review
 2. **Circuit Breaker**: After 3 consecutive failures, circuit opens for 5 minutes (prevents thundering herd)
 3. **Exponential Backoff**: Retry delays: 1s, 2s, 4s, 8s, 16s (max 5 attempts/24h window)
 4. **Rate Limiting**: JIRA: 100 req/min per tenant, GitHub: 5000 req/hour (respects API limits)
 5. **Graceful Degradation**: If JIRA down, bug filing queued + user notified (doesn't block test execution)
 
-## Novel UX & Technical Patterns
+---
+
+## 15. Novel UX & Technical Patterns
 
 **Purpose**: Unique patterns that differentiate QUALISYS from traditional testing platforms.
 
-### 1. Self-Healing Confidence Scoring Pattern
+### 15.1 Self-Healing Confidence Scoring Pattern
 
 **Problem**: Users don't trust fully automated test fixing (black box AI fear).
 
@@ -2114,7 +2296,7 @@ qualisys/
 
 **Auto-Apply Rule**: Confidence >0.8 → auto-apply + notify. Confidence 0.5-0.8 → suggest + require approval. <0.5 → flag for manual review.
 
-### 2. AI Agent Conversation Threading Pattern
+### 15.2 AI Agent Conversation Threading Pattern
 
 **Problem**: Traditional form-based test generation feels robotic.
 
@@ -2146,7 +2328,7 @@ qualisys/
 - Redis key: `conversation:{tenant_id}:{agent_id}:{session_id}`
 - Token budgeting: Atomic Redis INCR before LLM call, suspend at 100% quota
 
-### 3. Persona-Based Code Splitting Pattern
+### 15.3 Persona-Based Code Splitting Pattern
 
 **Problem**: Loading entire app for 6 different personas wastes bandwidth.
 
@@ -2176,7 +2358,7 @@ const ViewerRoutes = lazy(() => import('./features/viewer/routes'))
 - Total for single persona: ~200-230KB (vs 500KB monolithic bundle)
 - Lazy loading: Non-active personas never downloaded
 
-### 4. Pre-Warmed Playwright Container Pool Pattern
+### 15.4 Pre-Warmed Playwright Container Pool Pattern
 
 **Problem**: Cold start Playwright containers = 2-minute test execution delay (unacceptable UX).
 
@@ -2217,7 +2399,7 @@ class PlaywrightPool:
 - 50 containers peak = $72/month
 - Justification: Sub-10-second test start time (vs 2-minute cold start)
 
-### 5. Multi-Tenant Schema Routing Pattern
+### 15.5 Multi-Tenant Schema Routing Pattern
 
 **Problem**: Application-level tenant filtering is error-prone (data leakage risk).
 
@@ -2266,7 +2448,7 @@ SET search_path TO tenant_<tenant_id>;
 alembic upgrade head
 ```
 
-### 6. SSE-Based Real-Time Updates Pattern
+### 15.6 SSE-Based Real-Time Updates Pattern
 
 **Problem**: WebSocket overhead for simple unidirectional updates.
 
@@ -2313,11 +2495,17 @@ eventSource.onmessage = (event) => {
 - Sufficient for unidirectional server → client updates
 - Lower server resource usage (no persistent connection state per socket)
 
-## Implementation Patterns
+---
+
+# Part VI — Patterns & Implementation
+
+---
+
+## 16. Implementation Patterns
 
 These patterns ensure consistent implementation across all services and features:
 
-### 1. Repository Pattern for Database Access
+### 16.1 Repository Pattern for Database Access
 
 **All database access through repository layer:**
 
@@ -2343,7 +2531,7 @@ class TestRepository:
 
 **Benefits**: Testability (mock repository in unit tests), tenant context encapsulated in session, consistent error handling.
 
-### 2. Pydantic Schemas for Request/Response Validation
+### 16.2 Pydantic Schemas for Request/Response Validation
 
 **All API endpoints use Pydantic schemas:**
 
@@ -2372,7 +2560,7 @@ async def create_test(
     return await repo.create_test(test_data)
 ```
 
-### 3. Service Layer for Business Logic
+### 16.3 Service Layer for Business Logic
 
 **Complex operations in dedicated service classes:**
 
@@ -2399,7 +2587,7 @@ class TestRunner:
         pass
 ```
 
-### 4. Dependency Injection Pattern
+### 16.4 Dependency Injection Pattern
 
 **All dependencies injected via FastAPI Depends:**
 
@@ -2423,7 +2611,7 @@ async def get_llm_provider(
     return LLMProvider(redis=redis)
 ```
 
-### 5. Error Handling Middleware
+### 16.5 Error Handling Middleware
 
 **Centralized error handling with standardized responses:**
 
@@ -2457,7 +2645,7 @@ async def generic_exception_handler(request: Request, exc: Exception):
     )
 ```
 
-### 6. LLM Provider Abstraction
+### 16.6 LLM Provider Abstraction
 
 **Multi-provider support with fallback:**
 
@@ -2494,7 +2682,7 @@ class LLMProvider:
             raise
 ```
 
-### 7. Background Worker Pattern (BullMQ)
+### 16.7 Background Worker Pattern (BullMQ)
 
 **Async job processing with retries:**
 
@@ -2519,9 +2707,11 @@ async def test_runner_worker():
             await job.retry(delay=60)  # Retry after 60s
 ```
 
-## Consistency Rules
+---
 
-### Naming Conventions
+## 17. Consistency Rules
+
+### 17.1 Naming Conventions
 
 **Python Backend:**
 - **Files**: `snake_case.py` (e.g., `test_repository.py`, `self_healing_engine.py`)
@@ -2550,7 +2740,7 @@ async def test_runner_worker():
 - **SSE**: `/events/{resource}` (e.g., `/events/test-runs/{test_run_id}`)
 - **Versioning**: `/api/v1/...` (future-proof)
 
-### Code Organization
+### 17.2 Code Organization
 
 **Backend Module Structure:**
 ```
@@ -2580,7 +2770,7 @@ tests/
 └── e2e/               # Full stack tests (Playwright, real environment)
 ```
 
-### Error Handling
+### 17.3 Error Handling
 
 **HTTP Error Responses (Standardized):**
 
@@ -2640,7 +2830,7 @@ except Exception as e:
     raise HTTPException(status_code=500, detail="Internal server error")
 ```
 
-### Logging Strategy
+### 17.4 Logging Strategy
 
 **Structured Logging (JSON format):**
 
@@ -2684,9 +2874,15 @@ logger.info(
 - Include in all logs, error responses, background jobs
 - Enables request tracking across services (observability)
 
-## Data Architecture
+---
 
-### Multi-Tenant Database Strategy
+# Part VII — Data & API
+
+---
+
+## 18. Data Architecture
+
+### 18.1 Multi-Tenant Database Strategy
 
 **Shared Schema (public):**
 - `tenants` - Tenant metadata, subscription info, status
@@ -2695,7 +2891,7 @@ logger.info(
 **Per-Tenant Schema (tenant_{tenant_id}):**
 - All business data isolated by PostgreSQL schema
 
-### Core Data Models
+### 18.2 Core Data Models
 
 #### Shared Schema: `tenants` table
 
@@ -2868,7 +3064,7 @@ CREATE TABLE analytics_snapshots (
 CREATE INDEX idx_analytics_snapshots_date ON analytics_snapshots(snapshot_date DESC);
 ```
 
-### Vector Embeddings (pgvector)
+### 18.3 Vector Embeddings (pgvector)
 
 **Install pgvector extension:**
 
@@ -2887,7 +3083,7 @@ CREATE INDEX idx_test_embeddings_vector ON test_embeddings USING ivfflat (embedd
 
 **Purpose**: Semantic similarity search for self-healing (find similar tests that had similar failures and how they were fixed).
 
-### Relationships Summary
+### 18.4 Relationships Summary
 
 ```
 tenants (shared)
@@ -2908,7 +3104,7 @@ tenants (shared)
                 └── healing_records (test_run_id)
 ```
 
-### Data Retention Policy
+### 18.5 Data Retention Policy
 
 | Data Type | Retention Period | Rationale |
 |-----------|------------------|-----------|
@@ -2919,9 +3115,11 @@ tenants (shared)
 | Logs (Loki) | 30 days | Debugging window, cost optimization |
 | Metrics (Prometheus) | 90 days | Dashboard time range, long-term trends in Grafana archives |
 
-## API Contracts
+---
 
-### OpenAPI 3.1 Specification
+## 19. API Contracts
+
+### 19.1 OpenAPI 3.1 Specification
 
 **Location**: `shared/openapi/api-spec.yaml`
 
@@ -2930,7 +3128,7 @@ tenants (shared)
 - Backend validation: FastAPI auto-generates from Pydantic schemas
 - Both must stay in sync (CI pipeline validation)
 
-### Core API Endpoints (REST)
+### 19.2 Core API Endpoints (REST)
 
 #### Authentication Endpoints
 
@@ -3019,7 +3217,7 @@ GET    /api/v1/admin/billing              # Billing info (Phase 2)
 GET    /api/v1/admin/token-usage          # Current token usage
 ```
 
-### Server-Sent Events (SSE) Endpoints
+### 19.3 Server-Sent Events (SSE) Endpoints
 
 ```
 GET    /api/v1/events/test-runs/{run_id}     # Real-time test run updates
@@ -3040,7 +3238,7 @@ GET    /api/v1/agents/{agent_type}/stream    # Streaming AI agent responses
 }
 ```
 
-### API Response Patterns
+### 19.4 API Response Patterns
 
 **Success Response (200 OK)**:
 ```json
@@ -3081,7 +3279,7 @@ GET    /api/v1/agents/{agent_type}/stream    # Streaming AI agent responses
 }
 ```
 
-### API Rate Limiting
+### 19.5 API Rate Limiting
 
 | Endpoint Pattern | Rate Limit | Scope |
 |------------------|-----------|-------|
@@ -3097,7 +3295,7 @@ X-RateLimit-Remaining: 42
 X-RateLimit-Reset: 1735257600 (Unix timestamp)
 ```
 
-### Authentication
+### 19.6 Authentication
 
 **JWT Token Structure**:
 ```json
@@ -3119,9 +3317,15 @@ Authorization: Bearer <jwt_token>
 - Access token: 1 hour
 - Refresh token: 30 days (stored in httpOnly cookie)
 
-## Security Architecture
+---
 
-### Defense-in-Depth Strategy
+# Part VIII — Operations & Deployment
+
+---
+
+## 20. Security Architecture
+
+### 20.1 Defense-in-Depth Strategy
 
 **1. Multi-Tenant Data Isolation (Critical)**
 
@@ -3241,9 +3445,11 @@ async def add_security_headers(request: Request, call_next):
 - **Bug bounty**: Phase 2 (HackerOne or Bugcrowd after SOC 2 certification)
 - **Incident response plan**: Documented in `docs/incident-response.md` (Phase 2)
 
-## Performance Considerations
+---
 
-### 1. Frontend Performance Targets
+## 21. Performance Considerations
+
+### 21.1 Frontend Performance Targets
 
 | Metric | Target | Strategy |
 |--------|--------|----------|
@@ -3259,7 +3465,7 @@ async def add_security_headers(request: Request, call_next):
 - **Font optimization**: Subset fonts (Latin only), preload display fonts
 - **Bundle analysis**: `vite-bundle-visualizer` to identify bloat
 
-### 2. Backend Performance Targets
+### 21.2 Backend Performance Targets
 
 | Metric | Target | Strategy |
 |--------|--------|----------|
@@ -3274,7 +3480,7 @@ async def add_security_headers(request: Request, call_next):
 - **Redis caching**: Tenant config (1 hour TTL), user sessions, LLM responses (24h TTL)
 - **Async operations**: All I/O (database, Redis, LLM calls) is async/await
 
-### 3. Database Performance
+### 21.3 Database Performance
 
 **Query Optimization**:
 - **EXPLAIN ANALYZE**: All queries >100ms automatically logged (slow query log)
@@ -3286,7 +3492,7 @@ async def add_security_headers(request: Request, call_next):
 - **MVP**: Single PostgreSQL instance (16 vCPU, 64GB RAM) with read replicas
 - **Phase 2**: Citus for horizontal sharding (if >1000 tenants)
 
-### 4. LLM Call Optimization
+### 21.4 LLM Call Optimization
 
 | Optimization | Savings | Implementation |
 |--------------|---------|---------------|
@@ -3307,7 +3513,7 @@ result = await llm_provider.complete(prompt)
 await redis.setex(f"llm_cache:{prompt_hash}", 86400, result)  # 24h TTL
 ```
 
-### 5. Monitoring & Alerting
+### 21.5 Monitoring & Alerting
 
 **Key Metrics (Prometheus + Grafana)**:
 - API latency (p50, p95, p99) per endpoint
@@ -3324,9 +3530,11 @@ await redis.setex(f"llm_cache:{prompt_hash}", 86400, result)  # 24h TTL
 - Database connections >80% of pool (warning)
 - LLM token budget >80% (notify tenant), >100% (suspend)
 
-## Deployment Architecture
+---
 
-### Kubernetes Cluster Architecture
+## 22. Deployment Architecture
+
+### 22.1 Kubernetes Cluster Architecture
 
 **Cluster Specifications**:
 - **Cloud**: AWS EKS, GCP GKE, or Azure AKS (cloud-agnostic via Terraform modules)
@@ -3344,7 +3552,7 @@ qualisys-staging      # Staging environment
 qualisys-dev          # Development environment
 ```
 
-### Service Deployment Pattern
+### 22.2 Service Deployment Pattern
 
 ```yaml
 # Example: API Gateway deployment
@@ -3395,7 +3603,7 @@ spec:
           periodSeconds: 5
 ```
 
-### GitOps Workflow (ArgoCD)
+### 22.3 GitOps Workflow (ArgoCD)
 
 ```
 Developer Push → GitHub → GitHub Actions (CI) → Build Container Image → Push to Registry
@@ -3409,7 +3617,7 @@ Developer Push → GitHub → GitHub Actions (CI) → Build Container Image → 
 
 **Rollback Strategy**: ArgoCD one-click rollback to previous Git commit
 
-### Infrastructure Components
+### 22.4 Infrastructure Components
 
 **Managed Services (Phase 1)**:
 - **Database**: AWS RDS PostgreSQL (Multi-AZ, auto-backup, point-in-time recovery)
@@ -3424,9 +3632,11 @@ Developer Push → GitHub → GitHub Actions (CI) → Build Container Image → 
 - **Backups**: Daily automated backups, retained 30 days
 - **Multi-region**: Phase 2 (active-passive failover)
 
-## Development Environment
+---
 
-### Prerequisites
+## 23. Development Environment
+
+### 23.1 Prerequisites
 
 | Software | Version | Purpose |
 |----------|---------|---------|
@@ -3439,7 +3649,7 @@ Developer Push → GitHub → GitHub Actions (CI) → Build Container Image → 
 | **Terraform** | 1.6+ | Infrastructure provisioning (optional) |
 | **Git** | 2.40+ | Version control |
 
-### Local Development Setup
+### 23.2 Local Development Setup
 
 **1. Clone Repository**:
 ```bash
@@ -3562,7 +3772,7 @@ npm run test  # Vitest unit tests
 npm run test:e2e  # Playwright E2E tests
 ```
 
-### Development Workflow
+### 23.3 Development Workflow
 
 **Feature Development**:
 1. Create feature branch: `git checkout -b feature/self-healing-confidence-ui`
@@ -3587,11 +3797,17 @@ alembic upgrade head
 alembic downgrade -1
 ```
 
-## Architecture Decision Records (ADRs)
+---
+
+# Part IX — Decision Records
+
+---
+
+## 24. Architecture Decision Records (ADRs)
 
 **Purpose**: Document key architectural decisions for future reference and onboarding.
 
-### ADR-001: Multi-Tenant Schema-Per-Tenant Strategy
+### 24.1 ADR-001: Multi-Tenant Schema-Per-Tenant Strategy
 
 **Date**: 2024-11-15
 **Status**: Accepted
@@ -3603,7 +3819,7 @@ alembic downgrade -1
 - ⚠️ **Con**: Alembic migrations must run per-tenant (scripted in deployment)
 - ⚠️ **Con**: Connection pooling more complex (ContextVar-based routing)
 
-### ADR-002: Vite + React over Next.js
+### 24.2 ADR-002: Vite + React over Next.js
 
 **Date**: 2024-11-16
 **Status**: Accepted
@@ -3616,7 +3832,7 @@ alembic downgrade -1
 - ⚠️ **Con**: No SSR/SSG (not needed for auth-walled SaaS app)
 - ⚠️ **Con**: API routes not built-in (use dedicated FastAPI backend instead)
 
-### ADR-003: pgvector for MVP, Weaviate for Phase 2
+### 24.3 ADR-003: pgvector for MVP, Weaviate for Phase 2
 
 **Date**: 2024-11-17
 **Status**: Accepted
@@ -3629,7 +3845,7 @@ alembic downgrade -1
 - ⚠️ **Con**: Slower vector search at scale (acceptable for MVP <10K tests)
 - ✅ **Pro**: Clear upgrade path (Weaviate Phase 2 when >100K vectors)
 
-### ADR-004: Server-Sent Events (SSE) over WebSocket
+### 24.4 ADR-004: Server-Sent Events (SSE) over WebSocket
 
 **Date**: 2024-11-18
 **Status**: Accepted
@@ -3642,7 +3858,7 @@ alembic downgrade -1
 - ✅ **Pro**: Lower server resource usage (no persistent socket state)
 - ⚠️ **Con**: Unidirectional only (client→server still uses REST, acceptable trade-off)
 
-### ADR-005: LangChain for MVP, Custom Orchestrator for Phase 2
+### 24.5 ADR-005: LangChain for MVP, Custom Orchestrator for Phase 2
 
 **Date**: 2024-11-19
 **Status**: Accepted
@@ -3655,7 +3871,7 @@ alembic downgrade -1
 - ⚠️ **Con**: Black box for prompt management (migrate to custom Phase 2)
 - ✅ **Pro**: Abstraction layer (`AgentOrchestrator`) makes migration feasible
 
-### ADR-006: Pre-Warmed Playwright Container Pool
+### 24.6 ADR-006: Pre-Warmed Playwright Container Pool
 
 **Date**: 2024-11-20
 **Status**: Accepted
@@ -3667,7 +3883,7 @@ alembic downgrade -1
 - ⚠️ **Con**: $14-$72/month cost for idle containers (justified by UX improvement)
 - ✅ **Pro**: Auto-scales based on queue depth (cost optimization)
 
-### ADR-007: BullMQ over AWS SQS
+### 24.7 ADR-007: BullMQ over AWS SQS
 
 **Date**: 2024-11-21
 **Status**: Accepted
@@ -3682,12 +3898,8 @@ alembic downgrade -1
 
 ---
 
-_Generated by BMAD Architecture Workflow v1.0_
-_Date: 2025-12-10_
-_For: Azfar_
-
----
-
-_Generated by BMAD Decision Architecture Workflow v1.0_
-_Date: 2025-12-02_
-_For: Azfar_
+<p align="center">
+  <em>Generated by BMAD Architecture Workflow v1.0 — 2025-12-10</em><br>
+  <em>Updated 2026-02-15</em><br>
+  <strong>Requested by Syed Azfar Hussain — Principal Test Consultant, 10Pearls</strong>
+</p>
