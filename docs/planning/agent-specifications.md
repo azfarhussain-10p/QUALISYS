@@ -23,7 +23,9 @@
 12. [Agent Interaction Workflow Diagram](#12-agent-interaction-workflow-diagram)
 13. [End-to-End Platform Workflow](#13-end-to-end-platform-workflow)
 14. [Governance & Artifact Lifecycle](#14-governance--artifact-lifecycle)
-15. [Success Metrics Summary](#15-success-metrics-summary)
+15. [Success Metrics Summary](#14-success-metrics-summary)
+16. [Agent Skills Integration (Post-MVP — Epic 7)](#15-agent-skills-integration-post-mvp--epic-7)
+17. [Agent Extensibility & Custom Agents (Post-MVP — Epic 6 Phase 3)](#16-agent-extensibility--custom-agents-post-mvp--epic-6-phase-3)
 
 ---
 
@@ -1569,21 +1571,115 @@ Layer 6: BUSINESS INTELLIGENCE
 
 ---
 
+## 15. Agent Skills Integration (Post-MVP — Epic 7)
+
+### 15.1 Progressive Disclosure Model
+
+All 7 QUALISYS agents will be retrofitted with Anthropic Agent Skills using a three-level progressive disclosure model that loads only the capability needed for each invocation:
+
+| Level | Content | Token Load | When Loaded |
+|-------|---------|-----------|-------------|
+| **Level 1 (Metadata)** | Skill name, description, tags | ~50-100 tokens | Always loaded — enables discovery |
+| **Level 2 (Instructions)** | Procedural execution steps, patterns | ~500-2,000 tokens | On skill invocation |
+| **Level 3 (Resources)** | Templates, examples, reference data | ~500-1,000 tokens | On demand within execution |
+
+### 15.2 Agent-Skill Mapping
+
+| Agent | Skills (3 per agent) | Current Tokens | With Skills | Reduction |
+|-------|---------------------|---------------|-------------|-----------|
+| **BAConsultant** | Document Parser, Requirements Extractor, Gap Analyzer | ~25,000 | ~6,000 | **76%** |
+| **QAConsultant** | Test Strategy Generator, BDD Scenario Writer, Test Data Generator | ~20,000 | ~5,500 | **72%** |
+| **AutomationConsultant** | Playwright Script Generator, Selector Optimizer, Self-Healing Analyzer | ~22,000 | ~6,500 | **70%** |
+| **DatabaseConsultant** | Schema Validator, ETL Checker, Performance Profiler | ~18,000 | ~5,000 | **72%** |
+| **Security Scanner** | Vulnerability Analyzer, OWASP Top 10 Checker, Security Test Generator | ~16,000 | ~5,500 | **66%** |
+| **Performance/Load** | Load Test Generator, Bottleneck Identifier, SLA Validator | ~14,000 | ~4,000 | **71%** |
+| **AI Log Reader** | Error Pattern Detector, Log Summarizer, Negative Test Generator | ~15,000 | ~4,500 | **70%** |
+
+**Total:** 21 skills across 7 agents | **Aggregate Reduction:** 40-60%
+
+### 15.3 Zero Regression Architecture
+
+Every skill-enabled agent path has a full-context fallback:
+
+```
+Skill Invocation Attempt
+    ├── Success → Use skill output (40-60% fewer tokens)
+    ├── Skill Registry unavailable → Agent runs full-context mode
+    ├── Skill Proxy timeout → Agent runs full-context mode
+    ├── Claude API error → Retry (3x) → Fall back to full-context
+    └── Governance blocks → Queue for approval OR fall back
+```
+
+**Critical Rule:** Skills are optimization — never a hard dependency. Agents function identically with skills disabled (FR-SK28).
+
+### 15.4 Skill Governance Extensions
+
+Skill governance extends the existing 15 human-in-the-loop gates:
+
+| Risk Level | Approval | Examples |
+|-----------|----------|---------|
+| **Low** | Auto-approved | Document Parser, BDD Scenario Writer, Log Summarizer |
+| **Medium** | QA-Automation approval | Self-Healing Analyzer, ETL Checker, Vulnerability Analyzer |
+| **High** | Architect/DBA approval | Schema Validator (production data access) |
+
+### 15.5 Reference Documents
+
+- **Full PRD:** `docs/planning/prd-agent-skills-integration.md` — 28 FRs, 20 stories, cost-benefit analysis
+- **Architecture Board Approval:** `docs/reports/architecture-board-review-agent-skills-20260215.md` — Score: 7.8/10, APPROVED with 5 conditions
+- **Executive Strategy:** `docs/evaluations/anthropic-agent-skills-executive-strategy.md` — ROI: 1.5x (3-year), payback: 18-24 months
+- **Technical Review:** `docs/evaluations/anthropic-agent-skills-technical-review.md` — Feasibility: High
+
+---
+
+## 16. Agent Extensibility & Custom Agents (Post-MVP — Epic 6 Phase 3)
+
+### 16.1 Overview
+
+QUALISYS supports admin-configured custom agents per client request through a runtime Agent Registry Service. This capability transforms the platform from "a product with agents" to "a platform for agents" without requiring code deployment for new agent additions.
+
+**Target Personas:**
+- **Platform Admin** (QUALISYS internal): Register agents, manage global definitions, version prompts, monitor circuit breakers
+- **Tenant Admin** (Client organization): Enable/disable agents, customize prompts, override LLM provider
+
+### 16.2 Custom Agent Capabilities
+
+| Capability | Description | Stories |
+|-----------|-------------|---------|
+| **Agent Registry** | Runtime registration, discovery, lifecycle management | Story 6.9 |
+| **Per-Tenant Customization** | Client-specific prompts (append/prepend/replace), enable/disable, LLM override | Story 6.10 |
+| **Fault Isolation** | Per-agent token budgets, hard timeouts, circuit breakers | Story 6.11 |
+| **Prompt Versioning** | Semantic versioning, gradual rollout (% tenant bucketing), rollback | Story 6.12 |
+
+### 16.3 RBAC for Custom Agents
+
+Custom agents inherit the existing 6-role RBAC matrix. Tenant admins can configure which roles have access to custom agents within their organization. All custom agent executions are audit-logged with tenant_id, agent_id, and actor identity.
+
+### 16.4 Reference Documents
+
+- **Tech Spec:** `docs/planning/tech-spec-agent-extensibility-framework.md` — Architecture, API contracts, database schema
+- **Epic Stories:** Stories 6.9-6.12 in `docs/epics/epics.md`
+
+---
+
 ## Document References
 
 | Document | Path | Relevance |
 |----------|------|-----------|
 | PRD (FR32-FR37) | `docs/planning/prd.md` | Agent functional requirements |
 | Architecture | `docs/architecture/architecture.md` | Technical agent design |
-| Epics | `docs/epics/epics.md` | Epic 2 (MVP agents), Epic 6 (Post-MVP) |
+| Epics | `docs/epics/epics.md` | Epic 2 (MVP agents), Epic 6 (Post-MVP + Custom Agents), Epic 7 (Agent Skills) |
 | UX Design | `docs/planning/ux-design-specification.md` | Agent UI/UX |
 | BA+QA Research | `docs/improvements/research_document-2026-02-03.md` | BAConsultant + QAConsultant design |
 | BA+QA Improvement Plan | `docs/improvements/improvement_plan-2026-02-03.md` | Implementation roadmap |
 | AutomationConsultant Research | `docs/improvements/automation_consultant_ai_agent_docs/research_automationConsultantAIAgent-2026-02-06.md` | AutomationConsultant design |
 | Sprint Change Proposal | `docs/sprint-change-proposal-2026-02-06.md` | Agent restructuring (8→6) |
+| Agent Skills PRD | `docs/planning/prd-agent-skills-integration.md` | 21 skills, progressive disclosure model |
+| Agent Extensibility Tech Spec | `docs/planning/tech-spec-agent-extensibility-framework.md` | Runtime registry, per-tenant customization |
+| Agent Skills Evaluations | `docs/evaluations/anthropic-agent-skills-*.md` | Architecture board, executive strategy, technical review |
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2026-02-06
+**Document Version:** 2.0
+**Last Updated:** 2026-02-15
 **Compiled By:** PM Agent (John) — BMad Method v6
+**Change Log:** v2.0 — Added Section 15 (Agent Skills Integration) and Section 16 (Agent Extensibility & Custom Agents). Updated document references. v1.0 — Original 7-agent specification.

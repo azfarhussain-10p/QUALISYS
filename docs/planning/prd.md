@@ -1,8 +1,9 @@
 # QUALISYS - Product Requirements Document
 
 **Author:** Azfar
-**Date:** 2025-12-02
-**Version:** 2.0
+**Date:** 2026-02-15 (Updated)
+**Version:** 3.0
+**Change Log:** v3.0 — Added Agent Skills Integration (FR-SK1–28), Agent Extensibility & Custom Agents (FR-CA1–9), updated Growth Features and Vision sections. v2.0 — Original PRD.
 
 ---
 
@@ -24,7 +25,7 @@ QUALISYS transforms testing from a manual bottleneck into an intelligent, self-m
 
 **QUALISYS combines three breakthrough capabilities that no existing solution offers together:**
 
-1. **Multi-Agent AI System**: 7 specialized AI agents — MVP: BAConsultant AI Agent, QAConsultant AI Agent, AutomationConsultant AI Agent; Post-MVP: AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent, DatabaseConsultant AI Agent — work in orchestrated pipelines with user-selectable workflows that adapt to project needs.
+1. **Multi-Agent AI System**: 7 specialized AI agents — MVP: BAConsultant AI Agent, QAConsultant AI Agent, AutomationConsultant AI Agent; Post-MVP: AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent, DatabaseConsultant AI Agent — work in orchestrated pipelines with user-selectable workflows that adapt to project needs. Post-MVP extensibility enables admin-configured custom agents per client and a progressive skill-based architecture for cost-optimized agent invocations.
 
 2. **Self-Healing Test Automation**: When application changes break tests, QUALISYS doesn't just report failures - it automatically detects DOM changes, proposes patched selectors using multiple fallback strategies (CSS/XPath, text anchors, accessibility labels, visual anchors), and updates tests with versioned audit trails.
 
@@ -196,7 +197,9 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 - ❌ Full self-healing with ML-suggested selectors (basic rules-based only)
 - ❌ Advanced SLA monitoring with auto-alerts
 - ❌ Cost-per-test analytics
-- ❌ Custom agent creation or agent marketplace
+- ❌ Agent Skills progressive disclosure optimization (Epic 7 — Post-MVP)
+- ❌ Admin-configured custom agents per client (Epic 6 Phase 3 — Post-MVP)
+- ❌ Agent marketplace (depends on Agent SDK & Registry — Epic 6 Phase 3)
 - ❌ On-premise deployment option
 - ❌ SOC2 certification (target for Growth phase)
 
@@ -204,7 +207,7 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 
 ### Growth Features (Post-MVP, 3-6 months)
 
-**Phase 1: Complete Multi-Agent Suite**
+**Phase 1: Complete Multi-Agent Suite (Epic 6 Phase 1)**
 - Add remaining agents: AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent, DatabaseConsultant AI Agent
 - Agent pipeline orchestration: Create complex multi-step workflows
 - Agent performance metrics and optimization
@@ -215,20 +218,37 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 - Automatic rerun with smart retry strategies
 - Confidence scoring for proposed fixes
 
-**Phase 3: Enterprise Features**
+**Phase 3: Enterprise Features (Epic 6 Phase 2)**
 - Advanced SLA monitoring with automated breach alerts
 - Cost tracking per test/story point
 - Custom RBAC roles with granular permissions
 - Advanced compliance features (SOC2 preparation, audit logs)
 - Scheduled email report summaries
 
-**Phase 4: Enhanced Integrations**
+**Phase 4: Agent Extensibility & Custom Agents (Epic 6 Phase 3)**
+- **Agent Registry Service**: Runtime agent registration and discovery (no code deployment for new agents)
+- **Per-Tenant Agent Customization**: Admin-configured custom agent behavior per client — prompt customization, output template overrides, enable/disable per organization
+- **Agent Isolation & Circuit Breakers**: Per-agent fault containment with token budgets, timeouts, and circuit breaker patterns
+- **Agent Prompt Versioning**: Semantic versioning with gradual rollout (percentage-based tenant bucketing)
+- Agent SDK (TypeScript/Python) for community-created agents
+- Agent Marketplace (discovery, ratings, revenue share)
+
+**Phase 5: Agent Skills Integration (Epic 7)**
+- **Progressive Disclosure Model**: Three-level skill loading (Metadata ~100 tokens → Instructions ~2,000 tokens → Resources ~500 tokens) for 40–60% token cost reduction per agent invocation
+- **Skill Registry Service**: Centralized skill metadata, discovery, and lifecycle management
+- **Skill Proxy Service**: Skill execution via Claude API with tenant-scoped resource limits
+- **Skill Adapter Library**: Python package bridging LangChain and Claude API Skills format
+- **21 Custom Skills**: Covering all 7 QUALISYS agents (9 MVP agent skills + 12 post-MVP agent skills)
+- **Governance Extensions**: Skill approval workflows, execution gates, risk classification (low/medium/high)
+- **Zero Regression Guarantee**: Full-context fallback if skills unavailable — skills optimize, never hard-depend
+
+**Phase 6: Enhanced Integrations**
 - CI/CD: GitHub Actions, GitLab CI deep integration
 - More test management tools: Zephyr, Xray, PractiTest
 - APM tools: DataDog, New Relic for test correlation
 - MS Teams ChatOps
 
-**Phase 5: Intelligence & Analytics**
+**Phase 7: Intelligence & Analytics**
 - Test effectiveness scoring (which tests find the most bugs)
 - Flakiness detection and auto-quarantine
 - Predictive analytics: Risk-based test selection
@@ -255,10 +275,12 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 **3. Developer Experience**
 - IDE plugins (VSCode, IntelliJ) for local test generation
 - CLI tool for CI/CD integration without platform UI
-- SDK for custom agent development
+- Agent SDK (TypeScript/Python) for custom agent development
 
 **4. Community & Ecosystem**
 - Agent marketplace: Share and download community-created agents
+- Admin-configured custom agents per client request (no code deployment)
+- Agent Skills framework for modular, cost-optimized agent capabilities
 - Open-source core agents with premium enterprise features
 - API-first platform for third-party integrations
 
@@ -573,6 +595,49 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 - FR109: Users can configure notification preferences (email, Slack, frequency)
 - FR110: Users can manage their connected integrations and API keys
 
+### Agent Extensibility & Custom Agents (Post-MVP — Epic 6 Phase 3)
+
+- FR-CA1: Platform admins can register new agent definitions at runtime via API or admin UI without code deployment
+- FR-CA2: Platform admins can manage agent lifecycle (enable, disable, deprecate, retire) through the Agent Registry Service
+- FR-CA3: Tenant admins can enable or disable specific agents for their organization, hiding disabled agents from their team's discovery
+- FR-CA4: Tenant admins can customize agent behavior with organization-specific prompt instructions (append, prepend, or replace modes)
+- FR-CA5: Tenant admins can override LLM provider and model selection per agent per organization (from platform-configured providers only)
+- FR-CA6: System enforces per-agent fault isolation with configurable token budgets, hard timeouts, and circuit breaker patterns
+- FR-CA7: Platform admins can version agent prompts using semantic versioning with gradual rollout (percentage-based tenant bucketing)
+- FR-CA8: System provides Agent Registry discovery API returning tenant-scoped and role-filtered agent metadata
+- FR-CA9: All agent configuration changes, version deployments, and circuit breaker events are audit-logged with timestamps and actor identity
+
+### Agent Skills Integration (Post-MVP — Epic 7)
+
+- FR-SK1: System shall maintain a centralized skill registry storing metadata (name, description, version, agent_id, risk_level, tags) for all registered skills
+- FR-SK2: System shall expose REST API for skill CRUD operations with tenant-scoped access control
+- FR-SK3: System shall support skill discovery by agent_id, returning only skills mapped to the requesting agent
+- FR-SK4: System shall enforce semantic versioning (major.minor.patch) for all skills
+- FR-SK5: System shall support skill deprecation with 30-day notice period and migration guidance
+- FR-SK6: System shall prevent skill deletion when active references exist
+- FR-SK7: System shall support skill tagging for RAG pre-fetching optimization
+- FR-SK8: System shall execute custom skills via the configured LLM provider's skill execution API, supporting up to 8 skills per request
+- FR-SK9: System shall translate QUALISYS agent context (ProjectContext, tenant_id, RAG results) into Claude API format
+- FR-SK10: System shall handle skill execution timeouts (configurable, default 120s) with graceful degradation
+- FR-SK11: System shall implement retry logic with exponential backoff for transient Claude API failures
+- FR-SK12: System shall route skill execution through tenant-scoped resource limits (max concurrent skills per tenant)
+- FR-SK13: System shall support skill fallback — if skill execution fails, agent falls back to full-context mode
+- FR-SK14: System shall log all skill executions with skill_id, agent_id, tenant_id, tokens_used, execution_time_ms, status
+- FR-SK15: Library shall provide a skill adapter component compatible with the AgentOrchestrator interface
+- FR-SK16: Library shall translate LangChain context objects to Claude API skill invocation format
+- FR-SK17: Library shall translate Claude API skill responses back to LangChain-compatible format
+- FR-SK18: Library shall support skill chaining — output of Skill A available as input to Skill B within same agent invocation
+- FR-SK19: System shall classify skills by risk level: low (auto-approved), medium (QA-Automation approval), high (Architect/DBA approval)
+- FR-SK20: System shall require deployment approval for new skills and major version updates
+- FR-SK21: System shall require pre-execution approval for high-risk skills (e.g., DatabaseConsultant schema validation)
+- FR-SK22: System shall integrate skill approvals into existing approval dashboard UI
+- FR-SK23: System shall support skill execution approval exemptions for pre-approved skill+context combinations
+- FR-SK24: AgentOrchestrator shall discover available skills for the current agent before invocation
+- FR-SK25: AgentOrchestrator shall select relevant skills based on task context (document type, agent stage, project domain)
+- FR-SK26: AgentOrchestrator shall pass selected skill metadata in the agent's context initialization
+- FR-SK27: AgentOrchestrator shall support mixed execution — some capabilities via skills, others via existing agent logic
+- FR-SK28: AgentOrchestrator shall maintain backward compatibility — agents function identically with skills disabled
+
 ---
 
 ## Non-Functional Requirements
@@ -742,7 +807,24 @@ This PRD was developed based on comprehensive discovery and strategic planning d
    - Novel UX patterns (Agent Cards, Self-Healing Diff Viewer)
    - Responsive & accessibility guidelines
 
-**Strategic Alignment:** This PRD integrates market validation data, competitive intelligence, and user experience design into a cohesive product vision aligned with the strategic positioning of creating the "AI System Quality Assurance" category.
+4. **Agent Skills Integration PRD** (`docs/planning/prd-agent-skills-integration.md`)
+   - Anthropic Agent Skills progressive disclosure model
+   - 21 custom skills across 7 agents
+   - Epic 7 story breakdown and phased implementation
+   - Cost-benefit analysis ($82K annual savings at scale)
+
+5. **Agent Extensibility Framework Tech Spec** (`docs/planning/tech-spec-agent-extensibility-framework.md`)
+   - Agent Registry Service design
+   - Per-tenant agent customization architecture
+   - Agent isolation, circuit breakers, and prompt versioning
+   - Stories 6.9–6.12 detailed specifications
+
+6. **Agent Skills Evaluation Documents** (`docs/evaluations/`)
+   - Architecture Board evaluation and approval (with 5 conditions)
+   - Executive strategy evaluation and ROI analysis
+   - Technical review and integration feasibility assessment
+
+**Strategic Alignment:** This PRD integrates market validation data, competitive intelligence, user experience design, agent skills optimization, and custom agent extensibility into a cohesive product vision aligned with the strategic positioning of creating the "AI System Quality Assurance" category.
 
 ---
 

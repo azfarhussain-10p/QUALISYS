@@ -7,7 +7,7 @@
 # CONFIGURATION
 # ===================================================================
 generated: "2025-12-12"
-updated: "2026-02-12"
+updated: "2026-02-15"
 project: QUALISYS
 project_key: qualisys-ai-testing-platform
 tracking_system: file-system
@@ -46,6 +46,14 @@ mvp_summary:
   current_sprint: "Sprint 1 - Foundation & Administration"
   current_epic: "epic-1"
   blocking_items: []
+
+# Post-MVP Summary (Epics 6-7)
+post_mvp_summary:
+  total_epics: 2
+  total_stories: 32
+  epics_completed: 0
+  stories_completed: 0
+  notes: "Epic 6: 12 stories (Advanced Agents + Custom Agents), Epic 7: 20 stories (Agent Skills Integration)"
 
 # ===================================================================
 # DEVELOPMENT STATUS
@@ -238,16 +246,71 @@ development_status:
   # Dependencies: Epic 5
   # Note: Growth features, deferred from MVP
   # =====================================================
+  # =====================================================
+  # Epic 6: Advanced Agents, Enterprise & Extensibility
+  # =====================================================
+  # Priority: P2 - Post-MVP
+  # Duration: 8-11 weeks (3 phases)
+  # Owner: TBD
+  # Dependencies: Epic 5
+  # Includes: Post-MVP agents, enterprise security,
+  #           agent extensibility & admin-configured custom agents
+  # =====================================================
   epic-6: backlog
+  # Phase 1: Post-MVP Agents
   6-1-ai-log-reader-summarizer-agent: backlog
   6-2-security-scanner-orchestrator-agent: backlog
   6-3-performance-load-agent: backlog
+  6-8-database-consultant-ai-agent: backlog
+  # Phase 2: Enterprise Security
   6-4-saml-2-0-sso-integration: backlog
+  6-7-soc-2-audit-trail-export: backlog
+  # Phase 3: Agent Extensibility & Custom Agents
+  6-9-agent-registry-service: backlog
+  6-10-per-tenant-agent-customization: backlog
+  6-11-agent-isolation-circuit-breakers: backlog
+  6-12-agent-prompt-versioning-gradual-rollout: backlog
   6-5-agent-sdk-marketplace: backlog
   6-6-self-hosted-llm-support: backlog
-  6-7-soc-2-audit-trail-export: backlog
-  6-8-database-consultant-ai-agent: backlog
   epic-6-retrospective: optional
+
+  # =====================================================
+  # Epic 7: Agent Skills Integration
+  # =====================================================
+  # Priority: P2 - Post-MVP (follows Epic 6)
+  # Duration: 4-5 weeks (4 phases)
+  # Owner: TBD
+  # Dependencies: Epic 6
+  # PRD: docs/planning/prd-agent-skills-integration.md
+  # Architecture Board: APPROVED with 5 conditions
+  # Key: 40-60% token cost reduction, 21 skills, 7 agents
+  # =====================================================
+  epic-7: backlog
+  # Phase 1: POC Validation
+  7-1-skill-registry-service-core-infrastructure: backlog
+  7-2-skill-proxy-service-claude-api-integration: backlog
+  7-3-skill-adapter-library-langchain-bridge: backlog
+  7-4-poc-baconsultant-skills-integration: backlog
+  7-5-poc-validation-go-no-go-decision: backlog
+  # Phase 2: Infrastructure
+  7-6-skill-versioning-lifecycle-management: backlog
+  7-7-skill-governance-risk-classification-approval: backlog
+  7-8-skill-governance-dashboard-integration: backlog
+  7-9-tenant-scoped-skill-execution: backlog
+  7-10-skill-aware-rag-pre-fetching: backlog
+  # Phase 3: MVP Agent Integration
+  7-11-qaconsultant-skills-integration: backlog
+  7-12-automationconsultant-skills-integration: backlog
+  7-13-agentorchestrator-skill-discovery-selection: backlog
+  7-14-skill-fallback-backward-compatibility: backlog
+  7-15-skill-observability-cost-tracking: backlog
+  # Phase 4: Post-MVP Agent Integration
+  7-16-databaseconsultant-skills-integration: backlog
+  7-17-security-scanner-skills-integration: backlog
+  7-18-performance-load-agent-skills-integration: backlog
+  7-19-ai-log-reader-skills-integration: backlog
+  7-20-full-platform-skill-validation-documentation: backlog
+  epic-7-retrospective: optional
 
 # ===================================================================
 # SPRINT QUEUE
@@ -280,13 +343,14 @@ metrics:
     epic-3: { total: 15, backlog: 15, drafted: 0, ready: 0, in_progress: 0, review: 0, done: 0 }
     epic-4: { total: 16, backlog: 16, drafted: 0, ready: 0, in_progress: 0, review: 0, done: 0 }
     epic-5: { total: 16, backlog: 16, drafted: 0, ready: 0, in_progress: 0, review: 0, done: 0 }
-    epic-6: { total: 8, backlog: 8, drafted: 0, ready: 0, in_progress: 0, review: 0, done: 0 }
+    epic-6: { total: 12, backlog: 12, drafted: 0, ready: 0, in_progress: 0, review: 0, done: 0 }
+    epic-7: { total: 20, backlog: 20, drafted: 0, ready: 0, in_progress: 0, review: 0, done: 0 }
   totals:
     mvp_stories: 100
-    post_mvp_stories: 8
-    total_stories: 108
+    post_mvp_stories: 32
+    total_stories: 132
     completed: 22
-    completion_percentage: 22
+    completion_percentage: 17
 
 # ===================================================================
 # CHANGELOG
@@ -600,3 +664,7 @@ changelog:
     action: "Epic 0 retrospective complete"
     by: "DEV Agent (Amelia)"
     notes: "Epic 0 retrospective conducted. 22/22 stories done, 0 HIGH findings across all reviews. Key lessons: replaceAll over replace, output parity between clouds, Alpine lacks curl. 2 mid-sprint corrections (Docker→Podman, AWS→AWS+Azure) absorbed cleanly. Epic 1 ready to start — Story 1-1 is ready-for-dev."
+  - date: "2026-02-15"
+    action: "Documentation update — Agent Skills & Custom Agents"
+    by: "PM Agent (John)"
+    notes: "Updated all core documentation to reflect two new features: (1) Agent Skills Integration (Epic 7, 20 stories, FR-SK1–28) — Anthropic progressive disclosure model for 40-60% token cost reduction across all 7 agents. Architecture Board APPROVED with 5 conditions. (2) Admin-Configured Custom Agents (Epic 6 Phase 3, Stories 6.9-6.12, FR-CA1–9) — Runtime agent registry, per-tenant customization, circuit breakers, prompt versioning. Documents updated: PRD v3.0, epics.md, agent-specifications.md v2.0, sprint-status.yaml. Total stories: 100 MVP + 32 post-MVP = 132."

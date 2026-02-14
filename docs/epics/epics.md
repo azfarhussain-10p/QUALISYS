@@ -155,7 +155,25 @@ This document provides the complete epic and story breakdown for QUALISYS, decom
 - **FR109:** Users can configure notification preferences (email, Slack, frequency)
 - **FR110:** Users can manage their connected integrations and API keys
 
-**Total Functional Requirements:** 110
+### Agent Extensibility & Custom Agents (Post-MVP — Epic 6 Phase 3)
+- **FR-CA1:** Platform admins can register new agent definitions at runtime via API or admin UI without code deployment
+- **FR-CA2:** Platform admins can manage agent lifecycle (enable, disable, deprecate, retire) through the Agent Registry Service
+- **FR-CA3:** Tenant admins can enable or disable specific agents for their organization
+- **FR-CA4:** Tenant admins can customize agent behavior with organization-specific prompt instructions
+- **FR-CA5:** Tenant admins can override LLM provider and model selection per agent per organization
+- **FR-CA6:** System enforces per-agent fault isolation with configurable token budgets, hard timeouts, and circuit breaker patterns
+- **FR-CA7:** Platform admins can version agent prompts using semantic versioning with gradual rollout
+- **FR-CA8:** System provides Agent Registry discovery API returning tenant-scoped and role-filtered agent metadata
+- **FR-CA9:** All agent configuration changes, version deployments, and circuit breaker events are audit-logged
+
+### Agent Skills Integration (Post-MVP — Epic 7)
+- **FR-SK1–SK7:** Skill Registry Service — centralized skill metadata, discovery, versioning, lifecycle management
+- **FR-SK8–SK14:** Skill Proxy Service — skill execution, context translation, fallback, audit logging
+- **FR-SK15–SK18:** Skill Adapter Library — LangChain ↔ Claude API translation, skill chaining
+- **FR-SK19–SK23:** Governance Extensions — risk classification, deployment approval, execution gates
+- **FR-SK24–SK28:** Agent Orchestrator Modifications — skill discovery, selection, mixed execution, backward compatibility
+
+**Total Functional Requirements:** 110 (MVP) + 9 (Agent Extensibility) + 28 (Agent Skills) = 147
 
 ---
 
@@ -176,7 +194,8 @@ This document provides the complete epic and story breakdown for QUALISYS, decom
 | **3** | Manual Testing & Developer Integration | 3-4 weeks | QA-Manual, Dev, PM/CSM | FR33-34, FR41-48, FR91-95 | Manual test execution with evidence + GitHub PR integration |
 | **4** | Automated Execution & Self-Healing (Breakthrough) | 4-5 weeks | QA-Automation, Dev | FR49-57, FR58-66 | Automated Playwright tests with self-healing magic |
 | **5** | Complete Dashboards & Ecosystem Integration | 3-4 weeks | All personas | FR72-77, FR85-90, FR96-101, FR109-110 | Full visibility + TestRail/Slack integrations |
-| **6+** | Advanced Agents & Growth Features | Post-MVP | Power users | Post-MVP agents (AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent, DatabaseConsultant AI Agent), email reports, advanced RBAC | Platform depth and breadth |
+| **6** | Advanced Agents & Growth Features | 8-11 weeks | Power users, Enterprise | Post-MVP agents, enterprise security, agent extensibility & custom agents | Platform depth, extensibility, custom agents |
+| **7** | Agent Skills Integration | 4-5 weeks | All agent users | Progressive skill loading, skill registry/proxy, 21 skills across 7 agents | 40-60% token cost reduction, modular agent architecture |
 
 **Total MVP Duration:** 15-19 weeks (Epics 1-5)
 
@@ -2192,6 +2211,53 @@ As a Dev or QA-Automation user, I want a DatabaseConsultant AI Agent that valida
 - AC10: Integration: Exports performance metrics to Prometheus/Grafana dashboards; shares findings with QAConsultant, AutomationConsultant, Security Scanner, and Performance/Load agents
 - AC11: Security: Read-only database access by default; no production write operations without explicit approval; TLS 1.2+ connections; secrets via Vault/Key Vault
 
+**Story 6.9: Agent Registry Service (NEW — from Agent Extensibility Framework Tech Spec)**
+As a platform administrator, I want to register, discover, and manage agent definitions at runtime, so that new agents can be added to QUALISYS without code deployment.
+- AC1: `agent_definitions` and `agent_versions` tables created via Alembic migration. 7 built-in agents seeded (idempotent). `agent_execution_log` partitioned by month (1yr hot, 7yr cold archive aligned with SOC 2).
+- AC2: `AgentRegistry` service: register(), get(), discover(), disable(), list_all(). Redis cache (1h TTL), invalidated on mutation.
+- AC3: `AgentOrchestrator` resolves from registry (not hardcoded config). 404 if not found/disabled. Zero regression for existing 7 agents.
+- AC4: Admin CRUD API at `/api/v1/admin/agents` (owner/admin only). Pydantic validation.
+- AC5: Discovery API at `GET /api/v1/agents` — tenant+role filtered, excludes system_prompt (metadata only). Cached 5 min.
+- AC6: Version management — auto-increment, rollout_percentage (0-100), previous versions retained.
+- **Tech Spec:** `docs/planning/tech-spec-agent-extensibility-framework.md` Section 5, Story 6.5a
+- **Depends on:** None (foundation story)
+
+**Story 6.10: Per-Tenant Agent Customization (NEW — from Agent Extensibility Framework Tech Spec)**
+As a tenant administrator, I want to customize agent behavior for my organization (prompts, output templates, enable/disable), so that agents are tailored to my industry and testing requirements.
+- AC1: `tenant_agent_configs` table with unique (tenant_id, agent_id). Public schema, RLS-ready.
+- AC2: `AgentConfigResolver` merges global + tenant overrides. Priority: tenant pin > tenant override > global default. Prompt merge: append/prepend/replace. Cached 5 min.
+- AC3: Custom prompt (max 10,000 chars). Append mode adds after "## Client-Specific Instructions" header.
+- AC4: Per-tenant enable/disable. Disabled agents hidden from discovery. No cross-tenant impact.
+- AC5: LLM provider/model override per agent per tenant. Only platform-configured providers accepted.
+- AC6: Tenant config CRUD API at `/api/v1/tenant/agents/{agent_id}/config` (tenant owner/admin only).
+- AC7: Settings → Agents admin UI with agent cards, enable/disable toggles, "Customize" modal.
+- AC8: `replace` mode restricted to Enterprise tier (feature flag). Audit event logged on use.
+- AC9: Prompt validation on save: min 50 chars, no injection patterns, UTF-8 only.
+- **Tech Spec:** `docs/planning/tech-spec-agent-extensibility-framework.md` Section 6, Story 6.5b
+- **Depends on:** Story 6.9
+
+**Story 6.11: Agent Isolation & Circuit Breakers (NEW — from Agent Extensibility Framework Tech Spec)**
+As a platform operator, I want per-agent fault isolation (token budgets, timeouts, circuit breakers), so that one misbehaving agent cannot degrade the platform for other agents or tenants.
+- AC1: Per-agent daily token budget (Redis atomic counters). HTTP 429 on exceeded. Default: max_tokens × 100/day.
+- AC2: Per-agent hard timeout (default: 120s). HTTP 504 on timeout. Prometheus metric emitted.
+- AC3: Per-agent circuit breaker (closed/open/half-open). Opens after 5 failures in 120s window. HTTP 503 when open. Redis state. Prometheus metric on state change.
+- AC4: `AgentExecutionGuard` wraps all three layers. Integrated into orchestrator. Feature flag `AGENT_EXECUTION_GUARD_ENABLED` for canary rollout (start with 1 agent, then enable globally).
+- AC5: Admin API for manual circuit breaker reset. Audit logged.
+- AC6: Grafana "Agent Health" dashboard: circuit breaker status, token consumption, timeout/error rates. PagerDuty P2 on circuit open, Slack on token budget >90%.
+- **Tech Spec:** `docs/planning/tech-spec-agent-extensibility-framework.md` Section 7, Story 6.5c
+- **Depends on:** Story 6.9
+
+**Story 6.12: Agent Prompt Versioning & Gradual Rollout (NEW — from Agent Extensibility Framework Tech Spec)**
+As a platform administrator, I want to version agent prompts and roll out changes gradually, so that prompt improvements can be validated before affecting all tenants.
+- AC1: Create new version via API/UI. Requires system_prompt + changelog. Auto-incremented semver. Previous versions retained.
+- AC2: Gradual rollout via `rollout_percentage` (default: 10). Deterministic tenant bucketing (hash(tenant_id) % 100).
+- AC3: Version resolution: tenant pin > rollout-weighted latest > stable latest. Version logged in execution log.
+- AC4: Rollback: set rollout_percentage=0. Deprecate/retire lifecycle. Auto-upgrade pinned tenants on retirement (with notification).
+- AC5: Grafana version comparison panel: error rate, token usage, execution time by version.
+- AC6: Admin UI: Versions tab per agent — version list, rollout slider, changelog, "Create New Version" button.
+- **Tech Spec:** `docs/planning/tech-spec-agent-extensibility-framework.md` Section 8, Story 6.5d
+- **Depends on:** Story 6.9
+
 ### Phasing Strategy (Epic 6+ Rollout)
 
 **Phase 1 (Weeks 1-3): Post-MVP Agents**
@@ -2206,21 +2272,207 @@ As a Dev or QA-Automation user, I want a DatabaseConsultant AI Agent that valida
 - Story 6.7: SOC 2 Audit Trail
 - **Outcome:** Enterprise sales unblocked, can close Fortune 500 deals
 
-**Phase 3 (Weeks 6-8): Extensibility**
-- Story 6.5: Agent SDK & Marketplace (beta)
-- Story 6.6: Self-Hosted LLM Support
-- **Outcome:** Community engagement starts, cost-conscious customers opt for self-hosted
+**Phase 3 (Weeks 6-10): Extensibility & Agent Platform**
+- Story 6.9: Agent Registry Service (foundation — weeks 6-7)
+- Story 6.10: Per-Tenant Agent Customization (weeks 8-9, parallel with 6.11)
+- Story 6.11: Agent Isolation & Circuit Breakers (weeks 8-9, parallel with 6.10)
+- Story 6.12: Agent Prompt Versioning & Gradual Rollout (week 10)
+- Story 6.5: Agent SDK & Marketplace (beta) (weeks 10-11, depends on 6.9)
+- Story 6.6: Self-Hosted LLM Support (weeks 10-11, parallel with 6.5)
+- **Outcome:** Agent platform operational — runtime registration, per-tenant customization, fault isolation, versioned rollouts. SDK & Marketplace build on this foundation. Community engagement starts.
+
+**Note:** Phase 3 expanded from 3 weeks to 5 weeks to accommodate 4 new extensibility stories (6.9-6.12). These are prerequisites for Story 6.5 (Agent SDK & Marketplace) and provide the runtime agent management layer needed for custom agent support post-go-live.
+
+### Story Dependency Map (Phase 3)
+
+```
+Story 6.9 (Agent Registry) ← FOUNDATION
+    ├── Story 6.10 (Per-Tenant Customization)  [parallel]
+    ├── Story 6.11 (Isolation & Circuit Breakers) [parallel]
+    ├── Story 6.12 (Versioning & Rollout)
+    └── Story 6.5 (Agent SDK & Marketplace)     [depends on 6.9]
+Story 6.6 (Self-Hosted LLM) ← INDEPENDENT (parallel with any Phase 3 story)
+```
 
 ### Epic 6+ Completion Criteria
 
 Epic 6+ is not blocking MVP launch, but achieves:
 - ✅ **Post-MVP agents:** AI Log Reader/Summarizer + Security Scanner Orchestrator + Performance/Load Agent + DatabaseConsultant AI Agent functional
 - ✅ **Enterprise ready:** SAML SSO working with 3 IdPs (Okta, Azure AD, Google), SOC 2 audit trail exportable
+- ✅ **Agent platform:** Runtime agent registry, per-tenant customization, circuit breakers, prompt versioning operational
 - ✅ **Extensibility proven:** Agent SDK documented, 1 community agent published (proof of concept)
 - ✅ **Cost optimization:** Self-hosted LLM working (1 customer using it successfully)
 - ✅ **Customer validation:** 3 enterprise customers using Epic 6+ features, positive feedback
 - ✅ **Marketplace beta:** 5 community agents submitted, 10+ installs across orgs
+- ✅ **Custom agent ready:** Platform can accept client-requested custom agents without code deployment
 - ✅ **Deployed to production** (post-MVP launch, iterative rollout)
+
+---
+
+## Epic 7: Agent Skills Integration (Post-MVP)
+
+**Duration:** 4-5 weeks (4 phases)
+**Primary Personas:** All agent users, Platform Admins
+**Risk Level:** 🟢 Low-Medium (Score 3-4) — POC validates before full commitment; zero-regression fallback architecture
+**Dependencies:** Epic 6 (Advanced Agents must exist before Skills can optimize them)
+**PRD Reference:** `docs/planning/prd-agent-skills-integration.md`
+**Architecture Board:** APPROVED with 5 conditions (2026-02-15)
+
+### Objective
+
+Integrate Anthropic's Agent Skills framework into QUALISYS's multi-agent system using a three-level progressive disclosure model. Reduce LLM token costs by 40-60% per agent invocation while enabling modular agent architecture and 2-4 week skill development cycles (vs 8-12 week agent rebuilds).
+
+### Functional Requirements Coverage
+
+**Skill Registry Service (FR-SK1–SK7):** Centralized skill metadata, discovery, versioning, lifecycle management
+**Skill Proxy Service (FR-SK8–SK14):** Skill execution via Claude API, context translation, tenant isolation, fallback
+**Skill Adapter Library (FR-SK15–SK18):** LangChain ↔ Claude API translation, skill chaining
+**Governance Extensions (FR-SK19–SK23):** Risk classification, deployment approval, execution gates
+**Agent Orchestrator Modifications (FR-SK24–SK28):** Skill discovery, selection, mixed execution, backward compatibility
+
+**Total FRs in Epic 7:** 28 FRs (FR-SK1 through FR-SK28)
+
+### Value Delivered
+
+**Token Cost Reduction:**
+- BAConsultant: ~25,000 tokens → ~6,000 tokens (**76% reduction**)
+- QAConsultant: ~20,000 tokens → ~5,500 tokens (**72% reduction**)
+- AutomationConsultant: ~22,000 tokens → ~6,500 tokens (**70% reduction**)
+- **Annual savings:** $45,600 (50 tenants) → $136,800 (150 tenants)
+
+**Platform Capability:**
+- ✅ 21 custom skills across all 7 agents (9 MVP + 12 post-MVP)
+- ✅ Skill development cycle: 2-4 weeks (vs 8-12 week agent rebuilds)
+- ✅ Zero regression guarantee: agents fall back to full-context mode if skills unavailable
+- ✅ Skill governance: risk-based approval workflows integrated into existing dashboard
+
+### Stories (20 stories across 4 phases)
+
+**Phase 1: POC Validation (Stories 7.1–7.5, Weeks 1-2)**
+
+**Story 7.1: Skill Registry Service — Core Infrastructure**
+- AC1: `skills` table created (id, name, description, version, agent_id, risk_level, tags, status)
+- AC2: REST API for skill CRUD at `/api/v1/skills` with tenant-scoped access control
+- AC3: Skill discovery by agent_id — returns only skills mapped to requesting agent
+- AC4: Redis cache for skill metadata (1h TTL, invalidated on mutation)
+- **FRs Covered:** FR-SK1, FR-SK2, FR-SK3
+
+**Story 7.2: Skill Proxy Service — Claude API Integration**
+- AC1: New microservice handles skill execution via Claude API
+- AC2: Context translation: ProjectContext + tenant_id + RAG results → Claude API format
+- AC3: Configurable timeout (default 120s) with graceful degradation
+- AC4: Retry logic with exponential backoff for transient failures
+- **FRs Covered:** FR-SK8, FR-SK9, FR-SK10, FR-SK11
+
+**Story 7.3: Skill Adapter Library — LangChain Bridge**
+- AC1: Python package provides SkillAdapter compatible with AgentOrchestrator interface
+- AC2: Bidirectional translation: LangChain context ↔ Claude API skill format
+- AC3: Skill chaining supported (output of Skill A → input of Skill B)
+- **FRs Covered:** FR-SK15, FR-SK16, FR-SK17, FR-SK18
+
+**Story 7.4: POC — BAConsultant Skills Integration**
+- AC1: 3 BAConsultant skills registered (Document Parser, Requirements Extractor, Gap Analyzer)
+- AC2: Agent invocation uses skills when available, full-context fallback when not
+- AC3: Token usage measured: >40% reduction validated
+- AC4: Output quality comparison: zero degradation from baseline
+- **FRs Covered:** FR-SK24, FR-SK25, FR-SK27, FR-SK28
+
+**Story 7.5: POC Validation & Go/No-Go Decision**
+- AC1: Token reduction measured across 10 test runs
+- AC2: Latency increase validated <1s per skill invocation
+- AC3: Skill execution success rate >95%
+- AC4: Go/no-go decision documented with data
+- **FRs Covered:** POC validation gate
+
+**Phase 2: Infrastructure (Stories 7.6–7.10, Weeks 3-4)**
+
+**Story 7.6: Skill Versioning & Lifecycle Management**
+- AC1: Semantic versioning enforced (major.minor.patch)
+- AC2: Skill deprecation with 30-day notice period
+- AC3: Skill deletion blocked when active references exist
+- **FRs Covered:** FR-SK4, FR-SK5, FR-SK6
+
+**Story 7.7: Skill Governance — Risk Classification & Approval**
+- AC1: Skills classified by risk: low (auto-approved), medium (QA approval), high (Architect approval)
+- AC2: Deployment approval required for new skills and major version updates
+- AC3: Pre-execution approval for high-risk skills
+- **FRs Covered:** FR-SK19, FR-SK20, FR-SK21
+
+**Story 7.8: Skill Governance — Dashboard Integration**
+- AC1: Skill approvals integrated into existing approval dashboard UI
+- AC2: Skill execution approval exemptions for pre-approved combinations
+- **FRs Covered:** FR-SK22, FR-SK23
+
+**Story 7.9: Tenant-Scoped Skill Execution**
+- AC1: Tenant-scoped resource limits (max concurrent skills per tenant)
+- AC2: Skill execution audit logging (skill_id, agent_id, tenant_id, tokens_used, execution_time_ms)
+- **FRs Covered:** FR-SK12, FR-SK14
+
+**Story 7.10: Skill-Aware RAG Pre-Fetching**
+- AC1: RAG layer supports skill tagging for context pre-fetching optimization
+- AC2: Skill-tagged context filters reduce irrelevant context loading
+- **FRs Covered:** FR-SK7
+
+**Phase 3: MVP Agent Integration (Stories 7.11–7.15, Weeks 5-6)**
+
+**Story 7.11: QAConsultant Skills Integration**
+- AC1: 3 QAConsultant skills registered (Test Strategy Generator, BDD Scenario Writer, Test Data Generator)
+- AC2: 72% token reduction validated
+- **FRs Covered:** FR-SK24, FR-SK25, FR-SK26
+
+**Story 7.12: AutomationConsultant Skills Integration**
+- AC1: 3 AutomationConsultant skills registered (Playwright Script Generator, Selector Optimizer, Self-Healing Analyzer)
+- AC2: 70% token reduction validated
+- **FRs Covered:** FR-SK24, FR-SK25, FR-SK26
+
+**Story 7.13: AgentOrchestrator Skill Discovery & Selection**
+- AC1: Orchestrator discovers available skills before each agent invocation
+- AC2: Intelligent skill selection based on task context
+- AC3: Mixed execution supported (skills + existing agent logic)
+- **FRs Covered:** FR-SK24, FR-SK25, FR-SK26, FR-SK27
+
+**Story 7.14: Skill Fallback & Backward Compatibility**
+- AC1: Full-context fallback on skill registry unavailability
+- AC2: Full-context fallback on skill proxy timeout
+- AC3: Feature flag for per-agent skill enable/disable
+- **FRs Covered:** FR-SK13, FR-SK28
+
+**Story 7.15: Skill Observability & Cost Tracking**
+- AC1: Skill execution telemetry integrated with OpenTelemetry + LangFuse
+- AC2: Grafana dashboards for skill performance, cost tracking, error rates
+- AC3: Token cost comparison: skill-enabled vs full-context per agent
+
+**Phase 4: Post-MVP Agent Integration (Stories 7.16–7.20, Weeks 7-8)**
+
+**Story 7.16: DatabaseConsultant Skills Integration**
+- AC1: 3 skills registered (Schema Validator, ETL Checker, Performance Profiler)
+- AC2: High-risk skills (Schema Validator) require Architect/DBA approval
+
+**Story 7.17: Security Scanner Skills Integration**
+- AC1: 3 skills registered (Vulnerability Analyzer, OWASP Top 10 Checker, Security Test Generator)
+
+**Story 7.18: Performance/Load Agent Skills Integration**
+- AC1: 3 skills registered (Load Test Generator, Bottleneck Identifier, SLA Validator)
+
+**Story 7.19: AI Log Reader Skills Integration**
+- AC1: 3 skills registered (Error Pattern Detector, Log Summarizer, Negative Test Generator)
+
+**Story 7.20: Full Platform Skill Validation & Documentation**
+- AC1: All 21 skills operational across 7 agents
+- AC2: Aggregate token reduction >50% validated
+- AC3: Zero regression across all agent outputs confirmed
+- AC4: Documentation updated (agent specs, architecture, API docs, runbooks)
+
+### Epic 7 Completion Criteria
+
+- ✅ **POC validated:** Go/no-go gate passed with data-driven decision
+- ✅ **21 skills operational:** All 7 agents skill-enabled
+- ✅ **Token reduction:** >50% aggregate reduction validated
+- ✅ **Zero regression:** Agent output quality unchanged
+- ✅ **Governance:** Skill approval workflows operational
+- ✅ **Observability:** Skill dashboards and cost tracking active
+- ✅ **Fallback:** Full-context mode works when skills disabled
+- ✅ **Documentation:** All specifications updated
 
 ---
 
@@ -2235,10 +2487,18 @@ Epic 6+ is not blocking MVP launch, but achieves:
 
 **Total MVP:** 15-19 weeks, 78 stories, 110 FRs covered
 
-**Post-MVP Growth (Epic 6+):**
-- **Epic 6+:** Advanced Agents & Growth Features (6-8 weeks, phased rollout)
+**Post-MVP Growth (Epics 6-7):**
+- **Epic 6:** Advanced Agents & Growth Features (8-11 weeks, phased rollout, 12 stories)
+  - Phase 1: Post-MVP Agents (3 weeks, Stories 6.1-6.3, 6.8)
+  - Phase 2: Enterprise Security (2 weeks, Stories 6.4, 6.7)
+  - Phase 3: Extensibility & Custom Agents (5 weeks, Stories 6.5, 6.6, 6.9-6.12)
+- **Epic 7:** Agent Skills Integration (4-5 weeks, 4 phases, 20 stories)
+  - Phase 1: POC Validation (Stories 7.1-7.5)
+  - Phase 2: Infrastructure (Stories 7.6-7.10)
+  - Phase 3: MVP Agent Integration (Stories 7.11-7.15)
+  - Phase 4: Post-MVP Agent Integration (Stories 7.16-7.20)
 
-**Total Development Timeline:** 21-27 weeks (5-6.5 months) for complete platform
+**Total Development Timeline:** 27-35 weeks (6.5-8.5 months) for complete platform
 
 ---
 
@@ -2253,12 +2513,19 @@ Epic 6+ is not blocking MVP launch, but achieves:
 4. **Cost control:** LLM token budgets enforced from day one (prevents economic disaster)
 5. **Fresh chat pattern:** Use fresh chats for Epic 2-5 workflows (avoid context limitations)
 
-**For Enterprise Adoption (Epic 6+):**
+**For Enterprise Adoption (Epic 6):**
 1. **SOC 2 compliance:** Non-negotiable for Fortune 500 deals
 2. **SAML SSO:** Standard enterprise requirement (80%+ of enterprise RFPs)
 3. **Self-hosted option:** Growing requirement (data sovereignty, compliance, cost)
-4. **Agent marketplace:** Network effects create competitive moat
-5. **Extensibility:** API-first design enables ecosystem growth
+4. **Agent platform:** Runtime registry + per-tenant customization enables admin-configured custom agents per client request without code deployment (Stories 6.9-6.12)
+5. **Agent marketplace:** Network effects create competitive moat (Story 6.5, depends on 6.9)
+6. **Extensibility:** API-first design enables ecosystem growth
+
+**For Cost Optimization (Epic 7):**
+1. **Agent Skills POC:** Validate 40%+ token reduction before full investment (Story 7.5 go/no-go gate)
+2. **Progressive disclosure:** Three-level skill loading critical for margin improvement at scale
+3. **Zero regression:** Full-context fallback mandatory — skills optimize, never hard-depend
+4. **Governance integrity:** All 15 human-in-the-loop gates maintained with skill-based execution
 
 ### Risk Prioritization
 
