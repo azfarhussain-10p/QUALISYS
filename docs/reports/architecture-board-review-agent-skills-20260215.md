@@ -1,10 +1,61 @@
-# Architecture Board Review: Agent Skills Integration (Epic 7)
+<div align="center">
 
-**Review Type:** Formal Architecture Board Review
-**Document Under Review:** `docs/planning/prd-agent-skills-integration.md` (v1.0, amended 2026-02-14)
-**Reviewer:** Winston (Architect Agent)
-**Review Date:** 2026-02-15
-**Board Quorum:** Architecture Lead (Winston), with reference to 3 prior evaluation documents
+# Architecture Board Review — Agent Skills Integration (Epic 7)
+
+**QUALISYS — AI System Quality Assurance Platform**
+
+</div>
+
+| Attribute | Detail |
+|-----------|--------|
+| **Review Type** | Formal Architecture Board Review |
+| **Document Under Review** | `docs/planning/prd-agent-skills-integration.md` (v1.0, amended 2026-02-14) |
+| **Reviewer** | Winston (Architect Agent) |
+| **Review Date** | 2026-02-15 |
+| **Board Quorum** | Architecture Lead (Winston), with reference to 3 prior evaluation documents |
+| **Verdict** | **APPROVE WITH CONDITIONS** (5 conditions) |
+| **Overall Score** | **7.8 / 10 — Strong** |
+
+---
+
+### Stakeholder Guide
+
+| Stakeholder | Sections of Interest | Purpose |
+|-------------|---------------------|---------|
+| **PM / Product Owner** | Sections 2, 7, 9, 12 | Verdict, cost-benefit, conditions, next steps |
+| **Architect** | All sections | Full technical and strategic assessment |
+| **Tech Lead / Dev** | Sections 4, 5, 9 (Conditions 2-4) | Feasibility, compatibility, implementation constraints |
+| **DevOps** | Section 5.3, Conditions 3-4 | Security architecture, network policies |
+| **Scrum Master** | Sections 8, 9, 12 | Implementation plan, conditions timeline, next steps |
+| **Leadership / Sponsor** | Sections 2, 7, 12 | Executive summary, ROI, final verdict |
+
+---
+
+### Table of Contents
+
+**Part I — Summary & Verdict**
+- [1. Review Scope & Inputs](#1-review-scope--inputs)
+- [2. Executive Summary](#2-executive-summary)
+
+**Part II — Assessment Details**
+- [3. Strategic Alignment Assessment](#3-strategic-alignment-assessment)
+- [4. Technical Feasibility Assessment](#4-technical-feasibility-assessment)
+- [5. Architecture Compatibility Assessment](#5-architecture-compatibility-assessment)
+- [6. Risk Assessment](#6-risk-assessment)
+- [7. Cost-Benefit Validation](#7-cost-benefit-validation)
+- [8. Implementation Plan Assessment](#8-implementation-plan-assessment)
+
+**Part III — Conditions & Decision**
+- [9. Conditions for Approval](#9-conditions-for-approval)
+- [10. Recommendations (Non-Blocking)](#10-recommendations-non-blocking)
+- [11. Consensus Evaluation of Source Documents](#11-consensus-evaluation-of-source-documents)
+- [12. Final Verdict](#12-final-verdict)
+
+---
+
+# Part I — Summary & Verdict
+
+> **Audience:** All Stakeholders | **Purpose:** Review context, overall verdict, key scores
 
 ---
 
@@ -31,23 +82,39 @@ This Architecture Board review synthesizes the following inputs to render a form
 
 ## 2. Executive Summary
 
-**VERDICT: APPROVE WITH CONDITIONS**
+> **VERDICT: APPROVE WITH CONDITIONS**
+>
+> The Architecture Board approves the Agent Skills Integration PRD (Epic 7) for implementation, subject to **5 conditions** that must be resolved before implementation begins.
 
 The Agent Skills Integration PRD presents a well-structured, strategically sound proposal to integrate Anthropic's Agent Skills framework into QUALISYS's multi-agent architecture as Epic 7 (Post-MVP). The proposal demonstrates strong alignment with the existing architecture, realistic cost-benefit projections, and appropriate risk mitigation.
 
-However, approval is conditional on 5 items that must be resolved before implementation begins.
+### Assessment Scorecard
 
-**Key Scores:**
+| Dimension | Score | Rating | Section |
+|-----------|:-----:|--------|:-------:|
+| Strategic Alignment | 9 / 10 | :green_circle: Excellent | [3](#3-strategic-alignment-assessment) |
+| Technical Feasibility | 8 / 10 | :green_circle: Strong | [4](#4-technical-feasibility-assessment) |
+| Architecture Compatibility | 8 / 10 | :green_circle: Strong | [5](#5-architecture-compatibility-assessment) |
+| Risk Management | 7 / 10 | :yellow_circle: Good | [6](#6-risk-assessment) |
+| Cost-Benefit Justification | 7 / 10 | :yellow_circle: Good | [7](#7-cost-benefit-validation) |
+| Implementation Plan | 8 / 10 | :green_circle: Strong | [8](#8-implementation-plan-assessment) |
+| **Overall** | **7.8 / 10** | **:green_circle: Strong** | |
 
-| Dimension | Score | Rating |
-|---|---|---|
-| Strategic Alignment | 9/10 | Excellent |
-| Technical Feasibility | 8/10 | Strong |
-| Architecture Compatibility | 8/10 | Strong |
-| Risk Management | 7/10 | Good |
-| Cost-Benefit Justification | 7/10 | Good |
-| Implementation Plan | 8/10 | Strong |
-| **Overall** | **7.8/10** | **Strong — Approve with Conditions** |
+### Conditions Summary
+
+| # | Condition | Type | Must Resolve Before |
+|:-:|-----------|:----:|:-------------------:|
+| 1 | POC Go/No-Go Gate is Binding | Process | Story 7.1 |
+| 2 | Skill Execution Table Partitioning | Data | Story 7.6 |
+| 3 | Service-to-Service Authentication | Security | Story 7.1 |
+| 4 | Network Policy FQDN Restriction | Security | Story 7.6 |
+| 5 | Claude API Beta Status Monitoring | Vendor | Phase 2 |
+
+---
+
+# Part II — Assessment Details
+
+> **Audience:** Architect, Tech Lead, Dev Team | **Purpose:** Detailed technical and strategic evaluation
 
 ---
 
@@ -294,9 +361,51 @@ The PRD defines 20 stories across 4 phases:
 
 ---
 
+# Part III — Conditions & Decision
+
+> **Audience:** PM, Scrum Master, Architect, Leadership | **Purpose:** Approval conditions, recommendations, final verdict
+
+---
+
 ## 9. Conditions for Approval
 
-The following 5 conditions **MUST** be resolved before Epic 7 implementation begins (i.e., before Story 7.1 starts):
+The following 5 conditions **MUST** be resolved before Epic 7 implementation begins.
+
+```mermaid
+flowchart LR
+    subgraph "Before Story 7.1"
+        C1["C1: POC Gate<br/><small>Process</small>"]
+        C3["C3: Service Auth<br/><small>Security</small>"]
+        C5["C5: API Monitoring<br/><small>Vendor</small>"]
+    end
+
+    subgraph "Before Story 7.6"
+        C2["C2: Table Partitioning<br/><small>Data</small>"]
+        C4["C4: Network FQDN<br/><small>Security</small>"]
+    end
+
+    subgraph "Epic 7 Phases"
+        P1["Phase 1<br/>POC"]
+        P2["Phase 2<br/>Infrastructure"]
+        P3["Phase 3<br/>Agent Integration"]
+        P4["Phase 4<br/>Optimization"]
+    end
+
+    C1 & C3 & C5 --> P1
+    P1 --> P2
+    C2 & C4 --> P2
+    P2 --> P3 --> P4
+
+    style C1 fill:#fff3e0,stroke:#ff9800,color:#000
+    style C2 fill:#e3f2fd,stroke:#2196f3,color:#000
+    style C3 fill:#ffebee,stroke:#f44336,color:#000
+    style C4 fill:#ffebee,stroke:#f44336,color:#000
+    style C5 fill:#fff3e0,stroke:#ff9800,color:#000
+    style P1 fill:#e8f5e9,stroke:#4caf50,color:#000
+    style P2 fill:#e8f5e9,stroke:#4caf50,color:#000
+    style P3 fill:#e8f5e9,stroke:#4caf50,color:#000
+    style P4 fill:#e8f5e9,stroke:#4caf50,color:#000
+```
 
 ### Condition 1: POC Go/No-Go Gate is Binding (PROCESS)
 
@@ -445,6 +554,24 @@ The three evaluation documents (`architecture-board.md`, `technical-review.md`, 
 
 ---
 
+<div align="center">
+
+---
+
+**Architecture Board Review — Agent Skills Integration (Epic 7)**
+*Verdict: APPROVE WITH CONDITIONS | Score: 7.8 / 10*
+
+| Attribute | Value |
+|-----------|-------|
+| Review Type | Formal Architecture Board Review |
+| Sections | 12 sections across 3 parts |
+| Conditions | 5 (3 before Story 7.1, 2 before Story 7.6) |
+| Recommendations | 4 non-blocking advisory items |
+| Overall Score | 7.8 / 10 — Strong |
+
 **Signed:** Winston, Architecture Lead
 **Date:** 2026-02-15
-**Document:** `docs/reports/architecture-board-review-agent-skills-20260215.md`
+
+---
+
+</div>
