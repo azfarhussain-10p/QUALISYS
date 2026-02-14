@@ -1,358 +1,324 @@
-# Product Brief: QUALISYS
+<div align="center">
 
-**Date:** 2025-12-01
-**Author:** Azfar
-**Context:** Enterprise Software - AI System Quality Assurance
+# QUALISYS
 
----
+### Product Brief
 
-## Executive Summary
-
-QUALISYS is an AI System Quality Assurance Platform addressing a critical market gap: companies shipping AI features lack proper testing tools for non-deterministic AI behavior. While enterprises lose $1.9B annually to undetected LLM failures and 750M apps will use LLMs in 2025, existing solutions fall short. Traditional testing tools (Selenium, Cypress) cannot handle AI's non-deterministic nature, while AI-focused competitors (DeepEval, Braintrust) only address LLM evaluation, ignoring the full AI stack.
-
-QUALISYS creates a new category - "AI System Quality Assurance" - providing comprehensive testing across all AI types (LLMs, traditional ML, agents, RAG, computer vision) while addressing the fear companies have about shipping AI features to production.
-
-**Market Opportunity:** $1B market growing at 20.9% CAGR, faster than the $35B traditional testing market. Strategic positioning validated by Humanloop's acquisition creating market gap and 81% enterprise adoption of AI testing.
+**AI System Quality Assurance Platform**
 
 ---
 
-## Core Vision
+| | |
+|---|---|
+| **Product** | QUALISYS — AI System Quality Assurance Platform |
+| **Document Type** | Product Brief — Strategic Discovery & MVP Definition |
+| **Date** | 2025-12-01 |
+| **Author** | Azfar |
+| **Domain** | Enterprise Software — AI System Quality Assurance |
+| **Status** | Complete — Informs PRD & Architecture |
+| **Method** | BMad Method — Collaborative Strategic Analysis |
 
-### Problem Statement
+</div>
 
-Companies building AI-powered products face a triple threat that existing testing tools cannot address:
+---
 
-1. **Production Fear:** Engineering teams are shipping AI features (LLMs, ML models, AI agents) but are terrified of production failures. Hallucinations, bias, safety issues, and unpredictable AI behavior create existential risk. One bad AI output can destroy customer trust, trigger compliance violations, or cause safety incidents.
+> **Intended Audience & Stakeholder Guide**
+>
+> | Stakeholder | Primary Sections | Icon |
+> |---|---|---|
+> | **Executive / Leadership** | Parts I–II (Vision, Target Users, Market) | :dart: |
+> | **Product Manager** | Parts I–III (Vision, Users, Strategy, MVP Scope) | :clipboard: |
+> | **Business Analyst** | Parts I–II (Problem, Market, Users, Value Props) | :bar_chart: |
+> | **Architect / Tech Lead** | Parts III–IV (Strategic Decisions, Architecture, MVP) | :building_construction: |
+> | **Engineering Team** | Part IV (MVP Features, Architecture, Launch Plan) | :gear: |
+> | **UX Designer** | Parts II, IV (User Journey, Empathy Map, 5-Min Activation) | :art: |
+> | **Investor / Board** | Parts I, III (Vision, SWOT, Risk, Market Opportunity) | :moneybag: |
 
-2. **Tool Inadequacy:** Traditional testing tools (Selenium, Cypress, TestRail) were built for deterministic software where the same input produces the same output. AI systems are fundamentally non-deterministic - the same prompt can produce different responses, models drift over time, and behavior changes based on context. Traditional testing approaches literally cannot validate AI correctness.
+---
 
-3. **Coverage Gap:** Current AI testing platforms (DeepEval, Braintrust, Humanloop) focus narrowly on LLM evaluation metrics. But companies building AI products need to test their ENTIRE AI stack:
-   - Generative AI (LLMs, image generation, audio)
-   - Traditional ML models (classification, regression, NLP)
-   - AI Agents (multi-step reasoning, tool selection)
-   - RAG Systems (retrieval quality, context relevance)
-   - Computer Vision (object detection, segmentation)
+## Table of Contents
 
-**The Result:** Companies are shipping AI features with inadequate testing, crossing their fingers and hoping nothing breaks. They're losing $1.9B annually to preventable AI failures while 81% admit they need better AI testing solutions.
+### Part I — Vision & Problem Space
+- [1. Executive Summary](#1-executive-summary)
+- [2. Problem Statement](#2-problem-statement)
+  - [2.1 Root Cause Analysis](#21-root-cause-analysis)
+- [3. Problem Impact](#3-problem-impact)
+- [4. Why Existing Solutions Fall Short](#4-why-existing-solutions-fall-short)
+- [5. Proposed Solution](#5-proposed-solution)
+- [6. Key Differentiators](#6-key-differentiators)
 
-**Root Cause Analysis (Five Whys):**
+### Part II — Target Users & Market
+- [7. Primary Users: AI Engineering Leaders](#7-primary-users-ai-engineering-leaders)
+- [8. Deep User Understanding (Empathy Map)](#8-deep-user-understanding-empathy-map)
+- [9. Pain Points & Desired Gains](#9-pain-points--desired-gains)
+- [10. Jobs to Be Done](#10-jobs-to-be-done)
+- [11. Value Proposition Mapping](#11-value-proposition-mapping)
+- [12. User Journey: Before vs After QUALISYS](#12-user-journey-before-vs-after-qualisys)
 
-The deeper issue isn't just "poor testing tools" - it's a fundamental paradigm shift:
+### Part III — Strategic Position
+- [13. SWOT Analysis](#13-swot-analysis)
+- [14. Risk Matrix](#14-risk-matrix)
+- [15. Value Chain](#15-value-chain)
+- [16. Pre-Mortem Analysis](#16-pre-mortem-analysis)
+- [17. Decision Matrix: MVP Feature Prioritization](#17-decision-matrix-mvp-feature-prioritization)
+- [18. Strategic Imperatives](#18-strategic-imperatives)
 
-1. **AI broke determinism:** For 30 years, software testing assumed deterministic behavior (same input = same output). AI systems are fundamentally non-deterministic - the same input produces different outputs based on model state, training data, and stochastic sampling.
+### Part IV — MVP Definition
+- [19. MVP v1.0 Scope Summary](#19-mvp-v10-scope-summary)
+- [20. Feature Breakdown & User Stories](#20-feature-breakdown--user-stories)
+  - [Feature 1: LLM Testing](#feature-1-llm-testing-openai--anthropic)
+  - [Feature 2: 3 Core Test Types](#feature-2-3-core-test-types)
+  - [Feature 3: Production Monitoring](#feature-3-basic-production-monitoring)
+  - [Feature 4: Team Features](#feature-4-basic-team-features)
+  - [Feature 5: Key Integrations](#feature-5-3-key-integrations)
+  - [Feature 6: Freemium & Onboarding](#feature-6-freemium-pricing--self-serve-onboarding)
+- [21. Technical Architecture (MVP)](#21-technical-architecture-mvp)
+- [22. Success Metrics & KPIs](#22-success-metrics--kpis)
+- [23. 30-Day Launch Plan](#23-30-day-launch-plan)
+- [24. Definition of Done (DoD)](#24-definition-of-done-dod)
 
-2. **Traditional QA is impossible:** You can't write a test that says "this prompt should return X" when X varies. The entire testing industry evolved for determinism and can't adapt fast enough.
+---
+---
 
-3. **Industry inflection point:** We've moved from experimental AI to mission-critical AI:
-   - 750M apps using LLMs in 2025 (production scale)
-   - 81% of dev teams using AI in workflows (mainstream adoption)
-   - Regulated industries requiring AI compliance (EU AI Act, FDA guidance)
+# Part I — Vision & Problem Space
 
-4. **Stakes have changed:** The old "move fast, break things" playbook is now existentially dangerous. AI failures in production don't just lose customers - they destroy trust permanently, trigger compliance violations, and cause real-world harm.
+> :dart: **Stakeholders:** Executive, Product Manager, Business Analyst, Investor
 
-**Why NOW is Critical:**
-Companies betting their businesses on AI (not just experimenting) need quality assurance for the non-deterministic era. First company to solve this owns the AI quality assurance category.
+---
 
-### Problem Impact
+## 1. Executive Summary
 
-**Financial Impact:**
-- $1.9B lost annually across enterprises to undetected LLM failures
-- 40% of IT budgets now allocated to AI testing infrastructure
-- Cost of AI production failures: reputation damage, compliance fines, customer churn
+QUALISYS is an **AI System Quality Assurance Platform** addressing a critical market gap: companies shipping AI features lack proper testing tools for non-deterministic AI behavior.
 
-**Operational Impact:**
-- Engineering teams blocked from shipping AI features due to testing inadequacy
-- Manual AI testing consuming weeks of engineering time per release
-- Production incidents from untested AI edge cases causing firefighting and velocity loss
+| Metric | Value | Significance |
+|---|---|---|
+| **Annual Enterprise Loss** | $1.9B | From undetected LLM failures and AI system bugs |
+| **LLM Applications (2025)** | 750M | Massive wave creating urgent testing demand |
+| **Market Size** | $1.01B | Growing at 20.9% CAGR — 25% faster than traditional testing |
+| **AI Testing Adoption** | 81% | Of enterprise teams now using AI in testing workflows |
 
-**Strategic Impact:**
-- Companies delaying AI product launches due to quality concerns
-- Competitive disadvantage for those who can't ship AI features confidently
-- 750M applications expected to use LLMs in 2025 - massive wave of demand
+> **Category Creation:** QUALISYS creates a new category — **"AI System Quality Assurance"** — providing comprehensive testing across all AI types (LLMs, traditional ML, agents, RAG, computer vision) while addressing the fear companies have about shipping AI features to production.
+
+---
+
+## 2. Problem Statement
+
+Companies building AI-powered products face a **triple threat** that existing testing tools cannot address:
+
+| # | Threat | Description |
+|---|---|---|
+| **1** | **Production Fear** | Engineering teams shipping AI features (LLMs, ML models, AI agents) are terrified of production failures. Hallucinations, bias, safety issues create existential risk. One bad AI output can destroy customer trust, trigger compliance violations, or cause safety incidents. |
+| **2** | **Tool Inadequacy** | Traditional testing tools (Selenium, Cypress, TestRail) were built for deterministic software (same input = same output). AI systems are fundamentally non-deterministic — traditional approaches literally cannot validate AI correctness. |
+| **3** | **Coverage Gap** | Current AI testing platforms (DeepEval, Braintrust) focus narrowly on LLM evaluation. Companies need to test their ENTIRE AI stack: Generative AI, Traditional ML, AI Agents, RAG Systems, and Computer Vision. |
+
+> **The Result:** Companies are shipping AI features with inadequate testing, losing **$1.9B annually** to preventable AI failures while **81%** admit they need better AI testing solutions.
+
+### 2.1 Root Cause Analysis
+
+The deeper issue isn't just "poor testing tools" — it's a fundamental **paradigm shift**:
+
+| # | Root Cause | Impact |
+|---|---|---|
+| **1** | **AI broke determinism** | For 30 years, testing assumed same input = same output. AI produces different outputs based on model state, training data, and stochastic sampling. |
+| **2** | **Traditional QA is impossible** | You can't write a test that says "this prompt should return X" when X varies. The entire testing industry evolved for determinism. |
+| **3** | **Industry inflection point** | 750M apps using LLMs (production scale), 81% mainstream adoption, regulated industries requiring AI compliance (EU AI Act, FDA guidance). |
+| **4** | **Stakes have changed** | AI failures in production don't just lose customers — they destroy trust permanently, trigger compliance violations, and cause real-world harm. |
+
+> **Why NOW is Critical:** Companies betting their businesses on AI (not just experimenting) need quality assurance for the non-deterministic era. **First company to solve this owns the AI quality assurance category.**
+
+## 3. Problem Impact
+
+| Dimension | Impact | Data Point |
+|---|---|---|
+| **Financial** | Undetected LLM failures | $1.9B lost annually across enterprises |
+| **Financial** | AI testing infrastructure | 40% of IT budgets allocated |
+| **Financial** | Production failures | Reputation damage, compliance fines, customer churn |
+| **Operational** | Feature delivery blocked | Teams can't ship AI features due to testing inadequacy |
+| **Operational** | Manual testing drain | Weeks of engineering time consumed per release |
+| **Operational** | Firefighting mode | Production incidents from untested AI edge cases |
+| **Strategic** | Launch delays | Companies delaying AI product launches due to quality concerns |
+| **Strategic** | Competitive gap | Can't ship AI features confidently vs competitors |
+| **Strategic** | Market demand | 750M applications expected to use LLMs in 2025 |
 
 **Market Validation:**
-- 81% of development teams now use AI in testing workflows
-- 75% of organizations investing in AI quality assurance solutions
-- Humanloop acquisition validates enterprise demand for AI testing platforms
 
-### Why Existing Solutions Fall Short
+| Signal | Data |
+|---|---|
+| AI in testing workflows | 81% of development teams |
+| Investing in AI QA solutions | 75% of organizations |
+| Enterprise demand validation | Humanloop acquisition (Anthropic) |
 
-**Traditional Testing Tools (Selenium, Cypress, Katalon):**
-- ❌ Built for deterministic software, cannot handle AI non-determinism
-- ❌ No understanding of AI-specific failure modes (hallucinations, bias, drift)
-- ❌ Adding "AI features" as bolt-ons, not rethinking testing from first principles
-- ❌ Focused on UI/API testing, not AI behavior validation
+## 4. Why Existing Solutions Fall Short
 
-**AI-First Testing Startups (Mabl, Testim, Functionize):**
-- ❌ Use AI to test traditional software, not test AI systems themselves
-- ❌ Focused on test generation and self-healing tests for standard apps
-- ❌ Don't address AI-specific quality concerns (hallucinations, safety, bias)
+| Category | Examples | Key Weakness | QUALISYS Fills |
+|---|---|---|---|
+| **Traditional Testing** | Selenium, Cypress, Katalon | Built for deterministic software; AI features are bolt-ons, not first principles | AI-native testing for non-deterministic behavior |
+| **AI-First Testing** | Mabl, Testim, Functionize | Use AI to test traditional software — don't test AI systems themselves | Tests AI systems, not software with AI features |
+| **LLM Evaluation** | DeepEval, Braintrust, Giskard | Narrow focus on LLM metrics only; pre-deployment, individual developer tools | Full AI stack, continuous production monitoring, cross-functional teams |
 
-**LLM Evaluation Platforms (DeepEval, Braintrust, Giskard):**
-- ❌ Strong on LLM metrics but narrow focus (only generative AI)
-- ❌ Pre-deployment evaluation tools, not continuous production testing
-- ❌ Individual developer tools, not cross-functional QA workflows
-- ❌ Missing: traditional ML testing, computer vision, agent testing, RAG validation
+> **The Gap:** No platform provides comprehensive, production-ready AI system testing across the **full AI stack** with enterprise collaboration workflows.
 
-**The Gap:** No platform provides comprehensive, production-ready AI system testing across the full AI stack with enterprise collaboration workflows.
-
-### Proposed Solution
+## 5. Proposed Solution
 
 QUALISYS is the **AI System Quality Assurance Platform** purpose-built for teams shipping AI systems to production.
 
-**Core Insight:** While traditional testing tools check if your code works, QUALISYS validates if your AI **behaves** correctly, safely, and reliably in production.
+> **Core Insight:** While traditional testing tools check if your code works, QUALISYS validates if your AI **behaves** correctly, safely, and reliably in production.
 
-**Paradigm Shift:** QUALISYS isn't incremental improvement - it's the quality assurance framework for the non-deterministic era. For 30 years, testing meant "verify expected output." For AI, testing means "validate behavior within acceptable boundaries of safety, accuracy, and reliability." This requires rethinking QA from first principles.
+> **Paradigm Shift:** For 30 years, testing meant "verify expected output." For AI, testing means "validate behavior within acceptable boundaries of safety, accuracy, and reliability." This requires rethinking QA from first principles.
 
-**What QUALISYS Does:**
+**Four Pillars of QUALISYS:**
 
-1. **Full-Stack AI Testing** - Test ALL AI types in one platform:
-   - Generative AI: LLM hallucination detection, prompt injection testing, safety validation
-   - Traditional ML: Model accuracy, drift detection, bias auditing
-   - AI Agents: Tool selection validation, reasoning chain testing, goal achievement
-   - RAG Systems: Retrieval quality, context relevance, answer grounding
-   - Computer Vision: Object detection accuracy, segmentation validation, edge case discovery
-
-2. **Continuous Production Testing** - Not just pre-deployment evaluation:
-   - Real-time monitoring of AI system behavior in production
-   - Automated regression detection when models drift
-   - Production traffic replay for testing new models against real usage
-   - Instant alerts when AI behavior crosses safety/quality thresholds
-
-3. **Enterprise Collaboration Workflows** - Cross-functional QA, not just developer tools:
-   - Non-technical stakeholders can review AI outputs and flag issues
-   - Approval workflows for AI system changes with audit trails
-   - Team collaboration features (comments, assignments, escalations)
-   - Compliance-ready reporting (SOC2, HIPAA, regulatory requirements)
-
-4. **AI Test Intelligence** - ML-powered testing that gets smarter over time:
-   - Automated test prioritization (test high-risk changes first)
-   - Predictive failure detection based on patterns
-   - Root cause analysis for AI failures (not just "it failed")
-   - Test case generation from requirements using AI
+| # | Pillar | Description | AI Types Covered |
+|---|---|---|---|
+| **1** | **Full-Stack AI Testing** | Test ALL AI types in one platform | Generative AI, Traditional ML, AI Agents, RAG Systems, Computer Vision |
+| **2** | **Continuous Production Testing** | Real-time monitoring, automated regression detection, drift alerts | All — production environment monitoring |
+| **3** | **Enterprise Collaboration** | Approval workflows, audit trails, compliance reporting (SOC2, HIPAA) | Cross-functional team workflows |
+| **4** | **AI Test Intelligence** | ML-powered test prioritization, predictive failure detection, root cause analysis | Self-improving over time |
 
 **The "5-Minute Wow Moment":**
-- Minute 1: Sign up, connect AI system (API key)
-- Minute 2: QUALISYS auto-generates first test suite
-- Minute 3: Run tests, see first results
-- Minute 4: Identify first real issue (hallucination, bias, safety concern)
-- Minute 5: "Holy shit, this found a problem we missed!"
 
-**Target ROI:** Find your first critical AI bug in 5 minutes (vs competitors promising "30% accuracy improvement over weeks")
+| Minute | Action | Result |
+|---|---|---|
+| **1** | Sign up, connect AI system (API key) | Instant activation |
+| **2** | Auto-generated first test suite | Zero manual setup |
+| **3** | Run tests, see dashboard results | Real-time feedback |
+| **4** | First real issue identified | Hallucination, bias, or safety concern |
+| **5** | "This found a problem we missed!" | Immediate, tangible value |
 
-### Key Differentiators
+> **Target ROI:** Find your first critical AI bug in **5 minutes** (vs competitors promising "30% accuracy improvement over weeks")
 
-**vs Traditional Testing Tools (Selenium, Cypress):**
-- They test software WITH AI features → QUALISYS tests AI SYSTEMS themselves
-- They handle deterministic behavior → QUALISYS handles non-deterministic AI
-- They focus on UI/API → QUALISYS focuses on AI behavior correctness
+## 6. Key Differentiators
 
-**vs AI-First Testing (Mabl, Testim):**
-- They use AI to test traditional apps → QUALISYS tests AI applications
-- They focus on test automation → QUALISYS focuses on AI quality validation
-- They improve testing speed → QUALISYS ensures AI safety and correctness
-
-**vs LLM Evaluation Platforms (DeepEval, Braintrust):**
-- They focus on LLMs only → QUALISYS covers full AI stack
-- They do pre-deployment evaluation → QUALISYS does continuous production testing
-- They target individual developers → QUALISYS enables cross-functional teams
-- They provide metrics → QUALISYS provides actionable AI quality assurance
+| Dimension | Traditional Testing | AI-First Testing | LLM Evaluation | **QUALISYS** |
+|---|---|---|---|---|
+| **Tests what?** | Software with AI features | Traditional apps using AI | LLMs only | **AI SYSTEMS — full stack** |
+| **Handles?** | Deterministic behavior | Test automation speed | Pre-deployment metrics | **Non-deterministic AI behavior** |
+| **Focus** | UI/API correctness | Speed improvement | Developer metrics | **AI safety, accuracy, reliability** |
+| **Monitoring** | N/A | N/A | Pre-deployment only | **Continuous production testing** |
+| **Team** | Individual | Individual | Individual developers | **Cross-functional enterprise teams** |
+| **Examples** | Selenium, Cypress | Mabl, Testim | DeepEval, Braintrust | **Category creator** |
 
 **Strategic Differentiation:**
-1. **Category Creation:** "AI System QA" vs "AI Testing" or "LLM Evaluation"
-2. **10x Not 2x:** Capabilities impossible without commercial infrastructure
-3. **Full-Stack:** Only platform testing ALL AI types comprehensively
-4. **Production-Ready:** Continuous monitoring, not just pre-deployment
-5. **Enterprise-First:** Team collaboration, compliance, not just developer tools
+
+| # | Differentiator | Description |
+|---|---|---|
+| **1** | **Category Creation** | "AI System QA" vs crowded "AI Testing" or "LLM Evaluation" spaces |
+| **2** | **10x Not 2x** | Capabilities impossible without commercial infrastructure |
+| **3** | **Full-Stack** | Only platform testing ALL AI types comprehensively |
+| **4** | **Production-Ready** | Continuous monitoring, not just pre-deployment evaluation |
+| **5** | **Enterprise-First** | Team collaboration, compliance, audit trails — not just developer tools |
+
+---
+---
+
+# Part II — Target Users & Market
+
+> :art: **Stakeholders:** Product Manager, UX Designer, Business Analyst, Executive
 
 ---
 
-## Target Users
+## 7. Primary Users: AI Engineering Leaders
 
-### Primary Users: AI Engineering Leaders
+| Dimension | Profile |
+|---|---|
+| **Titles** | VP Engineering, Head of AI/ML, CTO, Engineering Manager |
+| **Company** | 50–500 employees, AI-native companies building GenAI products |
+| **Tech Stack** | Using OpenAI, Anthropic, or open-source LLMs in production |
+| **Budget Authority** | $50K–$500K/year for AI infrastructure decisions |
+| **Situation** | Shipping AI features but terrified of production failures |
 
-**Profile:**
-- **Titles:** VP Engineering, Head of AI/ML, CTO, Engineering Manager
-- **Company:** 50-500 employees, AI-native companies building GenAI products
-- **Tech Stack:** Using OpenAI, Anthropic, or open-source LLMs in production
-- **Budget Authority:** $50K-$500K/year for AI infrastructure decisions
-- **Situation:** Shipping AI features but terrified of production failures
+## 8. Deep User Understanding (Empathy Map)
 
-### Deep User Understanding (Empathy Map)
+| Quadrant | Insights |
+|---|---|
+| **SEE** | Competitors shipping AI features faster; Headlines about AI failures (hallucinations, bias lawsuits); Slack alerts: "AI just returned garbage to a customer"; Leadership pressure: "When can we ship?"; LLM provider updates breaking prompts; No credible AI testing solutions |
+| **THINK** | "We're flying blind — we don't know what we don't know"; "Traditional testing gives false confidence"; "Are we the only ones struggling?"; "What if we go viral for the wrong reasons?"; "Manual testing doesn't scale"; "There has to be a better way" |
+| **SAY** | To engineering: "We need more time to test this AI feature"; To leadership: "I can't guarantee production behavior"; To peers (privately): "I'm losing sleep over what could go wrong"; "Can we quantify the risk before we ship?" |
+| **DO** | Manually review hundreds of AI outputs in spreadsheets; Build brittle internal testing scripts; Run AI through staging repeatedly; Monitor Slack/PagerDuty obsessively after releases; Experiment with DeepEval, Braintrust (partial help); Delay AI feature launches |
 
-**What They SEE:**
-- Competitors shipping AI features faster
-- Headlines about AI failures (hallucinations, bias lawsuits, PR disasters)
-- Their own Slack: "AI just returned garbage to a customer"
-- Leadership pressure: "When can we ship this AI feature?"
-- LLM provider updates breaking their prompts
-- No credible AI testing solutions in traditional tool landscape
+## 9. Pain Points & Desired Gains
 
-**What They THINK:**
-- "We're flying blind - we don't know what we don't know"
-- "Traditional testing gives false confidence - tests pass but AI still fails"
-- "Are we the only ones struggling with this?"
-- "What if we ship something that goes viral for the wrong reasons?"
-- "Manual AI testing doesn't scale - we can't review every output"
-- "There has to be a better way than hoping for the best"
+| # | Pain Point (Current) | Desired Gain (With QUALISYS) |
+|---|---|---|
+| **1** | **Existential Fear** — One bad AI output could destroy reputation | **Confidence** — Ship AI features knowing they're safe and reliable |
+| **2** | **No Playbook** — Traditional testing doesn't work for AI | **Comprehensive Coverage** — One platform testing entire AI stack |
+| **3** | **Time Pressure** — Testing takes weeks under leadership pressure | **Speed** — Cut AI testing time from weeks to days (or hours) |
+| **4** | **Resource Drain** — Engineers manually testing instead of building | **Team Velocity** — Engineers building features, not manually testing |
+| **5** | **False Confidence** — Tests pass, AI still fails in production | **Visibility** — Know exactly what's working and what's risky |
+| **6** | **Compliance Anxiety** — Regulated industries need audit trails | **Compliance Ready** — Audit trails and reporting for stakeholders |
+| **7** | **Tool Fragmentation** — Using 5+ different tools for partial testing | **Unified Platform** — Single pane of glass for all AI quality |
+| **8** | **Sleep Deprivation** — Literal stress about production failures | **Career Protection** — Not being "the person who shipped bad AI" |
 
-**What They SAY:**
-- *In Engineering Meetings:* "We need more time to test this AI feature thoroughly"
-- *To Leadership:* "The AI works in testing, but I can't guarantee production behavior"
-- *To Peers (privately):* "I'm losing sleep over what could go wrong"
-- "How do we verify the AI won't hallucinate in edge cases?"
-- "Can we quantify the risk before we ship?"
+## 10. Jobs to Be Done
 
-**What They DO:**
-- Manually review hundreds of AI outputs in spreadsheets
-- Build internal testing scripts (brittle, time-consuming)
-- Run production AI through staging repeatedly
-- Monitor Slack/PagerDuty obsessively after AI releases
-- Research "AI testing best practices" (find nothing definitive)
-- Experiment with DeepEval, Braintrust (helps but not comprehensive)
-- Delay AI feature launches due to testing uncertainty
+| Type | Job |
+|---|---|
+| **Functional** | Validate AI behavior before production deployment |
+| **Functional** | Detect regressions when models or prompts update |
+| **Functional** | Monitor AI quality continuously in production |
+| **Functional** | Generate compliance reports for stakeholders/auditors |
+| **Functional** | Identify edge cases and failure modes proactively |
+| **Emotional** | Sleep soundly after AI releases |
+| **Emotional** | Feel confident defending AI quality to leadership |
+| **Emotional** | Avoid being blamed for AI production failures |
+| **Emotional** | Maintain reputation as technical leader who ships safely |
+| **Social** | Be seen as innovator who ships AI responsibly |
+| **Social** | Demonstrate due diligence to board/investors |
+| **Social** | Set best practices that become organizational standards |
 
-### Their Pain Points
+## 11. Value Proposition Mapping
 
-**Critical Pains:**
-1. **Existential Fear:** One bad AI output could destroy company reputation
-2. **No Playbook:** Traditional testing doesn't work, no clear best practices for AI
-3. **Time Pressure:** Leadership expects fast shipping, but testing takes weeks
-4. **Resource Drain:** Engineers spending weeks manually testing instead of building
-5. **False Confidence:** Tests pass, then AI fails in production anyway
-6. **Compliance Anxiety:** Regulated industries need audit trails for AI decisions
-7. **Tool Fragmentation:** Using 5+ different tools for partial AI testing
-8. **Sleep Deprivation:** Literal stress about what might break in production
+> **Current Reality:** Weeks of manual testing → Still ship with fear → Pray nothing breaks
+>
+> **QUALISYS Reality:** 5 minutes to first critical bug → Confidence to ship → Sleep soundly
 
-### Their Desired Gains
+| Transformation | Before | After |
+|---|---|---|
+| **Pain → Gain** | "Existential fear" | "Confidence to ship safely" |
+| **Time → Speed** | "Weeks of manual testing" | "5-minute activation + continuous monitoring" |
+| **Blind → Visible** | "Don't know what we don't know" | "See exactly what's risky with AI test intelligence" |
+| **Fragmented → Unified** | "5+ testing tools" | "One comprehensive platform" |
 
-**What Success Looks Like:**
-1. **Confidence:** Ship AI features knowing they're safe and reliable
-2. **Speed:** Cut AI testing time from weeks to days (or hours)
-3. **Comprehensive Coverage:** One platform testing entire AI stack
-4. **Visibility:** Know exactly what's working and what's risky
-5. **Career Protection:** Not being "the person who shipped bad AI"
-6. **Team Velocity:** Engineers building features, not manually testing
-7. **Compliance Ready:** Audit trails and reporting for stakeholders
-8. **Competitive Edge:** Ship AI faster than competitors while maintaining quality
+## 12. User Journey: Before vs After QUALISYS
 
-### Jobs to Be Done
+```mermaid
+graph LR
+    subgraph "BEFORE — The Painful Journey"
+        direction TB
+        B1["Pre-Launch Anxiety<br/>Weeks -4 to -2<br/>Research · Spreadsheets · Manual Review"]
+        B2["Manual Testing Hell<br/>Weeks -2 to -1<br/>200+ Prompts · Brittle Scripts · Burnout"]
+        B3["Ship with Fear<br/>Launch Week<br/>Dread · High Alert · Fingers Crossed"]
+        B4["Production Fire Drill<br/>Week 1-2<br/>2am Alerts · Panic · Reactive Debugging"]
+        B5["Lessons Not Learned<br/>Week 3+<br/>Postmortem · 300+ Test Cases · Repeat"]
+        B1 --> B2 --> B3 --> B4 --> B5
+    end
 
-**Functional Jobs:**
-- Validate AI behavior before production deployment
-- Detect regressions when models or prompts update
-- Monitor AI quality continuously in production
-- Generate compliance reports for stakeholders/auditors
-- Identify edge cases and failure modes proactively
+    subgraph "AFTER — The QUALISYS Journey"
+        direction TB
+        A1["5-Min Wow Moment<br/>Day 1<br/>Connect · Auto-Generate · First Bug Found"]
+        A2["Pre-Launch Confidence<br/>Days 1-7<br/>1,000+ Tests · Team Collab · Compliance"]
+        A3["Ship with Confidence<br/>Launch Day<br/>Green Checkmark · Celebrate"]
+        A4["Proactive Monitoring<br/>Week 1+<br/>Real-Time Metrics · Drift Detection"]
+        A5["Continuous Improvement<br/>Ongoing<br/>AI Intelligence Learns · Auto-Generates"]
+        A1 --> A2 --> A3 --> A4 --> A5
+    end
 
-**Emotional Jobs:**
-- Sleep soundly after AI releases
-- Feel confident defending AI quality to leadership
-- Avoid being blamed for AI production failures
-- Maintain reputation as technical leader who ships safely
+    style B1 fill:#ef4444,color:#fff
+    style B2 fill:#ef4444,color:#fff
+    style B3 fill:#f97316,color:#fff
+    style B4 fill:#ef4444,color:#fff
+    style B5 fill:#6b7280,color:#fff
+    style A1 fill:#22c55e,color:#fff
+    style A2 fill:#3b82f6,color:#fff
+    style A3 fill:#22c55e,color:#fff
+    style A4 fill:#3b82f6,color:#fff
+    style A5 fill:#8b5cf6,color:#fff
+```
 
-**Social Jobs:**
-- Be seen as innovator who ships AI responsibly
-- Demonstrate due diligence to board/investors
-- Set best practices that become organizational standards
-
-### Value Proposition Mapping
-
-**Their Current Reality:** Weeks of manual testing → Still ship with fear → Pray nothing breaks
-
-**QUALISYS Reality:** 5 minutes to first critical bug → Confidence to ship → Sleep soundly
-
-**Transformation:**
-- **Pain → Gain:** "Existential fear" → "Confidence to ship safely"
-- **Time → Speed:** "Weeks of manual testing" → "5-minute activation + continuous monitoring"
-- **Blind → Visible:** "Don't know what we don't know" → "See exactly what's risky with AI test intelligence"
-- **Fragmented → Unified:** "5+ testing tools" → "One comprehensive platform"
-
-### User Journey Mapping: Before vs After QUALISYS
-
-**CURRENT STATE: The Painful Journey**
-
-**Stage 1: Pre-Launch Anxiety (Weeks -4 to -2)**
-- Research "AI testing best practices" (find nothing definitive)
-- Sign up for multiple eval tools, create testing spreadsheets
-- Assign engineers to manual review
-- *Emotions:* 😰 Anxiety, 😓 Overwhelm, 🤔 Uncertainty
-
-**Stage 2: Manual Testing Hell (Weeks -2 to -1)**
-- Manually run 200+ test prompts through spreadsheets
-- Copy/paste outputs for review, flag issues manually
-- Build brittle automation scripts (break constantly)
-- *Emotions:* 😩 Exhaustion, 😤 Frustration, 😱 Fear
-- *Pain:* Weeks per release, no confidence, engineer burnout
-
-**Stage 3: Ship with Fear (Week -1 to Launch)**
-- Final review: "Are we ready?" under leadership pressure
-- Deploy with staging gate, monitor obsessively
-- Engineering team on high alert for 48 hours
-- *Emotions:* 😰 Dread, 😓 Stress, 🤞 "Fingers crossed"
-
-**Stage 4: Production Fire Drill (Week 1-2 Post-Launch)**
-- Slack alerts: "Customer reported weird AI response"
-- 2am PagerDuty: AI returning errors
-- Frantically review logs, guess at root cause
-- *Emotions:* 😱 Panic, 😓 Burnout, 😤 Anger
-- *Pain:* No visibility, can't reproduce issues, reactive debugging
-
-**Stage 5: Lessons Not Learned (Week 3+)**
-- Postmortem: Add more manual test cases (now 300+)
-- Promise "we'll do better next time"
-- Dread starting the cycle again
-- *Emotions:* 😔 Defeat, 😞 Resignation, 😰 Anxiety
-
----
-
-**QUALISYS STATE: The Transformed Journey**
-
-**Stage 1: 5-Minute Wow Moment (Day 1)**
-- **Minute 1:** Sign up, start free trial
-- **Minute 2:** Connect AI system (paste API key)
-- **Minute 3:** Auto-generated test suite appears
-- **Minute 4:** Run tests, see dashboard results
-- **Minute 5:** 🚨 "CRITICAL: Hallucination detected" - bug they didn't know existed
-- *Emotions:* 😮 Surprise, 🤩 Excitement, 😌 Relief
-- *Gain:* Immediate value, zero setup, confidence it works
-
-**Stage 2: Pre-Launch Confidence (Days 1-7)**
-- Run full AI test suite (1,000+ test cases) in parallel
-- Team collaboration: Comment on issues, PM approves, Security reviews
-- Generate compliance report automatically
-- Ship with confidence backed by data
-- *Emotions:* 😊 Confidence, 🎉 Joy, 😌 Peace
-- *Gain:* 10x faster testing (weeks → days), cross-functional collaboration
-
-**Stage 3: Ship with Confidence (Launch Day)**
-- Final test run: Green checkmark "All AI quality checks passed"
-- Deploy with confidence, continuous monitoring active
-- Team celebrates (not stresses)
-- *Emotions:* 😌 Calm, 🎉 Excitement, 😊 Pride
-- *Gain:* Launch without fear, data proves quality
-
-**Stage 4: Proactive Monitoring (Week 1+ Post-Launch)**
-- Real-time AI behavior metrics
-- Alert: "AI quality dropped 5% - investigating"
-- Root cause analysis: "Model drift detected"
-- Preventive action BEFORE customer impact
-- *Emotions:* 😌 Relief, 🎯 Control, 😊 Satisfaction
-- *Gain:* Zero surprises, proactive quality management
-
-**Stage 5: Continuous Improvement (Ongoing)**
-- AI Test Intelligence learns from production patterns
-- Auto-generates new test cases
-- Launch new AI features with proven methodology
-- *Emotions:* 🚀 Momentum, 😊 Pride, 🎯 Mastery
-- *Gain:* Testing gets better over time, competitive advantage
-
----
-
-**Journey Transformation Summary**
+**Journey Transformation Summary:**
 
 | Dimension | BEFORE (Current State) | AFTER (QUALISYS) |
-|-----------|----------------------|------------------|
+|---|---|---|
 | **Time** | Weeks of manual testing | 5 minutes to first bug + continuous |
 | **Emotion** | Fear, anxiety, dread | Confidence, relief, pride |
 | **Coverage** | 200 manual test cases | 1,000+ automated + learning |
@@ -363,10 +329,17 @@ QUALISYS is the **AI System Quality Assurance Platform** purpose-built for teams
 | **Career** | Risk ("I'll be blamed") | Protection ("I have proof") |
 
 ---
+---
 
-## Strategic Position (SWOT Analysis)
+# Part III — Strategic Position
 
-### Strengths
+> :moneybag: **Stakeholders:** Executive, Investor, Product Manager, Business Analyst
+
+---
+
+## 13. SWOT Analysis
+
+### 13.1 Strengths
 
 **Product Differentiation:**
 - Full-stack coverage: Only platform testing ALL AI types (LLMs, ML, agents, RAG, vision)
@@ -386,7 +359,7 @@ QUALISYS is the **AI System Quality Assurance Platform** purpose-built for teams
 - Regulatory momentum: EU AI Act, FDA guidance creating compliance demand
 - Deep competitive intelligence completed with strategic clarity
 
-### Weaknesses
+### 13.2 Weaknesses
 
 **Market Position:**
 - Late to market: DeepEval has 500K monthly downloads, established mindshare
@@ -405,7 +378,7 @@ QUALISYS is the **AI System Quality Assurance Platform** purpose-built for teams
 - Long sales cycles: Enterprise software typically 3-6 months
 - Chicken-egg problem: Need customers for AI intelligence data, need intelligence to win customers
 
-### Opportunities
+### 13.3 Opportunities
 
 **Market Dynamics:**
 - $1.9B in annual losses validates urgent enterprise pain
@@ -425,7 +398,7 @@ QUALISYS is the **AI System Quality Assurance Platform** purpose-built for teams
 - Compliance wave: EU AI Act, FDA guidance creating defensible regulatory moat
 - Freemium validation: Proven conversion model (Confident AI, Galileo, Braintrust)
 
-### Threats
+### 13.4 Threats
 
 **Competitive Response:**
 - DeepEval could add production monitoring (500K download distribution advantage)
@@ -444,259 +417,117 @@ QUALISYS is the **AI System Quality Assurance Platform** purpose-built for teams
 - Consolidation preference: Customers want integrated MLOps suites over point solutions
 - Open-source pressure: 40% cost savings with open-source alternatives
 
-### Risk Matrix (Probability × Impact)
+## 14. Risk Matrix
 
-**CRITICAL RISKS (Score 6-9)** 🔴
+**Probability (1-3) x Impact (1-3) = Score (1-9)**
 
-1. **Product Complexity Delays Launch (Score: 9)**
-   - Probability: High (3) | Impact: High (3)
-   - Risk: "Full-stack AI testing" is ambitious, could miss market window
-   - Mitigation: Ruthless MVP scoping (one AI type, 3 tests, 1 integration), 30-day hard deadline
+| # | Risk | P | I | Score | Level | Mitigation |
+|---|---|---|---|---|---|---|
+| **1** | Product complexity delays launch | 3 | 3 | **9** | :red_circle: Critical | Ruthless MVP scoping (one AI type, 3 tests), 30-day hard deadline |
+| **2** | Market timing too early | 2 | 3 | **6** | :red_circle: Critical | 20 customer interviews Week 1-2, pivot if <50% validation |
+| **3** | DeepEval adds production monitoring | 3 | 2 | **6** | :red_circle: Critical | Speed to market (30 days), enterprise collaboration, vertical moats |
+| **4** | High CAC kills unit economics | 2 | 3 | **6** | :red_circle: Critical | Generous free tier, self-serve onboarding, product-led growth |
+| **5** | First 10 love it, next 100 don't | 2 | 2 | **4** | :orange_circle: High | Design for mainstream, 70% activation, weekly cohort analysis |
+| **6** | Well-funded competitor outspends | 2 | 2 | **4** | :orange_circle: High | Vertical moats, category ownership, capital efficient PLG |
+| **7** | Open-source commoditization | 2 | 2 | **4** | :orange_circle: High | 10x better than open-source, enterprise value add, freemium |
 
-2. **Market Timing Too Early (Score: 6)**
-   - Probability: Medium (2) | Impact: High (3)
-   - Risk: "AI System QA" category new, market might need 2-3 years to mature
-   - Mitigation: 20 customer interviews Week 1-2, pivot point if <50% validation
+> **Top 3 Priority Actions:**
+> 1. Define concrete MVP in 48 hours (addresses Risk #1: complexity)
+> 2. Validate with 20 customer interviews Week 1 (addresses Risk #2: timing)
+> 3. Design self-serve onboarding (addresses Risk #4: CAC)
 
-3. **DeepEval Adds Production Monitoring (Score: 6)**
-   - Probability: High (3) | Impact: Medium (2)
-   - Risk: 500K downloads gives massive distribution advantage
-   - Mitigation: Speed to market (30 days), enterprise collaboration focus, vertical moats
+## 15. Value Chain
 
-4. **High CAC Kills Unit Economics (Score: 6)**
-   - Probability: Medium (2) | Impact: High (3)
-   - Risk: Enterprise PLG is hard, $5K CAC target aggressive
-   - Mitigation: Generous free tier, self-serve onboarding, product-led growth
+```mermaid
+graph LR
+    subgraph "Primary Value Activities"
+        ACQ["1. Acquisition<br/>PLG · Content · Community<br/>Target: <$5K CAC"]
+        ACT["2. Activation<br/>5-Min Wow Moment<br/>Target: 70% in 5 min"]
+        EXP["3. Expansion<br/>Free → Pro → Enterprise<br/>Usage Limits · Compliance"]
+        MON["4. Production Value<br/>Continuous Monitoring<br/>Real-Time · Drift Detection"]
+        RET["5. Retention<br/>AI Intelligence · Lock-In<br/>Target: 90% NRR"]
+    end
 
-**HIGH RISKS (Score 4-5)** 🟡
+    subgraph "Support Activities (Moats)"
+        TECH["Technology Platform<br/>AI Test Intelligence Engine"]
+        DATA["Data & Intelligence<br/>1M+ Failure Patterns"]
+        VERT["Vertical Expertise<br/>Healthcare · Finance"]
+    end
 
-5. **First 10 Love It, Next 100 Don't Come (Score: 4)**
-   - Mitigation: Design for mainstream, 70% activation target, weekly cohort analysis
+    ACQ --> ACT --> EXP --> MON --> RET
+    TECH -.-> ACT & MON
+    DATA -.-> MON & RET
+    VERT -.-> EXP & RET
 
-6. **Well-Funded Competitor Outspends (Score: 4)**
-   - Mitigation: Vertical moats, category ownership, capital efficient PLG
+    style ACQ fill:#3b82f6,color:#fff
+    style ACT fill:#22c55e,color:#fff
+    style EXP fill:#8b5cf6,color:#fff
+    style MON fill:#f97316,color:#fff
+    style RET fill:#06b6d4,color:#fff
+    style TECH fill:#6b7280,color:#fff
+    style DATA fill:#6b7280,color:#fff
+    style VERT fill:#6b7280,color:#fff
+```
 
-7. **Open-Source Commoditization (Score: 4)**
-   - Mitigation: 10x better than open-source, enterprise value add, freemium model
+| # | Activity | Key Metric | Description |
+|---|---|---|---|
+| **1** | **Customer Acquisition** | CAC < $5K | Thought leadership, developer community (AI QA Guild), generous free tier |
+| **2** | **Onboarding & Activation** | 70% in 5 min | Frictionless signup → API key → auto-generate tests → first bug found |
+| **3** | **Expansion** | 10% conversion | Usage limits trigger upgrades, team collaboration, compliance gating |
+| **4** | **Production Value** | 10x faster debugging | Real-time monitoring, drift detection, proactive alerting, root cause analysis |
+| **5** | **Retention & Expansion** | 90% NRR | AI intelligence accumulates data, platform embeds in workflow, expand across AI portfolio |
 
-**Top 3 Priority Actions:**
-1. Define concrete MVP in 48 hours (addresses Risk #1: complexity)
-2. Validate with 20 customer interviews Week 1 (addresses Risk #2: timing)
-3. Design self-serve onboarding (addresses Risk #4: CAC)
+**Proprietary Moats:**
 
-### Value Chain: How QUALISYS Creates & Captures Value
+| Moat | Description | Defensibility |
+|---|---|---|
+| **AI Test Intelligence** | Failure pattern database (1M+ test cases), benchmarks | Network effects: more customers = better product |
+| **Vertical Expertise** | Healthcare (FDA 510k), Finance (SR 11-7, SOX) | Domain moats take years to build |
+| **Integration Ecosystem** | CI/CD, Slack, Jira workflow embedding | Switching cost increases with usage |
 
-**PRIMARY VALUE ACTIVITIES**
+## 16. Pre-Mortem Analysis
 
-**1. Customer Acquisition (Low CAC via PLG)**
-- Thought leadership content ("Non-Deterministic Testing Paradigm")
-- Developer community (AI QA Guild)
-- Generous free tier competes with open-source
-- Target: <$5K CAC through content + community
+> **Scenario:** It's June 2027. QUALISYS has shut down. What happened?
 
-**2. Onboarding & Activation ("5-Minute Wow Moment")**
-- Minute 1: Frictionless signup (email only)
-- Minute 2: One-click AI connection (API key)
-- Minute 3: Auto-discovery & test generation
-- Minute 4: First test run (1-click)
-- Minute 5: First critical bug found
-- Metric: 70% activate in 5 minutes, 50% find real bug
+| # | Failure Scenario | Root Cause | Warning Signs | Prevention |
+|---|---|---|---|---|
+| **1** | **"Boil the Ocean"** | Tried to build full-stack AI testing all at once. 6 months to ship. DeepEval already pivoted. | MVP >60 days; feature list growing; "just one more AI type" | ONE AI type for MVP (LLMs only), 30-day hard deadline, weekly "what can we CUT?" |
+| **2** | **"No One Showed Up"** | Built product, launched, 47 signups, 3 active. Market wasn't ready. 2 years too early. | Interviews: "get back to me in 6 months"; activation <20% | 20 interviews BEFORE building; pivot if <50% say "I'd pay today" |
+| **3** | **"Free Forever"** | 10K users on free tier. <1% conversion. CAC $15K. Couldn't raise Series A. | No usage limits; conversion <5% after 6 months | Tight free limits (100 tests/month), weekly conversion tracking (10% target) |
+| **4** | **"Found 10, Lost 100"** | First 10 loved it (early adopters). Next 100 needed different UX. Growth stalled. | Celebrating 10 users; all from personal network; next cohort 15% activation | Design for mainstream Day 1; recruit OUTSIDE network; weekly cohort analysis |
+| **5** | **"Ran Out of Money"** | Raised $500K. Hired 3 engineers. Launched with $100K left. Couldn't raise Series A. | Hiring before PMF; runway <9 months; burn rate climbing | Solo/2-person team until PMF; 18-month runway; revenue as validation |
+| **6** | **"DeepEval Crushed Us"** | DeepEval added production monitoring + team collab. 500K users vs our 100. Insurmountable. | DeepEval GitHub activity; competitor overlapping features | SPEED (30 days); vertical moats (healthcare/finance); enterprise collaboration |
 
-**3. Expansion (Free → Pro → Enterprise)**
-- Usage limits trigger upgrades (5K tests → unlimited)
-- Team collaboration features (invite, comment, assign)
-- Compliance reports (SOC2, HIPAA audit trails)
-- Platform integrations (CI/CD, Slack, Jira)
-- Conversion triggers: Limits hit, team needs, compliance, integrations
-
-**4. Production Value Delivery (Continuous Monitoring)**
-- Real-time AI behavior monitoring
-- Automated regression detection (drift, prompt changes)
-- Proactive alerting (quality drops, anomalies)
-- Root cause analysis (WHY it failed)
-- Value: Prevent incidents before customer impact, 10x faster debugging
-
-**5. Retention & Expansion (Lock-In & Growth)**
-- AI Test Intelligence accumulates data (failure patterns)
-- Platform integrations embed into workflow
-- Historical data becomes valuable asset
-- Expand across AI portfolio (LLMs → ML → agents → vision)
-- Target: 90% NRR, 3+ AI systems per customer
-
-**SUPPORT VALUE ACTIVITIES**
-
-**6. Technology Platform**
-- AI Test Intelligence Engine (learns patterns)
-- Multi-AI-type framework (full-stack coverage)
-- Production monitoring infrastructure (real-time, scalable)
-- Integration layer (extensible)
-
-**7. Data & Intelligence (Proprietary Moat)**
-- AI failure pattern database (1M+ test cases)
-- Edge case library (production incidents)
-- Benchmarks (what "good" AI quality looks like)
-- Network effects: More customers → better intelligence → better product
-
-**8. Vertical Expertise (Defensible Positioning)**
-- Healthcare: FDA 510(k) playbooks, HIPAA compliance
-- Finance: Model Risk Management (SR 11-7), SOX audit trails
-- Domain moats take years to build
-- Reference dominance: "8 of top 10 use QUALISYS"
-
-**VALUE OPTIMIZATION PRIORITIES**
-
-Where to Invest:
-1. Activation UX: Make "5 minutes" actually 5 minutes
-2. AI Intelligence Engine: This is the moat - invest heavily
-3. Vertical Playbooks: Pick healthcare OR finance, go deep
-4. Integration Ecosystem: Embed in dev workflow
-
-Where to Optimize Costs:
-1. Customer Acquisition: PLG + community (not paid ads)
-2. Support: Self-serve + community (not headcount-heavy)
-3. Sales: Product-led for SMB, sales-assisted for enterprise only
-
-### Pre-mortem Analysis: Imagining Failure in 18 Months
-
-**Scenario:** It's June 2027. QUALISYS has shut down. What happened?
-
-**Failure Scenario #1: "Boil the Ocean" Death** 💀
-
-*What happened:* We tried to build "full-stack AI testing" with LLMs, ML, agents, RAG, computer vision ALL AT ONCE. Took 6 months to ship MVP. By launch, DeepEval already added production monitoring. Customers said "interesting but incomplete" and stuck with focused tools.
-
-**Warning Signs:**
-- MVP taking >60 days
-- Feature list growing instead of shrinking
-- "Just one more AI type" before launch
-- Engineering saying "it's almost ready"
-
-**Prevention:**
-- ONE AI type for MVP (LLMs only) - launch in 30 days
-- "Feature freeze" lockdown after MVP scoping
-- Weekly decision: "What can we CUT?"
-- Kill test: Can we demo in 5 minutes? If no, too complex.
+> **Critical Success Factors (To Avoid All Failures):**
+>
+> | # | Factor | Prevents |
+> |---|---|---|
+> | **1** | 30-Day MVP Launch | "Boil the Ocean" + "DeepEval Crushed Us" |
+> | **2** | 20 Customer Interviews Week 1-2 | "No One Showed Up" |
+> | **3** | 70% Activation, 10% Conversion Targets | "Free Forever" |
+> | **4** | Design for Mainstream | "Found 10 Champions, Lost 100" |
+> | **5** | 18-Month Runway, No Hiring Pre-PMF | "Ran Out of Money" |
+> | **6** | Vertical Moat (Healthcare OR Finance) | Competitive commoditization |
+>
+> **Decision Framework:** Ask "Does this decision make ANY of the 6 failure scenarios more likely?" If YES, don't do it.
 
 ---
 
-**Failure Scenario #2: "No One Showed Up" Death** 💀
+## 17. Decision Matrix: MVP Feature Prioritization
 
-*What happened:* We built the product. Launched. Posted on HN, Twitter, LinkedIn. 47 signups first week. 3 became active users. None converted. Market wasn't ready for "AI System QA" - still using spreadsheets and hoping for the best. We were 2 years too early.
-
-**Warning Signs:**
-- Customer interviews: "Interesting, get back to me in 6 months"
-- Free users sign up but never activate
-- First 20 beta users all personal network
-- Activation rate <20% (should be 70%)
-
-**Prevention:**
-- 20 customer interviews BEFORE building (Week 1-2)
-- Pivot point: If <50% say "I'd pay today", STOP
-- Pre-orders/LOIs before writing code
-- Design partner program: 10 committed companies
-
----
-
-**Failure Scenario #3: "Free Forever" Death** 💀
-
-*What happened:* Generous free tier worked TOO well. 10,000 users on free plan. <1% converted to paid. CAC was $15K (missed $5K target). Unit economics didn't work. Couldn't raise Series A with 0.8% conversion. Ran out of money.
-
-**Warning Signs:**
-- Free tier too generous (no usage limits or pain)
-- Conversion rate <5% after 6 months
-- "We'll monetize with volume" excuses
-- CAC climbing (should be falling)
-
-**Prevention:**
-- Tight free tier limits from Day 1 (100 tests/month max)
-- Weekly conversion tracking (target: 10% trial → paid)
-- Enterprise features gated (SSO, compliance, collaboration)
-- Hard CAC ceiling: $5K, measure weekly
-
----
-
-**Failure Scenario #4: "Found 10 Champions, Lost 100" Death** 💀
-
-*What happened:* First 10 design partners LOVED it. We celebrated. Raised pre-seed. Then... crickets. Turns out they were AI/QA early adopters who'd use anything. Mainstream market (next 100 customers) needed different onboarding, simpler UX, established category. Activation dropped to 15%. Growth stalled.
-
-**Warning Signs:**
-- Celebrating 10 users without questioning representativeness
-- Design partners all from personal network or same vertical
-- Saying "Product-market fit!" after 10 happy users
-- Next cohort has radically different activation (70% → 15%)
-
-**Prevention:**
-- Design for mainstream from Day 1 (not just early adopters)
-- Recruit beta users OUTSIDE personal network
-- Test with skeptical engineers (not friendly fans)
-- Weekly cohort analysis: Are new users BETTER or WORSE than first 10?
-
----
-
-**Failure Scenario #5: "We Ran Out of Money" Death** 💀
-
-*What happened:* Raised $500K pre-seed. Hired 3 engineers. Spent 6 months building. Launched with $100K left. Needed 6 more months to hit product-market fit but only had 4 months runway. Tried to raise Series A with mediocre metrics. Investors passed. Shut down.
-
-**Warning Signs:**
-- Hiring before product-market fit
-- "We need more engineers to ship faster"
-- Runway <9 months without clear milestones
-- Burn rate climbing (should be flat or falling)
-
-**Prevention:**
-- Solo founder or 2-person founding team ONLY until PMF
-- Contractors > full-time hires pre-PMF
-- 18-month minimum runway at all times
-- Revenue as validation, not just users
-
----
-
-**Failure Scenario #6: "DeepEval Crushed Us" Death** 💀
-
-*What happened:* We launched QUALISYS in March 2026. By June 2026, Confident AI (DeepEval) announced production monitoring, team collaboration, and full-stack AI testing. They already had 500K monthly users. We had 100. Their distribution advantage was insurmountable. Game over.
-
-**Warning Signs:**
-- DeepEval GitHub activity around production monitoring
-- Confident AI job postings for "Enterprise Sales" (signals monetization push)
-- Competitor launches overlapping with our differentiation
-- Our growth stalling while theirs accelerates
-
-**Prevention:**
-- SPEED: Ship MVP in 30 days (before they can respond)
-- Vertical moats: Go deep in healthcare or finance (defensible position)
-- Platform integrations: Lock-in via CI/CD, Slack, Jira workflows
-- Enterprise collaboration: This is where DeepEval is weakest (developer tool, not team platform)
-
----
-
-**🎯 CRITICAL SUCCESS FACTORS (To Avoid All Failures)**
-
-1. **30-Day MVP Launch** → Avoids "Boil the Ocean" and "DeepEval Crushed Us"
-2. **20 Customer Interviews Week 1-2** → Avoids "No One Showed Up"
-3. **70% Activation, 10% Conversion Targets** → Avoids "Free Forever"
-4. **Design for Mainstream** → Avoids "Found 10 Champions, Lost 100"
-5. **18-Month Runway, No Hiring Pre-PMF** → Avoids "Ran Out of Money"
-6. **Vertical Moat (Healthcare OR Finance)** → Avoids competitive commoditization
-
-**Decision Framework: Use This When Tempted to Deviate**
-
-Ask: "Does this decision make ANY of the 6 failure scenarios more likely?"
-- If YES → Don't do it
-- If NO → Proceed
-
----
-
-### Decision Matrix: MVP Feature Prioritization
-
-**Purpose:** Evaluate MVP choices against weighted criteria to avoid "boil the ocean" failure and ensure 30-day ship target.
+> **Purpose:** Evaluate MVP choices against weighted criteria to avoid "boil the ocean" failure and ensure 30-day ship target.
 
 **Evaluation Criteria (Weighted):**
-- **Time to Ship (30%)** - Can we build it in 30 days?
-- **5-Minute Wow Factor (25%)** - Does it create immediate "holy shit" moment?
-- **Competitive Differentiation (20%)** - Is this unique vs DeepEval/Braintrust?
-- **Activation Driver (15%)** - Does it drive 70% activation target?
-- **Enterprise Value (10%)** - Does it enable enterprise conversion?
 
-**Scoring: 1 (Low) to 5 (High)**
+| Weight | Criterion | Question |
+|---|---|---|
+| **30%** | Time to Ship | Can we build it in 30 days? |
+| **25%** | 5-Minute Wow Factor | Does it create immediate "holy shit" moment? |
+| **20%** | Competitive Differentiation | Is this unique vs DeepEval/Braintrust? |
+| **15%** | Activation Driver | Does it drive 70% activation target? |
+| **10%** | Enterprise Value | Does it enable enterprise conversion? |
+
+*Scoring: 1 (Low) to 5 (High)*
 
 ---
 
@@ -772,62 +603,63 @@ Ask: "Does this decision make ANY of the 6 failure scenarios more likely?"
 
 ---
 
-**🎯 MVP v1.0 DEFINITION (30-Day Product)**
+## 18. Strategic Imperatives
 
-**IN SCOPE:**
-1. **LLMs Only** - OpenAI GPT + Anthropic Claude support
-2. **3 Core Tests** - Hallucination Detection, Safety Validation, Quality Scoring
-3. **Basic Production Monitoring** - Real-time dashboards, automated alerts, drift detection
-4. **Basic Team Features** - Invite members, comment on test results, assign issues
-5. **3 Key Integrations** - OpenAI API, Anthropic API, GitHub Actions CI/CD
-6. **Freemium Pricing** - 100 tests/month free, Pro ($49/mo unlimited), Enterprise (custom)
+| Strategy | # | Action |
+|---|---|---|
+| **Leverage Strengths** | 1 | Own "AI System QA" category positioning aggressively |
+| | 2 | Nail the "5-minute wow moment" — activation beats features |
+| | 3 | Market full-stack advantage as unique differentiator |
+| **Address Weaknesses** | 1 | Build MVP fast: 30 days with 10 design partners (validate or pivot) |
+| | 2 | Get proof points: 3 case studies showing "found critical bugs in 5 minutes" |
+| | 3 | Define concrete MVP: one AI type, 3 test types, 1 integration |
+| **Seize Opportunities** | 1 | Position as "independent AI QA platform" (Humanloop gap) |
+| | 2 | Pick one vertical (healthcare or finance), build compliance moat |
+| | 3 | Execute proven freemium model (generous free tier → enterprise conversion) |
+| **Mitigate Threats** | 1 | Speed to market: Ship before DeepEval pivots or incumbents respond |
+| | 2 | Build defensible moats: AI test intelligence, vertical expertise, integrations |
+| | 3 | Stay capital efficient: Product-led growth to keep CAC <$5K |
 
-**EXPLICITLY OUT OF SCOPE (Future Roadmap):**
-- ❌ Traditional ML, computer vision, AI agents (Phase 2)
-- ❌ Custom test builder (Phase 3)
-- ❌ AI Test Intelligence learning system (Phase 3)
-- ❌ Advanced enterprise (SSO, RBAC, advanced audit trails) (Phase 2)
-- ❌ Integration marketplace (Phase 3)
+---
+---
 
-**MVP Success Criteria:**
-- ✅ Ship in 30 days (prevents "Boil the Ocean" failure)
-- ✅ 70% activation rate via 5-minute wow moment
-- ✅ 10% free → paid conversion within 60 days
-- ✅ 3 customer case studies: "Found critical bug in 5 minutes"
+# Part IV — MVP Definition
 
-**Decision Matrix Insights:**
-- "Boil the ocean" options scored LOW on time-to-ship (full-stack: 2.8, AI intelligence: 3.25)
-- Focused MVP options scored HIGH on activation (LLMs only: 4.0, 3 tests: 4.25)
-- Production monitoring is CRITICAL differentiation (4.3 score) - worth moderate build time vs pre-deployment only
-- Team features enable enterprise positioning (4.2 score) without massive complexity of full enterprise suite
-
-### Strategic Imperatives
-
-**Leverage Strengths:**
-1. Own "AI System QA" category positioning aggressively
-2. Nail the "5-minute wow moment" - activation beats features
-3. Market full-stack advantage as unique differentiator
-
-**Address Weaknesses:**
-1. Build MVP fast: 30 days with 10 design partners (validate or pivot)
-2. Get proof points: 3 case studies showing "found critical bugs in 5 minutes"
-3. Define concrete MVP: One AI type, 3 test types, 1 integration
-
-**Seize Opportunities:**
-1. Position as "independent AI QA platform" (Humanloop gap)
-2. Pick one vertical (healthcare or finance), build compliance moat
-3. Execute proven freemium model (generous free tier → enterprise conversion)
-
-**Mitigate Threats:**
-1. Speed to market: Ship before DeepEval pivots or incumbents respond
-2. Build defensible moats: AI test intelligence data, vertical expertise, platform integrations
-3. Stay capital efficient: Product-led growth to keep CAC <$5K
+> :gear: **Stakeholders:** Engineering Team, Architect, Product Manager, UX Designer
 
 ---
 
-## MVP Scope
+## 19. MVP v1.0 Scope Summary
 
-### Feature Breakdown & User Stories
+| # | Feature | Scope | Decision Score |
+|---|---|---|---|
+| **1** | LLMs Only | OpenAI GPT + Anthropic Claude support | 4.0 |
+| **2** | 3 Core Tests | Hallucination Detection, Safety Validation, Quality Scoring | 4.25 |
+| **3** | Basic Production Monitoring | Real-time dashboards, automated alerts, drift detection | 4.3 |
+| **4** | Basic Team Features | Invite members, comment on test results, assign issues | 4.2 |
+| **5** | 3 Key Integrations | OpenAI API, Anthropic API, GitHub Actions CI/CD | 4.25 |
+| **6** | Freemium Pricing | 100 tests/month free, Pro ($49/mo unlimited), Enterprise (custom) | 4.3 |
+
+**Explicitly OUT of Scope (Future Roadmap):**
+
+| Feature | Phase |
+|---|---|
+| Traditional ML, computer vision, AI agents | Phase 2 |
+| Custom test builder | Phase 3 |
+| AI Test Intelligence learning system | Phase 3 |
+| Advanced enterprise (SSO, RBAC, advanced audit trails) | Phase 2 |
+| Integration marketplace | Phase 3 |
+
+**MVP Success Criteria:**
+
+| Criterion | Target | Prevents |
+|---|---|---|
+| Ship in 30 days | Hard deadline | "Boil the Ocean" failure |
+| Activation rate | 70% in 5 minutes | Validates wow moment |
+| Free-to-paid conversion | 10% within 60 days | "Free Forever" death |
+| Case studies | 3 customers: "Found critical bug in 5 minutes" | Social proof for growth |
+
+## 20. Feature Breakdown & User Stories
 
 **FEATURE 1: LLM Testing (OpenAI + Anthropic)**
 
@@ -993,48 +825,60 @@ Ask: "Does this decision make ANY of the 6 failure scenarios more likely?"
 
 ---
 
-### Technical Architecture (MVP)
+## 21. Technical Architecture (MVP)
 
-**High-Level Architecture:**
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        WEB["Web App<br/>React + TypeScript + Tailwind"]
+        GHA["GitHub Action<br/>CI/CD Integration"]
+        CLI["CLI Tool<br/>(Optional)"]
+    end
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     QUALISYS Platform                        │
-├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │   Web App    │  │  GitHub      │  │   CLI Tool   │      │
-│  │  (React)     │  │  Action      │  │  (Optional)  │      │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
-│         │                  │                  │               │
-│         └──────────────────┴──────────────────┘              │
-│                            │                                  │
-│                    ┌───────▼────────┐                        │
-│                    │   API Gateway   │                        │
-│                    │   (Auth, Rate   │                        │
-│                    │    Limiting)    │                        │
-│                    └───────┬────────┘                        │
-│         ┌──────────────────┼──────────────────┐             │
-│         │                  │                  │              │
-│  ┌──────▼──────┐  ┌────────▼────────┐  ┌─────▼──────┐     │
-│  │  Test       │  │  Production     │  │   Team      │     │
-│  │  Execution  │  │  Monitoring     │  │   Collab    │     │
-│  │  Service    │  │  Service        │  │   Service   │     │
-│  └──────┬──────┘  └────────┬────────┘  └─────┬──────┘     │
-│         │                  │                  │              │
-│  ┌──────▼──────────────────▼──────────────────▼──────┐     │
-│  │              Shared Data Layer                     │     │
-│  │  (PostgreSQL: Users, Tests, Results, Teams)        │     │
-│  │  (TimescaleDB: Production Metrics Time-Series)     │     │
-│  └────────────────────────────────────────────────────┘     │
-│         │                  │                                 │
-│  ┌──────▼──────┐  ┌────────▼────────┐                      │
-│  │  LLM Proxy  │  │  Test Engines   │                      │
-│  │  (OpenAI,   │  │  - Hallucination│                      │
-│  │  Anthropic) │  │  - Safety       │                      │
-│  │             │  │  - Quality      │                      │
-│  └─────────────┘  └─────────────────┘                      │
-└─────────────────────────────────────────────────────────────┘
+    subgraph "API Layer"
+        GW["API Gateway<br/>Auth · Rate Limiting"]
+    end
+
+    subgraph "Service Layer"
+        TEST["Test Execution<br/>Service"]
+        MON["Production Monitoring<br/>Service"]
+        TEAM["Team Collaboration<br/>Service"]
+    end
+
+    subgraph "Test Engines"
+        HALL["Hallucination<br/>Detection"]
+        SAFE["Safety<br/>Validation"]
+        QUAL["Quality<br/>Scoring"]
+    end
+
+    subgraph "Data Layer"
+        PG[(PostgreSQL<br/>Users · Tests · Results · Teams)]
+        TS[(TimescaleDB<br/>Production Metrics Time-Series)]
+        REDIS[(Redis<br/>Cache · Rate Limiting · Jobs)]
+    end
+
+    subgraph "External Integrations"
+        OAI["OpenAI API"]
+        ANT["Anthropic API"]
+        GHUB["GitHub API<br/>PR Comments · Status Checks"]
+    end
+
+    WEB & GHA & CLI --> GW
+    GW --> TEST & MON & TEAM
+    TEST --> HALL & SAFE & QUAL
+    HALL & SAFE & QUAL --> OAI & ANT
+    TEST & MON & TEAM --> PG
+    MON --> TS
+    GW --> REDIS
+    TEST --> GHUB
+
+    style GW fill:#3b82f6,color:#fff
+    style TEST fill:#22c55e,color:#fff
+    style MON fill:#f97316,color:#fff
+    style TEAM fill:#8b5cf6,color:#fff
+    style HALL fill:#ef4444,color:#fff
+    style SAFE fill:#eab308,color:#000
+    style QUAL fill:#06b6d4,color:#fff
 ```
 
 **Technology Stack (MVP):**
@@ -1077,128 +921,126 @@ Ask: "Does this decision make ANY of the 6 failure scenarios more likely?"
 
 ---
 
-### MVP Success Metrics & KPIs
+## 22. Success Metrics & KPIs
 
-**Activation Metrics (Primary):**
-- **5-Minute Activation Rate:** 70% of signups complete first test run in 5 minutes
-  - Tracking: Time from signup → first test completion
-  - Target: 70% Week 1, maintain through Month 1
-
-- **First Bug Discovery Rate:** 50% of users find a real issue in first session
-  - Tracking: Users who flag a test failure in first 24 hours
-  - Target: 50% Week 1, improve to 60% Month 1
-
-**Engagement Metrics:**
-- **Weekly Active Users (WAU):** 60% of signups return in Week 2
-  - Tracking: Users who run tests in Week 2 after signup
-  - Target: 60% retention Week 2
-
-- **Tests Per User:** Average 50 tests/user/week (for active users)
-  - Tracking: Median tests run by active users
-  - Target: 50/week Month 1
-
-**Conversion Metrics:**
-- **Free → Pro Conversion:** 10% within 60 days
-  - Tracking: Cohort analysis, users who upgrade from free to paid
-  - Target: 10% Day 60 cohort
-
-- **Upgrade Trigger:** 80% of conversions hit free tier limit (validate value)
-  - Tracking: Reason for upgrade (limit hit vs. features)
-  - Target: 80% upgrade due to usage limits
-
-**Product Validation Metrics:**
-- **Case Studies:** 3 customers with "found critical bug in 5 minutes" story
-  - Tracking: Customer interviews, documented case studies
-  - Target: 3 case studies by Day 30
-
-- **Net Promoter Score (NPS):** 40+ (good for B2B SaaS)
-  - Tracking: Survey after 7 days of usage
-  - Target: NPS 40+ by Month 1
-
-**CAC & Unit Economics:**
-- **Customer Acquisition Cost (CAC):** <$5,000 blended
-  - Tracking: Total marketing spend / new customers
-  - Target: <$5K Month 1-3
-
-- **CAC Payback Period:** <12 months
-  - Tracking: Months to recover CAC from customer revenue
-  - Target: <12 months for Pro plan customers
+| Category | Metric | Target | Tracking Method |
+|---|---|---|---|
+| **Activation** | 5-Minute Activation Rate | 70% Week 1 | Time from signup → first test completion |
+| **Activation** | First Bug Discovery Rate | 50% Week 1, 60% Month 1 | Users flagging test failure in first 24 hours |
+| **Engagement** | Weekly Active Users (WAU) | 60% return in Week 2 | Users running tests in Week 2 after signup |
+| **Engagement** | Tests Per User | 50/week (active users) | Median tests run by active users |
+| **Conversion** | Free → Pro Conversion | 10% within 60 days | Cohort analysis — free to paid upgrades |
+| **Conversion** | Upgrade Trigger | 80% hit free tier limit | Reason for upgrade (limit hit vs features) |
+| **Validation** | Case Studies | 3 by Day 30 | "Found critical bug in 5 minutes" stories |
+| **Validation** | Net Promoter Score (NPS) | 40+ by Month 1 | Survey after 7 days of usage |
+| **Economics** | Customer Acquisition Cost | <$5K blended | Total marketing spend / new customers |
+| **Economics** | CAC Payback Period | <12 months | Months to recover CAC from revenue |
 
 ---
 
-### 30-Day Launch Plan
+## 23. 30-Day Launch Plan
 
-**Week 1: Foundation (Days 1-7)**
-- Day 1-2: Project setup (repos, infrastructure, CI/CD)
-- Day 3-4: Database schema, auth integration (Clerk)
-- Day 5-6: LLM proxy layer (OpenAI + Anthropic connection)
-- Day 7: Deploy infrastructure, hello world test
+```mermaid
+graph LR
+    subgraph "Week 1 — Foundation"
+        W1["Days 1-2: Repos, Infra, CI/CD<br/>Days 3-4: DB Schema, Auth (Clerk)<br/>Days 5-6: LLM Proxy (OpenAI + Anthropic)<br/>Day 7: Deploy, Hello World Test"]
+    end
 
-**Week 2: Core Testing (Days 8-14)**
-- Day 8-10: Build 3 test engines (hallucination, safety, quality)
-- Day 11-12: Test execution service (run tests, store results)
-- Day 13-14: Basic dashboard (show test results)
+    subgraph "Week 2 — Core Testing"
+        W2["Days 8-10: 3 Test Engines<br/>Days 11-12: Execution Service<br/>Days 13-14: Basic Dashboard"]
+    end
 
-**Week 3: Production Monitoring & Team Features (Days 15-21)**
-- Day 15-16: Production monitoring (real-time dashboard, alerts)
-- Day 17-18: Team features (invite, comment, assign)
-- Day 19-20: GitHub Actions integration
-- Day 21: Internal dogfooding (test on QUALISYS itself)
+    subgraph "Week 3 — Monitor & Collab"
+        W3["Days 15-16: Production Monitoring<br/>Days 17-18: Team Features<br/>Days 19-20: GitHub Actions<br/>Day 21: Internal Dogfooding"]
+    end
 
-**Week 4: Polish & Launch (Days 22-30)**
-- Day 22-24: Onboarding flow (5-minute activation UX)
-- Day 25-26: Freemium limits, Stripe integration
-- Day 27-28: Beta testing with 5 design partners
-- Day 29: Fix critical bugs from beta
-- Day 30: PUBLIC LAUNCH 🚀
+    subgraph "Week 4 — Polish & Launch"
+        W4["Days 22-24: Onboarding UX<br/>Days 25-26: Freemium + Stripe<br/>Days 27-28: Beta (5 Partners)<br/>Day 29: Bug Fixes<br/>Day 30: PUBLIC LAUNCH"]
+    end
+
+    W1 --> W2 --> W3 --> W4
+
+    style W1 fill:#3b82f6,color:#fff
+    style W2 fill:#22c55e,color:#fff
+    style W3 fill:#8b5cf6,color:#fff
+    style W4 fill:#f97316,color:#fff
+```
 
 **Launch Checklist (Day 30):**
-- ✅ 5 design partners activated and using daily
-- ✅ All 3 test types working (hallucination, safety, quality)
-- ✅ GitHub Action published and tested
-- ✅ Freemium limits enforced (100 tests/month)
-- ✅ Stripe checkout working (Pro plan $49/mo)
-- ✅ Documentation complete (docs site, API reference)
-- ✅ 1 case study documented ("found bug in 5 minutes")
+
+| # | Checkpoint | Status |
+|---|---|---|
+| 1 | 5 design partners activated and using daily | Required |
+| 2 | All 3 test types working (hallucination, safety, quality) | Required |
+| 3 | GitHub Action published and tested | Required |
+| 4 | Freemium limits enforced (100 tests/month) | Required |
+| 5 | Stripe checkout working (Pro plan $49/mo) | Required |
+| 6 | Documentation complete (docs site, API reference) | Required |
+| 7 | 1 case study documented ("found bug in 5 minutes") | Required |
 
 ---
 
-### Definition of Done (DoD) for MVP
+## 24. Definition of Done (DoD)
 
-**Functional Completeness:**
-- ✅ User can sign up with email (no credit card)
-- ✅ User can connect OpenAI and/or Anthropic API keys
-- ✅ User can create and run tests (hallucination, safety, quality)
-- ✅ User can see test results in dashboard
-- ✅ User can invite team members and collaborate (comment, assign)
-- ✅ User can set up production monitoring with alerts
-- ✅ User can install GitHub Action and run tests in CI/CD
-- ✅ User can upgrade to Pro plan ($49/mo) self-serve
-- ✅ Free tier limits enforced (100 tests/month)
+| Category | Criteria |
+|---|---|
+| **Functional Completeness** | |
+| | User can sign up with email (no credit card) |
+| | User can connect OpenAI and/or Anthropic API keys |
+| | User can create and run tests (hallucination, safety, quality) |
+| | User can see test results in dashboard |
+| | User can invite team members and collaborate (comment, assign) |
+| | User can set up production monitoring with alerts |
+| | User can install GitHub Action and run tests in CI/CD |
+| | User can upgrade to Pro plan ($49/mo) self-serve |
+| | Free tier limits enforced (100 tests/month) |
+| **Quality Gates** | |
+| | Zero critical bugs (P0) |
+| | <5 high-priority bugs (P1) — documented for post-launch |
+| | 5-minute activation tested with 10 users (70%+ success rate) |
+| | Load tested (100 concurrent users, <2s response time) |
+| | Security review complete (API keys encrypted, auth working) |
+| | Error tracking configured (Sentry catching all errors) |
+| **Launch Readiness** | |
+| | Landing page live (clear value prop, signup CTA) |
+| | Documentation site complete (getting started, API docs) |
+| | Support system ready (email support, Discord community) |
+| | Analytics instrumented (PostHog tracking all key events) |
+| | Launch plan documented (social posts, HN launch, email list) |
+| | 3 case studies ready to share (social proof) |
+| **Post-Launch Monitoring** | |
+| | Daily metrics dashboard (activation, engagement, conversion) |
+| | Weekly cohort analysis (retention tracking) |
+| | Customer interview schedule (talk to 5 users Week 1) |
+| | Feedback loop (user feedback → product backlog → sprint) |
 
-**Quality Gates:**
-- ✅ Zero critical bugs (P0)
-- ✅ <5 high-priority bugs (P1) - documented for post-launch
-- ✅ 5-minute activation flow tested with 10 users (70%+ success rate)
-- ✅ Load tested (100 concurrent users, <2s response time)
-- ✅ Security review complete (API keys encrypted, auth working)
-- ✅ Error tracking configured (Sentry catching all errors)
+---
+---
 
-**Launch Readiness:**
-- ✅ Landing page live (clear value prop, signup CTA)
-- ✅ Documentation site complete (getting started, API docs)
-- ✅ Support system ready (email support, Discord community)
-- ✅ Analytics instrumented (PostHog tracking all key events)
-- ✅ Launch plan documented (social posts, HN launch, email list)
-- ✅ 3 case studies ready to share (social proof)
-
-**Post-Launch Monitoring:**
-- ✅ Daily metrics dashboard (activation, engagement, conversion)
-- ✅ Weekly cohort analysis (retention tracking)
-- ✅ Customer interview schedule (talk to 5 users Week 1)
-- ✅ Feedback loop (user feedback → product backlog → sprint)
+<div align="center">
 
 ---
 
-_This Product Brief was developed through collaborative strategic analysis._
-_Completed: 2025-12-01_
+**QUALISYS — AI System Quality Assurance Platform**
+
+*Product Brief — Strategic Discovery & MVP Definition*
+
+This Product Brief was developed through collaborative strategic analysis using the BMad Method.
+
+**Completed:** 2025-12-01 | **Author:** Azfar
+
+---
+
+| Dimension | Summary |
+|---|---|
+| **Category** | AI System Quality Assurance (new category creation) |
+| **Target User** | AI Engineering Leaders at 50–500 person companies |
+| **Core Value** | Find your first critical AI bug in 5 minutes |
+| **MVP Timeline** | 30 days to public launch |
+| **Key Metric** | 70% activation rate in 5 minutes |
+| **Pricing** | Freemium: 100 tests/month free → Pro $49/mo → Enterprise custom |
+| **Market** | $1.01B growing at 20.9% CAGR to $3.82B by 2032 |
+
+**Next Steps:** PRD (detailed requirements) | Architecture (technical design) | Epic & Story Breakdown | Implementation
+
+</div>
