@@ -1,207 +1,191 @@
-# QUALISYS - Epic Breakdown
+<div align="center">
 
-**Author:** Azfar
-**Date:** 2025-12-11
-**Project Level:** Medium Complexity
-**Target Scale:** Multi-tenant SaaS B2B Platform
+# QUALISYS — Epic & Story Breakdown
 
----
+**AI System Quality Assurance Platform**
 
-## Overview
+</div>
 
-This document provides the complete epic and story breakdown for QUALISYS, decomposing the requirements from the [PRD](./prd.md) into implementable stories.
-
-**Living Document Notice:** This is the initial version created with full context from PRD, UX Design, and Architecture documents. All available planning context has been incorporated.
-
----
-
-## Functional Requirements Inventory
-
-### User Account & Access Management
-- **FR1:** Users can create accounts with email/password or Google SSO
-- **FR2:** Users can create organizations and become the first Owner/Admin
-- **FR3:** Users can log in securely with session persistence across devices
-- **FR4:** Users can reset passwords via email verification workflow
-- **FR5:** Users can enable two-factor authentication (TOTP) for their accounts
-- **FR6:** Admins can invite team members to organization via email with role assignment
-- **FR7:** Invited users can accept invitations and join organization
-- **FR8:** Admins can remove users from organization
-- **FR9:** Admins can change user roles within organization
-- **FR10:** Users can configure their profile information and notification preferences
-
-### Project Management
-- **FR11:** Users can create new test projects within their organization
-- **FR12:** Users can configure project settings (name, description, app URL, repo link)
-- **FR13:** Users can assign team members to projects with role-based access
-- **FR14:** Users can archive or delete projects
-- **FR15:** Users can view list of all projects with status and health indicators
-
-### Document Ingestion & Analysis
-- **FR16:** Users can upload requirement documents (PDF, Word, Markdown) to projects
-- **FR17:** System parses uploaded documents and extracts text content
-- **FR18:** System generates embeddings for document content and stores in vector database
-- **FR19:** Users can connect GitHub repositories with read-only access tokens
-- **FR20:** System clones connected repositories and analyzes source code structure
-- **FR21:** System maps application routes, API endpoints, and components from source code
-- **FR22:** Users can provide application URLs for DOM crawling
-- **FR23:** System crawls application using Playwright to capture page structure, forms, and flows
-- **FR24:** System handles authentication flows (login, cookies) during crawling
-- **FR25:** Users can view ingested content summary (documents, code files, pages crawled)
-
-### AI Agent Orchestration
-- **FR26:** Users can select which AI agents to run on their project
-- **FR27:** System provides agent descriptions and capabilities for informed selection
-- **FR28:** Users can create agent execution pipelines (sequential or parallel workflows)
-- **FR29:** System executes selected agents with project context (documents, code, DOM)
-- **FR30:** Users can view agent execution progress and status in real-time
-- **FR31:** System stores agent outputs (coverage matrices, test cases, scripts) as project artifacts
-
-### Test Artifact Generation
-- **FR32:** BAConsultant AI Agent analyzes requirements, performs gap/ambiguity detection, and generates requirements-to-test coverage matrix with user story quality scoring. Generated user stories require dual-review approval (internal team review + client stakeholder review) before release to downstream agents
-- **FR33:** QAConsultant AI Agent generates manual test checklists with step-by-step instructions, supporting checklist-driven testing across Smoke, Sanity, Integration, Regression, Usability, and UAT types
-- **FR34:** QAConsultant AI Agent generates exploratory testing prompts, BDD/Gherkin scenarios, negative test cases, boundary condition tests, and domain-aware synthetic test data
-- **FR35:** AutomationConsultant AI Agent generates automated test scripts (Playwright, Puppeteer, REST-Assured) with smart locators, supporting multiple framework architectures (POM, Data-Driven, Hybrid)
-- **FR36:** QAConsultant AI Agent creates test strategy documents, test plans, and validates sprint readiness
-- **FR37:** AutomationConsultant AI Agent performs automated DOM crawling, sitemap generation, and coverage gap detection for application discovery
-- **FR38:** Users can view all generated test artifacts organized by type and agent
-- **FR39:** Users can edit generated test artifacts before execution
-- **FR40:** Users can version and track changes to test artifacts
-
-### Test Execution - Manual Testing
-- **FR41:** Manual testers can view assigned manual test checklists
-- **FR42:** Manual testers can execute test steps one-by-one with pass/fail/skip status
-- **FR43:** Manual testers can capture screenshots as evidence during manual testing
-- **FR44:** Manual testers can record video of test execution sessions
-- **FR45:** Manual testers can add notes and observations to test steps
-- **FR46:** Manual testers can mark tests as passed, failed, or blocked with reason
-- **FR47:** Manual testers can file defects directly from failed test steps
-- **FR48:** System links defects to test cases for traceability
-
-### Test Execution - Automated Testing
-- **FR49:** Users can execute generated Playwright scripts on-demand
-- **FR50:** Users can select target browsers for test execution (Chromium, Firefox, WebKit)
-- **FR51:** Users can configure test execution modes (headless vs headful)
-- **FR52:** System runs automated tests in parallel for faster execution
-- **FR53:** System executes tests in isolated containerized environments
-- **FR54:** Users can view real-time test execution progress and logs
-- **FR55:** System captures screenshots and videos of automated test runs
-- **FR56:** System stores test execution results with pass/fail status and error details
-- **FR57:** Users can re-run failed tests individually or in batch
-
-### Self-Healing Test Automation
-- **FR58:** System stores multiple locator strategies for each UI element (CSS, XPath, text, ARIA)
-- **FR59:** System detects when automated tests fail due to DOM changes
-- **FR60:** System captures page fingerprints to compare against known good states
-- **FR61:** System proposes alternative locators when primary locators fail
-- **FR62:** System shows confidence scores for proposed selector fixes
-- **FR63:** Automation engineers can review and approve proposed self-healing fixes
-- **FR64:** System applies approved fixes and re-runs affected tests automatically
-- **FR65:** System maintains audit trail of all auto-fixes with before/after comparisons
-- **FR66:** PMs/Admins can configure approval workflows for production test fixes
-
-### Dashboards & Reporting
-- **FR67:** PM/CSM users can view project health dashboard with key metrics
-- **FR68:** Dashboard shows test coverage percentage by requirements
-- **FR69:** Dashboard shows test execution velocity (tests run per day/week)
-- **FR70:** Dashboard shows P1/P2 defect leakage rates
-- **FR71:** Dashboard shows SLA compliance status with trend indicators
-- **FR72:** QA users can view test execution dashboard with current runs
-- **FR73:** QA dashboard shows failing test suites and flaky tests
-- **FR74:** QA dashboard shows environment status and runner availability
-- **FR75:** Users can filter dashboard metrics by date range, project, or test type
-- **FR76:** Users can export dashboards and reports as PDF documents
-- **FR77:** System sends scheduled email summaries of key metrics (configurable frequency)
-
-### Integrations - JIRA
-- **FR78:** Admins can connect JIRA instances with API credentials
-- **FR79:** Users can import JIRA issues (user stories, bugs) into QUALISYS projects
-- **FR80:** System maps JIRA issue types to QUALISYS test requirements
-- **FR81:** Users can link test cases to JIRA issues for bi-directional traceability
-- **FR82:** System automatically creates JIRA issues when tests fail
-- **FR83:** System includes test failure evidence (screenshots, logs, steps) in JIRA issues
-- **FR84:** System updates JIRA issue status when linked tests pass
-
-### Integrations - TestRail/Testworthy
-- **FR85:** Admins can connect TestRail/Testworthy instances with API credentials
-- **FR86:** Users can import test plans, suites, and cases from TestRail/Testworthy
-- **FR87:** System preserves test case IDs and folder structure during import
-- **FR88:** Users can export QUALISYS-generated tests to TestRail/Testworthy
-- **FR89:** System syncs test execution results back to TestRail/Testworthy
-- **FR90:** System maintains bi-directional sync to keep platforms aligned
-
-### Integrations - GitHub
-- **FR91:** Users can connect GitHub repositories with read-only access tokens
-- **FR92:** System posts test execution results as comments on pull requests
-- **FR93:** Users can configure test success/failure as PR merge gate
-- **FR94:** System triggers test runs automatically on push or PR events (webhook)
-- **FR95:** Users can view test results directly in GitHub PR interface
-
-### Integrations - Slack
-- **FR96:** Admins can connect Slack workspaces via OAuth
-- **FR97:** Users can configure which Slack channels receive notifications
-- **FR98:** System sends test run completion notifications to Slack
-- **FR99:** System sends test failure alerts with summary and links to Slack
-- **FR100:** System sends SLA breach alerts to Slack
-- **FR101:** Users can trigger basic test runs via Slack commands (ChatOps)
-
-### Administration & Configuration
-- **FR102:** Admins can configure organization-wide settings (name, logo, domain)
-- **FR103:** Admins can manage billing and subscription (when pricing model defined)
-- **FR104:** Admins can view usage analytics (tests run, storage consumed, agent executions)
-- **FR105:** Admins can configure data retention policies for their organization
-- **FR106:** Admins can export all organization data for backup or migration
-- **FR107:** Admins can delete organization and all associated data
-- **FR108:** System provides audit logs of all administrative actions
-- **FR109:** Users can configure notification preferences (email, Slack, frequency)
-- **FR110:** Users can manage their connected integrations and API keys
-
-### Agent Extensibility & Custom Agents (Post-MVP — Epic 6 Phase 3)
-- **FR-CA1:** Platform admins can register new agent definitions at runtime via API or admin UI without code deployment
-- **FR-CA2:** Platform admins can manage agent lifecycle (enable, disable, deprecate, retire) through the Agent Registry Service
-- **FR-CA3:** Tenant admins can enable or disable specific agents for their organization
-- **FR-CA4:** Tenant admins can customize agent behavior with organization-specific prompt instructions
-- **FR-CA5:** Tenant admins can override LLM provider and model selection per agent per organization
-- **FR-CA6:** System enforces per-agent fault isolation with configurable token budgets, hard timeouts, and circuit breaker patterns
-- **FR-CA7:** Platform admins can version agent prompts using semantic versioning with gradual rollout
-- **FR-CA8:** System provides Agent Registry discovery API returning tenant-scoped and role-filtered agent metadata
-- **FR-CA9:** All agent configuration changes, version deployments, and circuit breaker events are audit-logged
-
-### Agent Skills Integration (Post-MVP — Epic 7)
-- **FR-SK1–SK7:** Skill Registry Service — centralized skill metadata, discovery, versioning, lifecycle management
-- **FR-SK8–SK14:** Skill Proxy Service — skill execution, context translation, fallback, audit logging
-- **FR-SK15–SK18:** Skill Adapter Library — LangChain ↔ Claude API translation, skill chaining
-- **FR-SK19–SK23:** Governance Extensions — risk classification, deployment approval, execution gates
-- **FR-SK24–SK28:** Agent Orchestrator Modifications — skill discovery, selection, mixed execution, backward compatibility
-
-**Total Functional Requirements:** 110 (MVP) + 9 (Agent Extensibility) + 28 (Agent Skills) = 147
+| Attribute | Detail |
+|-----------|--------|
+| **Product** | QUALISYS — AI-Powered QA Platform |
+| **Document** | Epic & Story Breakdown |
+| **Author** | Azfar |
+| **Date** | 2025-12-11 |
+| **Version** | 2.0 |
+| **Status** | Living Document |
+| **Complexity** | Medium — Multi-tenant SaaS B2B |
 
 ---
 
-## Epic Structure Overview
+> **Living Document Notice:** This is the initial version created with full context from PRD, UX Design, and Architecture documents. All available planning context has been incorporated.
 
-**Methodology:** This epic breakdown was created using comprehensive analysis including Pre-mortem Analysis, SWOT, Stakeholder Mapping, First Principles, Six Thinking Hats, Value Chain Analysis, Journey Mapping, Risk Matrix, and Decision Matrix.
+---
+
+### Stakeholder Guide
+
+| Stakeholder | Sections of Interest | Purpose |
+|-------------|---------------------|---------|
+| **Owner / Admin** | Parts I-II (Epics 1-2), Part IV | Platform foundation, team setup, implementation timeline |
+| **PM / CSM** | Part I (Overview), Epic 2, Epic 5 | Dashboard visibility, JIRA integration, reporting |
+| **QA — Manual** | Epic 3 | Manual test execution, evidence capture, defect filing |
+| **QA — Automation** | Epics 2, 4, 7 | AI agent platform, self-healing, skill optimization |
+| **Developer** | Epics 3-4 | GitHub PR integration, automated testing, self-healing |
+| **Scrum Master** | Part I (Summary), Part IV | Sprint planning, story estimation, risk awareness |
+| **Architect** | All Parts — Architectural Decisions | Multi-tenancy, self-healing engine, integration resilience |
+| **Enterprise Buyer** | Epics 5-6 | SSO, SOC 2, compliance, marketplace |
+
+---
+
+### Table of Contents
+
+**Part I — Overview & Planning Framework**
+- [1. Executive Summary](#1-executive-summary)
+- [2. Functional Requirements Inventory](#2-functional-requirements-inventory)
+- [3. Epic Structure Overview](#3-epic-structure-overview)
+
+**Part II — MVP Epics (1–5)**
+- [4. Epic 1 — Foundation & Administration](#4-epic-1--foundation--administration)
+- [5. Epic 2 — AI Agent Platform & Executive Visibility](#5-epic-2--ai-agent-platform--executive-visibility)
+- [6. Epic 3 — Manual Testing & Developer Integration](#6-epic-3--manual-testing--developer-integration)
+- [7. Epic 4 — Automated Execution & Self-Healing](#7-epic-4--automated-execution--self-healing)
+- [8. Epic 5 — Complete Dashboards & Ecosystem Integration](#8-epic-5--complete-dashboards--ecosystem-integration)
+
+**Part III — Post-MVP & Growth**
+- [9. Epic 6 — Advanced Agents & Growth Features](#9-epic-6--advanced-agents--growth-features)
+- [10. Epic 7 — Agent Skills Integration](#10-epic-7--agent-skills-integration)
+
+**Part IV — Implementation Guidance**
+- [11. Summary & Timeline](#11-summary--timeline)
+- [12. Critical Success Factors & Risk Prioritization](#12-critical-success-factors--risk-prioritization)
+- [13. Technology Stack & Next Steps](#13-technology-stack--next-steps)
+
+---
+
+
+# Part I — Overview & Planning Framework
+
+> **Audience:** All Stakeholders | **Purpose:** Context setting, scope definition, epic roadmap
+
+---
+
+## 1. Executive Summary
+
+QUALISYS delivers AI-powered quality assurance through **7 specialized AI agents**, **self-healing test automation**, and **seamless enterprise integrations**. This document decomposes all **147 functional requirements** into **7 epics** with **110+ user stories**, providing a complete implementation roadmap.
+
+| Metric | Value |
+|--------|-------|
+| **Total Functional Requirements** | 147 (110 MVP + 9 Agent Extensibility + 28 Agent Skills) |
+| **MVP Epics** | 5 (Epics 1–5) |
+| **Post-MVP Epics** | 2 (Epics 6–7) |
+| **Total User Stories** | ~110 (78 MVP + 32 Post-MVP) |
+| **MVP Timeline** | 15–19 weeks |
+| **Full Platform Timeline** | 27–35 weeks (6.5–8.5 months) |
+| **MVP Boundary** | Epics 1–5 = Shippable MVP (~110 FRs) |
 
 **Epic Philosophy:** User value-driven (not technical layers), minimal foundation with incremental expansion, integration-first strategy, self-healing as cohesive capability.
 
-**MVP Boundary:** Epics 1-5 = Shippable MVP (~60-70 FRs), Epic 6+ = Growth features (~40-50 FRs deferred)
+**Methodology:** Pre-mortem Analysis, SWOT, Stakeholder Mapping, First Principles, Six Thinking Hats, Value Chain Analysis, Journey Mapping, Risk Matrix, and Decision Matrix.
 
-### Epic Summary
-
-| Epic | Name | Duration | Primary Personas | Key FRs | Value Delivered |
-|------|------|----------|------------------|---------|-----------------|
-| **1** | Foundation & Administration | 2 weeks | Owner/Admin | FR1-15, FR102-108 | Organization setup, user management, project creation |
-| **2** | AI Agent Platform & Executive Visibility | 3-4 weeks | PM/CSM, QA-Automation, Owner/Admin | FR16-31, FR32-40, FR67-71, FR78-84 | Test generation from requirements + JIRA integration + PM dashboard |
-| **3** | Manual Testing & Developer Integration | 3-4 weeks | QA-Manual, Dev, PM/CSM | FR33-34, FR41-48, FR91-95 | Manual test execution with evidence + GitHub PR integration |
-| **4** | Automated Execution & Self-Healing (Breakthrough) | 4-5 weeks | QA-Automation, Dev | FR49-57, FR58-66 | Automated Playwright tests with self-healing magic |
-| **5** | Complete Dashboards & Ecosystem Integration | 3-4 weeks | All personas | FR72-77, FR85-90, FR96-101, FR109-110 | Full visibility + TestRail/Slack integrations |
-| **6** | Advanced Agents & Growth Features | 8-11 weeks | Power users, Enterprise | Post-MVP agents, enterprise security, agent extensibility & custom agents | Platform depth, extensibility, custom agents |
-| **7** | Agent Skills Integration | 4-5 weeks | All agent users | Progressive skill loading, skill registry/proxy, 21 skills across 7 agents | 40-60% token cost reduction, modular agent architecture |
-
-**Total MVP Duration:** 15-19 weeks (Epics 1-5)
+```mermaid
+gantt
+    title QUALISYS Epic Progression Timeline
+    dateFormat  X
+    axisFormat Week %s
+    
+    section MVP
+    Epic 1 — Foundation & Admin       :e1, 0, 2w
+    Epic 2 — AI Agents & Dashboards   :e2, after e1, 4w
+    Epic 3 — Manual Test & GitHub     :e3, after e2, 4w
+    Epic 4 — Self-Healing (Breakthrough) :crit, e4, after e3, 5w
+    Epic 5 — Dashboards & Ecosystem   :e5, after e4, 4w
+    
+    section Post-MVP
+    Epic 6 — Advanced Agents & Growth :e6, after e5, 11w
+    Epic 7 — Agent Skills Integration :e7, after e5, 5w
+```
 
 ---
 
-## Epic 1: Foundation & Administration
+## 2. Functional Requirements Inventory
+
+> **Full details:** See [PRD](../planning/prd.md) for complete FR specifications. Below is the coverage summary by domain.
+
+| # | Domain | FR Range | Count | Epic Coverage | Key Capabilities |
+|---|--------|----------|-------|---------------|-----------------|
+| 1 | User Account & Access Management | FR1–FR10 | 10 | Epic 1 | Signup, SSO, RBAC, MFA, invitations |
+| 2 | Project Management | FR11–FR15 | 5 | Epic 1 | Create, configure, archive, team assignment |
+| 3 | Document Ingestion & Analysis | FR16–FR25 | 10 | Epic 2 | PDF/Word/MD upload, GitHub repo, DOM crawling |
+| 4 | AI Agent Orchestration | FR26–FR31 | 6 | Epic 2 | Agent selection, pipelines, real-time progress |
+| 5 | Test Artifact Generation | FR32–FR40 | 9 | Epic 2 | BAConsultant, QAConsultant, AutomationConsultant outputs |
+| 6 | Test Execution — Manual | FR41–FR48 | 8 | Epic 3 | Step-by-step execution, evidence capture, defect filing |
+| 7 | Test Execution — Automated | FR49–FR57 | 9 | Epic 4 | Playwright, parallel, containerized, re-run |
+| 8 | Self-Healing Automation | FR58–FR66 | 9 | Epic 4 | Multi-locator, DOM fingerprint, confidence scoring |
+| 9 | Dashboards & Reporting | FR67–FR77 | 11 | Epics 2, 5 | PM dashboard, QA dashboard, PDF export, email |
+| 10 | Integrations — JIRA | FR78–FR84 | 7 | Epics 2, 3, 4 | Bi-directional sync, auto-defect creation |
+| 11 | Integrations — TestRail/Testworthy | FR85–FR90 | 6 | Epic 5 | Import/export, bi-directional sync |
+| 12 | Integrations — GitHub | FR91–FR95 | 5 | Epic 3 | PR comments, merge gates, webhooks |
+| 13 | Integrations — Slack | FR96–FR101 | 6 | Epic 5 | Notifications, SLA alerts, ChatOps |
+| 14 | Administration & Configuration | FR102–FR110 | 9 | Epics 1, 5 | Org settings, audit logs, preferences |
+| 15 | Agent Extensibility (Post-MVP) | FR-CA1–CA9 | 9 | Epic 6 | Runtime registry, per-tenant customization |
+| 16 | Agent Skills (Post-MVP) | FR-SK1–SK28 | 28 | Epic 7 | Skill registry, proxy, governance, orchestrator |
+|   | **Total** | | **147** | | |
+
+---
+
+## 3. Epic Structure Overview
+
+### Epic Summary
+
+| Epic | Name | Duration | Risk | Stories | FRs | Primary Personas |
+|:----:|------|:--------:|:----:|:-------:|:---:|-----------------|
+| **1** | Foundation & Administration | 2 wk | :green_circle: Low | 13 | 25 | Owner/Admin |
+| **2** | AI Agent Platform & Executive Visibility | 3–4 wk | :red_circle: Critical | 18 | 40 | PM/CSM, QA-Auto |
+| **3** | Manual Testing & Developer Integration | 3–4 wk | :yellow_circle: Medium | 15 | 16 | QA-Manual, Dev |
+| **4** | Automated Execution & Self-Healing | 4–5 wk | :red_circle: Critical | 16 | 18 | QA-Auto, Dev |
+| **5** | Complete Dashboards & Ecosystem Integration | 3–4 wk | :yellow_circle: Medium | 16 | 20 | All Personas |
+|      | **MVP Subtotal** | **15–19 wk** | | **78** | **110** | |
+| **6** | Advanced Agents & Growth Features | 8–11 wk | :green_circle: Low-Med | 12 | 9 | Enterprise, Power Users |
+| **7** | Agent Skills Integration | 4–5 wk | :green_circle: Low-Med | 20 | 28 | All Agent Users |
+|      | **Full Platform Total** | **27–35 wk** | | **~110** | **147** | |
+
+### Epic Value Chain
+
+> Each epic builds on the previous, delivering incrementally higher value:
+
+```mermaid
+flowchart LR
+    E1["**Epic 1**<br/>Foundation<br/>& Admin<br/><small>2 wk</small>"]
+    E2["**Epic 2**<br/>AI Agents<br/>& Dashboards<br/><small>3-4 wk</small>"]
+    E3["**Epic 3**<br/>Manual Test<br/>& GitHub<br/><small>3-4 wk</small>"]
+    E4["**Epic 4**<br/>Self-Healing<br/>(Breakthrough)<br/><small>4-5 wk</small>"]
+    E5["**Epic 5**<br/>Dashboards<br/>& Ecosystem<br/><small>3-4 wk</small>"]
+    E6["**Epic 6**<br/>Advanced Agents<br/>& Enterprise<br/><small>8-11 wk</small>"]
+    E7["**Epic 7**<br/>Agent Skills<br/>Integration<br/><small>4-5 wk</small>"]
+
+    E1 --> E2 --> E3 --> E4 --> E5
+    E5 -.-> E6 -.-> E7
+
+    style E1 fill:#e8f5e9,stroke:#4caf50,color:#000
+    style E2 fill:#fff3e0,stroke:#ff9800,color:#000
+    style E3 fill:#fff3e0,stroke:#ff9800,color:#000
+    style E4 fill:#ffebee,stroke:#f44336,color:#000
+    style E5 fill:#fff3e0,stroke:#ff9800,color:#000
+    style E6 fill:#e3f2fd,stroke:#2196f3,color:#000
+    style E7 fill:#e3f2fd,stroke:#2196f3,color:#000
+```
+
+> **Legend:** Solid arrows = MVP sequential dependency | Dashed arrows = Post-MVP (can start after MVP)
+
+---
+
+# Part II — MVP Epics (1–5)
+
+> **Audience:** Dev Team, QA Team, PM/CSM | **Purpose:** Detailed story breakdown, acceptance criteria, architecture decisions
+
+---
+
+## 4. Epic 1 — Foundation & Administration
 
 **Duration:** 2 weeks
 **Primary Persona:** Owner/Admin
@@ -436,7 +420,7 @@ Before moving to Epic 2, Epic 1 must achieve:
 
 ---
 
-## Epic 2: AI Agent Platform & Executive Visibility
+## 5. Epic 2 — AI Agent Platform & Executive Visibility
 
 **Duration:** 3-4 weeks
 **Primary Personas:** QA-Automation, PM/CSM, Owner/Admin
@@ -790,7 +774,7 @@ Before moving to Epic 3, Epic 2 must achieve:
 
 ---
 
-## Epic 3: Manual Testing & Developer Integration
+## 6. Epic 3 — Manual Testing & Developer Integration
 
 **Duration:** 3-4 weeks
 **Primary Personas:** QA-Manual, Dev, PM/CSM
@@ -1142,7 +1126,7 @@ Before moving to Epic 4, Epic 3 must achieve:
 
 ---
 
-## Epic 4: Automated Execution & Self-Healing (Breakthrough)
+## 7. Epic 4 — Automated Execution & Self-Healing
 
 **Duration:** 4-5 weeks
 **Primary Personas:** QA-Automation, Dev
@@ -1600,7 +1584,7 @@ Before moving to Epic 5, Epic 4 must achieve:
 
 ---
 
-## Epic 5: Complete Dashboards & Ecosystem Integration
+## 8. Epic 5 — Complete Dashboards & Ecosystem Integration
 
 **Duration:** 3-4 weeks
 **Primary Personas:** All personas (PM/CSM, QA-Manual, QA-Automation, Dev, Owner/Admin, Viewer)
@@ -2022,7 +2006,13 @@ Before moving to Epic 6+, Epic 5 must achieve:
 
 ---
 
-## Epic 6+: Advanced Agents & Growth Features (Post-MVP)
+# Part III — Post-MVP & Growth
+
+> **Audience:** Enterprise Buyers, Power Users, Platform Team | **Purpose:** Growth features, extensibility, cost optimization
+
+---
+
+## 9. Epic 6 — Advanced Agents & Growth Features
 
 **Duration:** 6-8 weeks (phased rollout)
 **Primary Personas:** Power users, Enterprise customers
@@ -2309,7 +2299,7 @@ Epic 6+ is not blocking MVP launch, but achieves:
 
 ---
 
-## Epic 7: Agent Skills Integration (Post-MVP)
+## 10. Epic 7 — Agent Skills Integration
 
 **Duration:** 4-5 weeks (4 phases)
 **Primary Personas:** All agent users, Platform Admins
@@ -2476,33 +2466,36 @@ Integrate Anthropic's Agent Skills framework into QUALISYS's multi-agent system 
 
 ---
 
-## Summary: Complete Epic Breakdown
+# Part IV — Implementation Guidance
 
-**MVP Scope (Epics 1-5):**
-- **Epic 1:** Foundation & Administration (2 weeks, 13 stories, 22 FRs)
-- **Epic 2:** AI Agent Platform & Executive Visibility (3-4 weeks, 18 stories, 37 FRs)
-- **Epic 3:** Manual Testing & Developer Integration (3-4 weeks, 15 stories, 13 FRs)
-- **Epic 4:** Automated Execution & Self-Healing (4-5 weeks, 16 stories, 18 FRs)
-- **Epic 5:** Complete Dashboards & Ecosystem Integration (3-4 weeks, 16 stories, 20 FRs)
-
-**Total MVP:** 15-19 weeks, 78 stories, 110 FRs covered
-
-**Post-MVP Growth (Epics 6-7):**
-- **Epic 6:** Advanced Agents & Growth Features (8-11 weeks, phased rollout, 12 stories)
-  - Phase 1: Post-MVP Agents (3 weeks, Stories 6.1-6.3, 6.8)
-  - Phase 2: Enterprise Security (2 weeks, Stories 6.4, 6.7)
-  - Phase 3: Extensibility & Custom Agents (5 weeks, Stories 6.5, 6.6, 6.9-6.12)
-- **Epic 7:** Agent Skills Integration (4-5 weeks, 4 phases, 20 stories)
-  - Phase 1: POC Validation (Stories 7.1-7.5)
-  - Phase 2: Infrastructure (Stories 7.6-7.10)
-  - Phase 3: MVP Agent Integration (Stories 7.11-7.15)
-  - Phase 4: Post-MVP Agent Integration (Stories 7.16-7.20)
-
-**Total Development Timeline:** 27-35 weeks (6.5-8.5 months) for complete platform
+> **Audience:** Scrum Master, Dev Team, Leadership | **Purpose:** Sprint planning, risk management, technology decisions
 
 ---
 
-## Implementation Guidance
+## 11. Summary & Timeline
+
+### MVP Scope (Epics 1–5)
+
+| Epic | Name | Duration | Stories | FRs | Key Milestone |
+|:----:|------|:--------:|:-------:|:---:|---------------|
+| 1 | Foundation & Administration | 2 wk | 13 | 25 | Onboarding flow in <10 min |
+| 2 | AI Agent Platform & Executive Visibility | 3–4 wk | 18 | 40 | 100+ tests generated from PRD |
+| 3 | Manual Testing & Developer Integration | 3–4 wk | 15 | 16 | "5-Minute Wow Moment" achieved |
+| 4 | Automated Execution & Self-Healing | 4–5 wk | 16 | 18 | 90%+ self-healing accuracy |
+| 5 | Complete Dashboards & Ecosystem Integration | 3–4 wk | 16 | 20 | All 110 FRs covered — **MVP Complete** |
+| | **MVP Total** | **15–19 wk** | **78** | **110** | |
+
+### Post-MVP Growth (Epics 6–7)
+
+| Epic | Name | Duration | Stories | FRs | Phases |
+|:----:|------|:--------:|:-------:|:---:|--------|
+| 6 | Advanced Agents & Growth Features | 8–11 wk | 12 | 9 | Phase 1: Post-MVP Agents (3 wk) / Phase 2: Enterprise Security (2 wk) / Phase 3: Extensibility & Custom Agents (5 wk) |
+| 7 | Agent Skills Integration | 4–5 wk | 20 | 28 | Phase 1: POC Validation / Phase 2: Infrastructure / Phase 3: MVP Agent Integration / Phase 4: Post-MVP Agent Integration |
+| | **Full Platform Total** | **27–35 wk** | **~110** | **147** | **6.5–8.5 months** |
+
+---
+
+## 12. Critical Success Factors & Risk Prioritization
 
 ### Critical Success Factors
 
@@ -2529,93 +2522,80 @@ Integrate Anthropic's Agent Skills framework into QUALISYS's multi-agent system 
 
 ### Risk Prioritization
 
-**Critical Risks (Address First):**
-1. ⚠️ Self-healing accuracy failures (Epic 4 - Story 4.16 "Test the Test" mandatory)
-2. ⚠️ Multi-tenant data leakage (Epic 1 - Schema-level isolation non-negotiable)
-3. ⚠️ LLM cost explosion (Epic 2 - Token budgets + caching enforced)
+| # | Level | Risk | Epic | Mitigation Strategy |
+|:-:|:-----:|------|:----:|---------------------|
+| 1 | :red_circle: **Critical** | Self-healing accuracy failures | 4 | Story 4.16 "Test the Test" mandatory |
+| 2 | :red_circle: **Critical** | Multi-tenant data leakage | 1 | Schema-level isolation non-negotiable |
+| 3 | :red_circle: **Critical** | LLM cost explosion | 2 | Token budgets + aggressive caching |
+| 4 | :orange_circle: **High** | GitHub/JIRA integration brittleness | 2–3 | Dead letter queues required |
+| 5 | :orange_circle: **High** | Playwright container costs at scale | 4 | Pre-warmed pool + spot instances |
+| 6 | :yellow_circle: **Medium** | User trust in self-healing proposals | 4 | Transparency + confidence scores |
+| 7 | :yellow_circle: **Medium** | TestRail sync complexity | 5 | Adapter pattern for maintainability |
+| 8 | :yellow_circle: **Medium** | Email/Slack delivery failures | 5 | Fallback mechanisms (email ↔ Slack) |
 
-**High Risks (Mitigate in Parallel):**
-4. GitHub/JIRA integration brittleness (Epic 2-3 - Dead letter queues required)
-5. Playwright container costs at scale (Epic 4 - Pre-warmed pool optimization critical)
+---
 
-**Medium Risks (Monitor & Plan):**
-6. User trust in self-healing proposals (Epic 4 - Transparency + confidence scores)
-7. TestRail sync complexity (Epic 5 - Adapter pattern for maintainability)
-8. Email/Slack delivery failures (Epic 5 - Fallback mechanisms)
+## 13. Technology Stack & Next Steps
 
 ### Technology Stack Summary
 
-**Frontend:**
-- Next.js (or Vite + React per Architecture First Principles)
-- Tailwind CSS + shadcn/ui (design system)
-- React-PDF (dashboard exports)
-- SSE (real-time updates)
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Frontend** | Next.js / Vite + React, TypeScript | UI framework |
+| | Tailwind CSS + shadcn/ui | Design system |
+| | React-PDF, SSE | Exports, real-time updates |
+| **Backend** | FastAPI (Python) / Node.js + Express | API services |
+| | PostgreSQL (schema-per-tenant) | Multi-tenant database |
+| | Redis 7+ | Caching, pub/sub, SSE |
+| | Kubernetes | Container orchestration |
+| **AI / ML** | LangChain | MVP agent orchestration |
+| | OpenAI GPT-4 | Primary LLM provider |
+| | Ollama / vLLM | Self-hosted LLM (Epic 6+) |
+| | pgvector | Vector embeddings |
+| **Testing** | Playwright | Browser automation, self-healing |
+| | Podman | Container runtime (10Pearls approved) |
+| | Kubernetes HPA | Auto-scaling test runners |
+| **Integrations** | JIRA, TestRail, Testworthy, GitHub, Slack | Bi-directional APIs |
+| | SendGrid / Amazon SES | Email notifications |
+| | OAuth 2.0 / SAML 2.0 | Authentication |
+| **Infrastructure** | AWS (primary) / self-hosted | Cloud provider |
+| | S3 | Evidence storage, exports |
+| | CloudWatch / Datadog | Monitoring & observability |
 
-**Backend:**
-- FastAPI (Python) or Node.js/Express (TypeScript)
-- PostgreSQL (multi-tenant with schemas)
-- Redis (caching, SSE pub/sub)
-- Kubernetes (container orchestration)
+### Sprint Execution Plan
 
-**AI/ML:**
-- LangChain (MVP agent orchestration)
-- OpenAI GPT-4 (primary LLM)
-- Ollama/vLLM (self-hosted LLM for Epic 6+)
-- pgvector (vector database for embeddings)
+> After epic breakdown approval, follow this sprint-by-sprint execution plan:
 
-**Testing & Automation:**
-- Playwright (browser automation, self-healing)
-- Podman (containerization - 10Pearls approved)
-- Kubernetes HPA (auto-scaling)
-
-**Integrations:**
-- JIRA, TestRail, Testworthy, GitHub, Slack (APIs)
-- SendGrid or Amazon SES (email)
-- OAuth 2.0 / SAML 2.0 (authentication)
-
-**Infrastructure:**
-- AWS (primary cloud provider) or self-hosted
-- S3 (evidence storage, exports)
-- CloudWatch or Datadog (monitoring)
-
----
-
-## Next Steps
-
-After epic breakdown approval:
-
-1. **Epic 1 → 2 weeks:**
-   - Sprint planning: Break stories into tasks
-   - Team assignment: Owner/Admin persona development team
-   - Tech stack setup: Initialize repo, CI/CD, staging environment
-
-2. **Epic 2 → 3-4 weeks (CRITICAL):**
-   - **Use fresh chat for Epic 2 workflows** (context-intensive, avoid hallucinations)
-   - LangChain PoC: Validate 4 MVP agents work before committing
-   - Cost monitoring: LLM token usage dashboard built in week 1
-
-3. **Epic 3 → 3-4 weeks:**
-   - Cross-platform testing: Evidence capture on Windows/Mac/Linux
-   - GitHub integration validation: Test with 3 real repos
-
-4. **Epic 4 → 4-5 weeks (BREAKTHROUGH):**
-   - Self-healing validation: 50 real UI change scenarios before Epic complete
-   - "Test the test" mandatory: 98%+ validation success required
-   - Stakeholder demo: Prepare "magic moment" demo script
-
-5. **Epic 5 → 3-4 weeks (MVP COMPLETE):**
-   - All dashboards functional: Final integration testing
-   - TestRail migration: Test with real customer data (500+ test cases)
-   - MVP launch readiness: All 110 FRs validated, performance tested
-
-6. **Epic 6+ → 6-8 weeks (Post-MVP):**
-   - Phased rollout: Prioritize based on customer feedback from MVP
-   - Enterprise pilot: 3 customers for SAML/SOC 2 validation
-   - Marketplace beta: Community agent submissions
+| Epic | Duration | Critical Actions | Gate Criteria |
+|:----:|:--------:|-----------------|---------------|
+| **1** | 2 wk | Sprint planning, team assignment, tech stack setup (repo, CI/CD, staging) | Onboarding flow in <10 min, multi-tenant isolation validated |
+| **2** | 3–4 wk | LangChain PoC (validate 3 MVP agents), LLM cost dashboard in week 1, **use fresh chats** | 100+ test scenarios per PRD, LLM costs <$1/run |
+| **3** | 3–4 wk | Cross-platform evidence capture testing (Win/Mac/Linux), GitHub integration with 3 real repos | "5-Minute Wow Moment" demo, webhook delivery >95% |
+| **4** | 4–5 wk | Self-healing validation (50 real UI change scenarios), **"Test the Test" mandatory** | 90%+ healing accuracy, 98%+ validation success |
+| **5** | 3–4 wk | All dashboards functional, TestRail migration (500+ cases), MVP launch readiness | All 110 FRs validated, performance tested — **MVP COMPLETE** |
+| **6+** | 8–11 wk | Phased rollout per customer feedback, enterprise pilot (3 customers for SAML/SOC 2) | Enterprise deals closed, marketplace beta live |
+| **7** | 4–5 wk | Agent Skills POC (Story 7.5 go/no-go gate), progressive integration across 7 agents | >50% token reduction, zero regression |
 
 ---
 
-**Epic Breakdown Complete.**
-All 110 functional requirements mapped to 5 MVP epics + 1 growth epic.
-Ready for sprint planning and implementation.
+<div align="center">
+
+---
+
+**QUALISYS — Epic & Story Breakdown**
+*147 Functional Requirements | 7 Epics | ~110 User Stories | 27–35 Week Timeline*
+
+| Metric | Value |
+|--------|-------|
+| Document | Epic & Story Breakdown v2.0 |
+| Sections | 13 sections across 4 parts |
+| MVP Scope | Epics 1–5 (78 stories, 110 FRs, 15–19 weeks) |
+| Post-MVP | Epics 6–7 (32 stories, 37 FRs, 12–16 weeks) |
+| Status | Ready for sprint planning and implementation |
+
+*Authored by Azfar — QUALISYS Platform Team*
+
+---
+
+</div>
 
