@@ -1,13 +1,70 @@
-# Epic Technical Specification: Infrastructure Foundation
+<div align="center">
 
-Date: 2025-12-12
-Author: Azfar
-Epic ID: 0
-Status: Draft
+# Technical Specification — Epic 0: Infrastructure Foundation
+
+**QUALISYS — AI System Quality Assurance Platform**
+
+</div>
+
+| Attribute | Detail |
+|-----------|--------|
+| **Epic** | 0 — Infrastructure Foundation |
+| **Author** | Azfar |
+| **Date** | 2025-12-12 |
+| **Status** | Draft |
+| **Priority** | P0 CRITICAL — Blocking for all feature development |
+| **Stories** | 22 stories across 5 sections |
+| **Duration** | 2–3 weeks (Sprint 0) |
 
 ---
 
-## Overview
+### Stakeholder Guide
+
+| Stakeholder | Sections of Interest | Purpose |
+|-------------|---------------------|---------|
+| **DevOps Lead** | All sections — primary implementer | Cloud provisioning, CI/CD, monitoring |
+| **Architect** | Sections 1–4, 8–9 | Architecture alignment, data models, security |
+| **Tech Lead** | Sections 3–5, 10 | Design decisions, APIs, acceptance criteria |
+| **QA Lead** | Sections 5, 10, 13 | Test infrastructure, acceptance, test strategy |
+| **Developer** | Sections 3–5 | Services, APIs, workflows |
+| **PM / Scrum Master** | Sections 1–2, 7, 11–12 | Scope, cost-benefit, risks, stakeholders |
+| **Finance / Sponsor** | Section 8 | Cost-benefit analysis, ROI |
+
+---
+
+### Table of Contents
+
+**Part I — Overview & Architecture**
+- [1. Overview](#1-overview)
+- [2. Objectives & Scope](#2-objectives--scope)
+- [3. System Architecture Alignment](#3-system-architecture-alignment)
+
+**Part II — Detailed Design**
+- [4. Cloud Platform & Services](#4-cloud-platform--services)
+- [5. Data Models, APIs & Workflows](#5-data-models-apis--workflows)
+
+**Part III — Quality & Operations**
+- [6. Non-Functional Requirements](#6-non-functional-requirements)
+- [7. Dependencies & Integrations](#7-dependencies--integrations)
+- [8. Cost-Benefit Analysis](#8-cost-benefit-analysis)
+- [9. Security Threat Model](#9-security-threat-model)
+
+**Part IV — Validation & Governance**
+- [10. Acceptance Criteria](#10-acceptance-criteria)
+- [11. Traceability Mapping](#11-traceability-mapping)
+- [12. Risks, Assumptions & Open Questions](#12-risks-assumptions--open-questions)
+- [13. Stakeholder Engagement & Test Strategy](#13-stakeholder-engagement--test-strategy)
+- [14. Post-Review Follow-ups](#14-post-review-follow-ups)
+
+---
+
+# Part I — Overview & Architecture
+
+> **Audience:** All Stakeholders | **Purpose:** Context, scope, architecture alignment
+
+---
+
+## 1. Overview
 
 Epic 0 establishes the complete cloud infrastructure, CI/CD automation, test infrastructure, and development environment required to enable all feature development in Epics 1-6. This epic addresses five P0 CRITICAL gaps identified in the Implementation Readiness Assessment (2025-12-12) that would block Sprint 1 execution.
 
@@ -15,7 +72,7 @@ The infrastructure provisioning includes multi-tenant cloud resources (Kubernete
 
 **Success Validation:** Epic 0 completion is validated through smoke tests - deploying a "Hello World" service to staging via CI/CD, executing a sample test suite with coverage reporting, provisioning and querying tenant schemas with RLS verification, viewing live metrics in Grafana dashboards, and onboarding a new developer in under 30 minutes.
 
-## Objectives and Scope
+## 2. Objectives & Scope
 
 **In Scope - Sprint 0 Infrastructure:**
 - Cloud infrastructure provisioning (AWS/GCP/Azure account, IAM, VPC, Kubernetes cluster, PostgreSQL RDS, Redis ElastiCache, Container Registry, Secret Management)
@@ -36,7 +93,7 @@ The infrastructure provisioning includes multi-tenant cloud resources (Kubernete
 - Advanced autoscaling policies (basic HPA only, advanced tuning in production optimization)
 - Custom Kubernetes operators (use standard controllers and CRDs only)
 
-## System Architecture Alignment
+## 3. System Architecture Alignment
 
 Epic 0 infrastructure decisions directly enable the QUALISYS architecture defined in `docs/architecture.md`:
 
@@ -70,7 +127,15 @@ Epic 0 infrastructure decisions directly enable the QUALISYS architecture define
 - Automated test execution on PR (Story 0.10) enables quality gates before merging to main
 - Staging and production deployment workflows support the phased rollout strategy defined in architecture
 
-## Detailed Design
+---
+
+# Part II — Detailed Design
+
+> **Audience:** DevOps, Architects, Developers | **Purpose:** Infrastructure decisions, data models, APIs, workflows
+
+---
+
+## 4. Cloud Platform & Services
 
 ### Cloud Platform Decision
 
@@ -144,7 +209,11 @@ Decision validated through first principles analysis:
 
 **Mitigation**: Training budget allocated, Pod Security Standards enforced (Story 0.3 AC9), managed EKS reduces ops burden.
 
-### Data Models and Contracts
+---
+
+## 5. Data Models, APIs & Workflows
+
+### 5.1 Data Models & Contracts
 
 **Multi-Tenant Database Design (First Principles Validation):**
 
@@ -235,7 +304,7 @@ tenant_globex:rate_limit:api_user_67890
 # Enforced at application layer (Epic 1 implementation)
 ```
 
-### APIs and Interfaces
+### 5.2 APIs & Interfaces
 
 **Cloud Provider APIs (Terraform Abstraction):**
 
@@ -303,55 +372,50 @@ jobs:
         uses: actions/github-script@v6
 ```
 
-### Workflows and Sequencing
+### 5.3 Workflows & Sequencing
 
 **Story Dependency Graph (Critical Path):**
 
-```
-Story 0.1 (Cloud Account & IAM)
-    │
-    ├──> Story 0.2 (VPC & Network)
-    │       │
-    │       ├──> Story 0.3 (Kubernetes Cluster)
-    │       │       │
-    │       │       ├──> Story 0.7 (Secret Management)
-    │       │       │       │
-    │       │       │       ├──> Story 0.8 (GitHub Actions Setup)
-    │       │       │       │       │
-    │       │       │       │       ├──> Story 0.9 (Docker Build)
-    │       │       │       │       │       │
-    │       │       │       │       │       └──> Story 0.10 (Automated Tests on PR)
-    │       │       │       │       │
-    │       │       │       │       └──> Story 0.11 (Staging Deployment)
-    │       │       │       │               │
-    │       │       │       │               └──> Story 0.12 (Production Deployment)
-    │       │       │       │
-    │       │       │       └──> Story 0.13 (Load Balancer & Ingress)
-    │       │       │
-    │       │       ├──> Story 0.19 (Monitoring - Prometheus + Grafana)
-    │       │       │
-    │       │       └──> Story 0.20 (Log Aggregation - ELK/CloudWatch)
-    │       │
-    │       ├──> Story 0.4 (PostgreSQL Database)
-    │       │       │
-    │       │       └──> Story 0.14 (Test Database)
-    │       │               │
-    │       │               ├──> Story 0.15 (Test Data Factories)
-    │       │               │       │
-    │       │               │       └──> Story 0.16 (CI/CD Test Pipeline)
-    │       │               │               │
-    │       │               │               └──> Story 0.17 (Test Reporting Dashboard)
-    │       │               │
-    │       │               └──> Story 0.18 (Multi-Tenant Test Isolation)
-    │       │
-    │       └──> Story 0.5 (Redis Caching) [Can defer to Epic 2]
-    │
-    ├──> Story 0.6 (Container Registry)
-    │
-    └──> Story 0.22 (Third-Party API Keys)
+```mermaid
+flowchart TD
+    S01["0.1 Cloud Account<br/>& IAM"] --> S02["0.2 VPC<br/>& Network"]
+    S01 --> S06["0.6 Container<br/>Registry"]
+    S01 --> S22["0.22 Third-Party<br/>API Keys"]
 
-Story 0.21 (Local Dev Environment - Podman Compose) [Independent, can start Day 1]
+    S02 --> S03["0.3 Kubernetes<br/>Cluster"]
+    S02 --> S04["0.4 PostgreSQL<br/>Database"]
+    S02 --> S05["0.5 Redis<br/>Caching"]
+
+    S03 --> S07["0.7 Secret<br/>Management"]
+    S03 --> S19["0.19 Monitoring<br/>Prometheus + Grafana"]
+    S03 --> S20["0.20 Log Aggregation<br/>ELK / CloudWatch"]
+
+    S07 --> S08["0.8 GitHub<br/>Actions Setup"]
+    S07 --> S13["0.13 Load Balancer<br/>& Ingress"]
+
+    S08 --> S09["0.9 Docker<br/>Build"]
+    S08 --> S11["0.11 Staging<br/>Deployment"]
+
+    S09 --> S10["0.10 Automated<br/>Tests on PR"]
+    S11 --> S12["0.12 Production<br/>Deployment"]
+
+    S04 --> S14["0.14 Test<br/>Database"]
+    S14 --> S15["0.15 Test Data<br/>Factories"]
+    S14 --> S18["0.18 Multi-Tenant<br/>Test Isolation"]
+    S15 --> S16["0.16 CI/CD<br/>Test Pipeline"]
+    S16 --> S17["0.17 Test Reporting<br/>Dashboard"]
+
+    S21["0.21 Local Dev<br/>(Podman Compose)"]
+
+    style S01 fill:#e3f2fd,stroke:#2196f3,color:#000
+    style S03 fill:#e3f2fd,stroke:#2196f3,color:#000
+    style S12 fill:#e8f5e9,stroke:#4caf50,color:#000
+    style S17 fill:#e8f5e9,stroke:#4caf50,color:#000
+    style S21 fill:#fff3e0,stroke:#ff9800,color:#000
+    style S05 fill:#fff3e0,stroke:#ff9800,color:#000
 ```
+
+> **Legend:** Blue = foundation layer | Green = final deliverables | Orange = independent / deferrable
 
 **Critical Path Stories (Must Complete First):**
 1. Story 0.1 → 0.2 → 0.3 → 0.7 → 0.8 (Foundation for CI/CD)
@@ -360,85 +424,93 @@ Story 0.21 (Local Dev Environment - Podman Compose) [Independent, can start Day 
 
 **CI/CD Pipeline Sequence:**
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Developer pushes commit to feature branch                   │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│ GitHub Webhook triggers PR checks workflow (Story 0.8)      │
-│ - Lint, format, type-check                                  │
-│ - Unit tests (Jest/pytest)                                  │
-│ - Integration tests (test database from Story 0.14)         │
-│ - E2E tests (subset, critical paths)                        │
-│ - Coverage report (target: 80%)                             │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│ Build container image (Story 0.9)                           │
-│ - Multi-stage build (build + runtime)                       │
-│ - Tag: <git-sha>, <branch>-<timestamp>                      │
-│ - Push to ECR (Story 0.6)                                   │
-│ - Vulnerability scan (Trivy) (Story 0.9 AC8)                │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│ Post PR comment with test results (Story 0.10 AC2)          │
-│ - Pass/fail status                                          │
-│ - Coverage percentage                                       │
-│ - Failed test details with stack traces                     │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     ▼ (On merge to main)
-┌─────────────────────────────────────────────────────────────┐
-│ Deploy to staging (Story 0.11)                              │
-│ - kubectl set image deployment/qualisys-api                 │
-│ - Rolling update (zero-downtime)                            │
-│ - Health check verification (/health, /ready)               │
-│ - Slack notification (success/failure)                      │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     ▼ (Manual trigger for production)
-┌─────────────────────────────────────────────────────────────┐
-│ Deploy to production (Story 0.12)                           │
-│ - GitHub Environment approval (DevOps Lead, Tech Lead)      │
-│ - Blue-green deployment (tested in staging first)           │
-│ - Smoke tests (critical paths)                              │
-│ - Gradual rollout: 10% → 50% → 100%                         │
-│ - Rollback on failure                                       │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    DEV["Developer pushes commit<br/>to feature branch"] --> PR["PR Checks Workflow<br/>(Story 0.8)"]
+
+    subgraph PR_CHECKS ["PR Checks"]
+        PR --> LINT["Lint, Format,<br/>Type-check"]
+        LINT --> TEST["Unit + Integration<br/>+ E2E Tests"]
+        TEST --> COV["Coverage Report<br/>(Target: 80%)"]
+    end
+
+    COV --> BUILD["Build Container Image<br/>(Story 0.9)"]
+
+    subgraph CONTAINER ["Container Build"]
+        BUILD --> TAG["Multi-stage Build<br/>Tag: git-sha"]
+        TAG --> ECR["Push to ECR<br/>(Story 0.6)"]
+        ECR --> SCAN["Trivy Vulnerability<br/>Scan (AC8)"]
+    end
+
+    SCAN --> COMMENT["Post PR Comment<br/>Pass/Fail + Coverage<br/>(Story 0.10)"]
+
+    COMMENT --> |"On merge<br/>to main"| STAGING["Deploy to Staging<br/>(Story 0.11)"]
+
+    subgraph STAGING_DEPLOY ["Staging"]
+        STAGING --> ROLL["Rolling Update<br/>(Zero-Downtime)"]
+        ROLL --> HEALTH["Health Check<br/>/health, /ready"]
+        HEALTH --> NOTIFY["Slack Notification"]
+    end
+
+    NOTIFY --> |"Manual trigger<br/>+ approval"| PROD["Deploy to Production<br/>(Story 0.12)"]
+
+    subgraph PROD_DEPLOY ["Production"]
+        PROD --> APPROVE["GitHub Environment<br/>Approval"]
+        APPROVE --> GRADUAL["Gradual Rollout<br/>10% → 50% → 100%"]
+        GRADUAL --> SMOKE["Smoke Tests"]
+        SMOKE --> |"Failure"| ROLLBACK["Rollback"]
+    end
+
+    style DEV fill:#e3f2fd,stroke:#2196f3,color:#000
+    style COMMENT fill:#fff3e0,stroke:#ff9800,color:#000
+    style PROD fill:#e8f5e9,stroke:#4caf50,color:#000
+    style ROLLBACK fill:#ffebee,stroke:#f44336,color:#000
 ```
 
-**Infrastructure Provisioning Sequence (Week 1-3):**
+**Infrastructure Provisioning Sequence (Week 1-4):**
 
+```mermaid
+gantt
+    title Epic 0 — Infrastructure Provisioning Timeline
+    dateFormat  YYYY-MM-DD
+    axisFormat  %a
+
+    section Week 1 — Foundation
+    0.1 Cloud Account & IAM           :w1a, 2025-12-16, 2d
+    0.2 VPC & Network                 :w1b, after w1a, 2d
+    0.6 Container Registry            :w1c, after w1b, 1d
+    0.21 Local Dev (Podman)           :w1d, 2025-12-16, 5d
+
+    section Week 2 — Core Services
+    0.3 Kubernetes Cluster            :w2a, 2025-12-23, 3d
+    0.4 PostgreSQL RDS                :w2b, after w2a, 1d
+    0.5 Redis ElastiCache             :w2c, after w2a, 1d
+    0.7 Secret Management             :w2d, after w2b, 1d
+    0.22 Third-Party API Keys         :w2e, after w2b, 1d
+
+    section Week 3 — CI/CD & Testing
+    0.8-0.9 GitHub Actions & Builds   :w3a, 2025-12-30, 2d
+    0.10-0.12 CI/CD Pipeline          :w3b, after w3a, 1d
+    0.13 Load Balancer & Ingress      :w3c, after w3b, 1d
+    0.14-0.15 Test DB & Factories     :w3d, after w3b, 1d
+    0.16-0.18 Test Pipeline & Isolation:w3e, after w3d, 1d
+
+    section Week 4 — Observability & Sign-off
+    0.19 Prometheus + Grafana         :w4a, 2026-01-05, 1d
+    0.20 ELK / CloudWatch Logs        :w4b, after w4a, 1d
+    Smoke Tests & Validation          :crit, w4c, after w4b, 2d
+    Retrospective & Epic 1 Prep      :w4d, after w4c, 1d
 ```
-Week 1:
-  Day 1-2: Story 0.1 (Cloud decision, IAM setup, Terraform backend)
-  Day 3-4: Story 0.2 (VPC, subnets, security groups)
-  Day 5:   Story 0.6 (Container registry), Story 0.21 (Podman Compose local env)
 
-Week 2:
-  Day 1-3: Story 0.3 (Kubernetes cluster - longest story)
-  Day 4:   Story 0.4 (PostgreSQL RDS), Story 0.5 (Redis ElastiCache)
-  Day 5:   Story 0.7 (Secret management), Story 0.22 (API keys provisioning)
+---
 
-Week 3:
-  Day 1-2: Story 0.8-0.9 (GitHub Actions, container builds)
-  Day 3:   Story 0.10-0.12 (CI/CD test integration, staging/prod deployment)
-  Day 4:   Story 0.13 (Load balancer), Story 0.14-0.15 (Test DB, test data)
-  Day 5:   Story 0.16-0.18 (CI/CD test pipeline, reporting, multi-tenant isolation)
+# Part III — Quality & Operations
 
-Final Week:
-  Day 1:   Story 0.19 (Prometheus + Grafana monitoring)
-  Day 2:   Story 0.20 (ELK/CloudWatch logs)
-  Day 3-4: Epic 0 smoke tests, sign-off validation
-  Day 5:   Epic 0 retrospective, Epic 1 kickoff preparation
-```
+> **Audience:** DevOps, QA, Architect | **Purpose:** NFRs, cost analysis, security
 
-## Non-Functional Requirements
+---
+
+## 6. Non-Functional Requirements
 
 ### Performance
 
@@ -531,7 +603,7 @@ Final Week:
 - Correlation IDs in logs enable distributed tracing across services (Story 0.20 AC3)
 - Future: OpenTelemetry traces (defer to Epic 2+)
 
-## Dependencies and Integrations
+## 7. Dependencies & Integrations
 
 **Epic 0 Enables All Feature Epics:**
 
@@ -561,7 +633,7 @@ Final Week:
 - **Architecture** (docs/architecture.md): Multi-tenant design, Kubernetes orchestration, PostgreSQL schema-per-tenant
 - **Epic 1-6 Stories**: Epic 0 must complete before any feature development can begin (blocking dependency)
 
-## Cost-Benefit Analysis
+## 8. Cost-Benefit Analysis
 
 **Sprint 0 Infrastructure Investment (6-Month Horizon):**
 
@@ -609,7 +681,7 @@ Final Week:
 3. Spot instances for non-critical nodes: Save 60-70% on K8s compute ($88 → $35/month)
 4. Reserved Instances for RDS (12 months): 40% savings ($180 → $108/month)
 
-## Security Threat Model (Red Team Analysis)
+## 9. Security Threat Model
 
 **Attack Vectors Identified & Mitigations:**
 
@@ -624,7 +696,15 @@ Final Week:
 
 **Summary**: 6 attack vectors identified, 10 new acceptance criteria added across 6 stories to mitigate threats.
 
-## Acceptance Criteria (Authoritative)
+---
+
+# Part IV — Validation & Governance
+
+> **Audience:** All Stakeholders | **Purpose:** Acceptance criteria, traceability, risks, governance
+
+---
+
+## 10. Acceptance Criteria
 
 **Epic 0 Smoke Test Suite (Executable Sign-Off Tests):**
 
@@ -643,7 +723,7 @@ Final Week:
 - ✅ QA Lead (test infrastructure operational)
 - ✅ Architect (multi-tenant design implemented correctly)
 
-## Traceability Mapping
+## 11. Traceability Mapping
 
 **Epic 0 Stories → PRD NFRs → Epic Dependencies:**
 
@@ -658,7 +738,7 @@ Final Week:
 | 0.21 | Developer productivity (not in PRD, operational excellence) | Epic 1-5 (dev velocity) | Local environment reducing setup time from days to minutes |
 | 0.22 | NFR-INT1-INT3 (API integration), Epic 2 (LLM APIs), Epic 5 (third-party integrations) | Epic 2 (AI agents), Epic 5 (JIRA, Slack) | API keys provisioning enabling integrations |
 
-## Risks, Assumptions, Open Questions
+## 12. Risks, Assumptions & Open Questions
 
 ### Risk Matrix (Probability × Impact)
 
@@ -728,7 +808,9 @@ Final Week:
 4. **EKS version**: Use latest stable (1.28) OR one version behind for stability (1.27)?
 5. **GitHub self-hosted runners**: Use GitHub-hosted (quota limits, simpler) OR self-hosted (unlimited, complex)?
 
-## Stakeholder Engagement Matrix
+## 13. Stakeholder Engagement & Test Strategy
+
+### 13.1 Stakeholder Engagement Matrix
 
 | Stakeholder | Interest | Influence | Engagement Actions | Timing |
 |-------------|----------|-----------|-------------------|--------|
@@ -741,7 +823,7 @@ Final Week:
 | **PM (John)** | Low | Medium | Weekly status email ("on track, 12/22 stories complete, ETA Week 3") | Weekly |
 | **Developers (Amelia)** | Medium | Low | Docker Compose demo, kubectl cheat sheet, onboarding guide | Week 1 (Story 0.21) |
 
-## Test Strategy Summary
+### 13.2 Test Strategy
 
 **Infrastructure Validation Approach:**
 
@@ -772,7 +854,7 @@ Final Week:
 - Staging environment smoke tests run before production deployment (blue-green validation)
 - Monitoring dashboards + alerts catch infrastructure degradation in production
 
-## Post-Review Follow-ups
+## 14. Post-Review Follow-ups
 
 ### Story 0.1: Cloud Account & IAM Setup
 
@@ -784,3 +866,26 @@ Final Week:
 - [x] [Low] Consolidate duplicate `data.aws_caller_identity` data sources — RESOLVED (moved to providers.tf)
 - [x] [Low] Replace hardcoded bucket names with `var.project_name` interpolation — RESOLVED (cloudtrail.tf; backend.tf cannot use vars, documented)
 - [x] [Low] Add explicit `filter {}` block to CloudTrail lifecycle rule — RESOLVED (cloudtrail.tf)
+
+---
+
+<div align="center">
+
+---
+
+**QUALISYS — Technical Specification: Epic 0 Infrastructure Foundation**
+*22 Stories | 5 Sections | Sprint 0 (2–3 weeks)*
+
+| Metric | Value |
+|--------|-------|
+| Document | Tech Spec — Epic 0 v1.0 |
+| Sections | 14 sections across 4 parts |
+| MVP Infrastructure Cost | ~$494/month |
+| 6-Month ROI | 2,047% |
+| Status | Draft — Ready for Sprint 0 Planning |
+
+*Authored by Azfar — QUALISYS Platform Team*
+
+---
+
+</div>

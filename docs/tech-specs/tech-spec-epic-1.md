@@ -1,13 +1,66 @@
-# Epic Technical Specification: Foundation & Administration
+<div align="center">
 
-Date: 2026-01-23
-Author: Azfar
-Epic ID: 1
-Status: Draft
+# Technical Specification — Epic 1: Foundation & Administration
+
+**QUALISYS — AI System Quality Assurance Platform**
+
+</div>
+
+| Attribute | Detail |
+|-----------|--------|
+| **Epic** | 1 — Foundation & Administration |
+| **Author** | Azfar |
+| **Date** | 2026-01-23 |
+| **Status** | Draft |
+| **Duration** | 2 weeks |
+| **Stories** | 13 stories |
+| **FRs Covered** | FR1–FR15, FR102–FR108 (25 FRs) |
+| **Dependencies** | Epic 0 (Infrastructure Foundation) |
 
 ---
 
-## Overview
+### Stakeholder Guide
+
+| Stakeholder | Sections of Interest | Purpose |
+|-------------|---------------------|---------|
+| **Owner / Admin** | Sections 1–3, 5 | Auth, org setup, RBAC, project management |
+| **Architect** | Sections 3–4, 6–7 | Multi-tenancy design, data models, security |
+| **Tech Lead / Dev** | Sections 4–5, 8 | APIs, workflows, acceptance criteria |
+| **QA Lead** | Sections 6, 8, 10 | NFRs, acceptance criteria, test strategy |
+| **PM / Scrum Master** | Sections 1–2, 9 | Scope, dependencies, risks |
+
+---
+
+### Table of Contents
+
+**Part I — Overview & Architecture**
+- [1. Overview](#1-overview)
+- [2. Objectives & Scope](#2-objectives--scope)
+- [3. System Architecture Alignment](#3-system-architecture-alignment)
+
+**Part II — Detailed Design**
+- [4. Services, Data Models & APIs](#4-services-data-models--apis)
+- [5. Workflows & Sequencing](#5-workflows--sequencing)
+
+**Part III — Quality Attributes**
+- [6. Non-Functional Requirements](#6-non-functional-requirements)
+- [7. Dependencies & Integrations](#7-dependencies--integrations)
+
+**Part IV — Validation & Governance**
+- [8. Acceptance Criteria](#8-acceptance-criteria)
+- [9. Traceability Mapping](#9-traceability-mapping)
+- [10. Risks, Assumptions & Open Questions](#10-risks-assumptions--open-questions)
+- [11. Test Strategy](#11-test-strategy)
+
+---
+
+# Part I — Overview & Architecture
+
+> **Audience:** All Stakeholders | **Purpose:** Context, scope, architecture alignment
+
+---
+
+## 1. Overview
 
 Epic 1 establishes the foundational infrastructure for the QUALISYS multi-tenant SaaS platform. This epic delivers the essential capabilities that all subsequent epics depend upon: user authentication, organization management, role-based access control (RBAC), project creation, and basic administration.
 
@@ -28,7 +81,7 @@ Epic 1 establishes the foundational infrastructure for the QUALISYS multi-tenant
 - Infrastructure (Epic 0): AWS account, Kubernetes cluster, PostgreSQL database, Redis cache
 - No upstream epic dependencies (Epic 1 is the first feature epic)
 
-## Objectives and Scope
+## 2. Objectives & Scope
 
 ### Primary Objectives
 
@@ -63,7 +116,7 @@ Epic 1 establishes the foundational infrastructure for the QUALISYS multi-tenant
 - **Billing & Subscription Management:** FR103 (deferred until pricing model defined)
 - **Advanced User Analytics:** Per-user activity tracking (deferred to Growth phase)
 
-## System Architecture Alignment
+## 3. System Architecture Alignment
 
 ### Multi-Tenancy Architecture (From architecture.md)
 
@@ -129,58 +182,120 @@ Epic 1 establishes the foundational infrastructure for the QUALISYS multi-tenant
 | Approve self-healing | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ |
 | Configure integrations | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
-## Detailed Design
+### Authentication Flow
 
-### Services and Modules
+```mermaid
+flowchart TD
+    U["User"] --> |"Email/Password<br/>or Google SSO"| NA["NextAuth.js"]
+    NA --> |"Validate"| DB["Auth DB<br/>(PostgreSQL)"]
+    NA --> |"OAuth 2.0"| G["Google OAuth"]
+    NA --> |"MFA Check"| MFA{"TOTP<br/>Required?"}
+    MFA --> |"Yes"| TOTP["TOTP Verification"]
+    MFA --> |"No"| JWT["Issue JWT"]
+    TOTP --> |"Valid"| JWT
+    JWT --> |"httpOnly Cookie<br/>7-day expiry"| S["Session<br/>(Redis)"]
+    S --> |"Tenant Context"| APP["Application<br/>(Tenant-Scoped)"]
+
+    style U fill:#e3f2fd,stroke:#2196f3,color:#000
+    style JWT fill:#e8f5e9,stroke:#4caf50,color:#000
+    style APP fill:#e8f5e9,stroke:#4caf50,color:#000
+    style MFA fill:#fff3e0,stroke:#ff9800,color:#000
+```
+
+---
+
+# Part II — Detailed Design
+
+> **Audience:** Architects, Developers, Tech Lead | **Purpose:** Services, data models, APIs, workflows
+
+---
+
+## 4. Services, Data Models & APIs
+
+### 4.1 Services & Modules
 
 {{services_modules}}
 
-### Data Models and Contracts
+### 4.2 Data Models & Contracts
 
 {{data_models}}
 
-### APIs and Interfaces
+### 4.3 APIs & Interfaces
 
 {{apis_interfaces}}
 
-### Workflows and Sequencing
+## 5. Workflows & Sequencing
 
 {{workflows_sequencing}}
 
-## Non-Functional Requirements
+# Part III — Quality Attributes
 
-### Performance
+> **Audience:** QA, Architects, DevOps | **Purpose:** NFRs, dependencies, integration points
+
+---
+
+## 6. Non-Functional Requirements
+
+### 6.1 Performance
 
 {{nfr_performance}}
 
-### Security
+### 6.2 Security
 
 {{nfr_security}}
 
-### Reliability/Availability
+### 6.3 Reliability/Availability
 
 {{nfr_reliability}}
 
-### Observability
+### 6.4 Observability
 
 {{nfr_observability}}
 
-## Dependencies and Integrations
+## 7. Dependencies & Integrations
 
 {{dependencies_integrations}}
 
-## Acceptance Criteria (Authoritative)
+# Part IV — Validation & Governance
+
+> **Audience:** Tech Lead, QA, PM | **Purpose:** Acceptance criteria, traceability, risks, testing
+
+---
+
+## 8. Acceptance Criteria
 
 {{acceptance_criteria}}
 
-## Traceability Mapping
+## 9. Traceability Mapping
 
 {{traceability_mapping}}
 
-## Risks, Assumptions, Open Questions
+## 10. Risks, Assumptions & Open Questions
 
 {{risks_assumptions_questions}}
 
-## Test Strategy Summary
+## 11. Test Strategy
 
 {{test_strategy}}
+
+---
+
+<div align="center">
+
+---
+
+**QUALISYS — Technical Specification: Epic 1 Foundation & Administration**
+*13 Stories | 25 FRs | 2-Week Sprint*
+
+| Metric | Value |
+|--------|-------|
+| Document | Tech Spec — Epic 1 v1.0 |
+| Sections | 11 sections across 4 parts |
+| Personas | 6 (Owner/Admin, PM/CSM, QA-Manual, QA-Auto, Dev, Viewer) |
+| Status | Draft |
+
+*Authored by Azfar — QUALISYS Platform Team*
+
+---
+
+</div>
