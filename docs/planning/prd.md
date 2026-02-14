@@ -1,98 +1,269 @@
-# QUALISYS - Product Requirements Document
+<div align="center">
 
-**Author:** Azfar
-**Date:** 2026-02-15 (Updated)
-**Version:** 3.0
-**Change Log:** v3.0 — Added Agent Skills Integration (FR-SK1–28), Agent Extensibility & Custom Agents (FR-CA1–9), updated Growth Features and Vision sections. v2.0 — Original PRD.
+# QUALISYS
 
----
+### Product Requirements Document (PRD)
 
-## Executive Summary
-
-QUALISYS is an **AI System Quality Assurance Platform** that revolutionizes software testing by creating a new category - moving beyond traditional "testing tools" to provide comprehensive quality assurance for AI-powered systems and applications. The platform automates test creation, execution, and maintenance through intelligent multi-agent AI capabilities while addressing the unique challenges of testing in the AI era. The platform addresses a critical pain point in software development: testing is manual, time-consuming, brittle, and fails to keep pace with rapid development cycles. Traditional testing tools require significant manual effort to write and maintain tests, leading to inadequate test coverage, delayed releases, and expensive quality issues in production.
-
-**The Core Problem:** Software teams spend 40% of their time on manual testing activities, test automation scripts break constantly with UI changes requiring constant maintenance, and test coverage gaps lead to bugs escaping to production. The fundamental issue is that testing has not evolved to match modern development velocity - what development teams can build in days takes testing teams weeks to validate.
-
-QUALISYS transforms testing from a manual bottleneck into an intelligent, self-maintaining system. The platform ingests requirements documents (PRDs, SRS, RFPs), crawls application UI and APIs via Playwright, analyzes source code from repositories, and uses 7 specialized AI agents (3 MVP + 4 Post-MVP) to automatically generate comprehensive test artifacts - from manual test checklists to automated Playwright/Puppeteer scripts. The breakthrough innovation is **self-healing test automation**: when application UI changes cause tests to fail, QUALISYS automatically detects the changes, proposes fixes, and updates test scripts - dramatically reducing maintenance burden.
-
-**Target Users:** Project Managers and Customer Success Managers (project oversight, SLA compliance), Manual Test Engineers (guided test execution with evidence capture), Automation Engineers (AI-generated scripts with self-healing capabilities), SRE/Platform Engineers (infrastructure monitoring and performance testing), Business Analysts and Product Owners (requirements traceability and test coverage visibility).
-
-**Beachhead Market:** Software development organizations including software houses, freelance development teams, and companies with in-house application development teams. Any organization with PMs, CSMs, BAs, Product Owners, Developers, and QA/SQA engineers actively building and testing software applications.
-
-**Go-to-Market Strategy:** Integrate with existing test management and issue tracking platforms (Testworthy, TestRail, JIRA) to import test plans, user stories, bugs, and manual test cases. This integration-first approach reduces friction for adoption by fitting into existing workflows rather than requiring wholesale tool replacement.
-
-### What Makes This Special
-
-**QUALISYS combines three breakthrough capabilities that no existing solution offers together:**
-
-1. **Multi-Agent AI System**: 7 specialized AI agents — MVP: BAConsultant AI Agent, QAConsultant AI Agent, AutomationConsultant AI Agent; Post-MVP: AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent, DatabaseConsultant AI Agent — work in orchestrated pipelines with user-selectable workflows that adapt to project needs. Post-MVP extensibility enables admin-configured custom agents per client and a progressive skill-based architecture for cost-optimized agent invocations.
-
-2. **Self-Healing Test Automation**: When application changes break tests, QUALISYS doesn't just report failures - it automatically detects DOM changes, proposes patched selectors using multiple fallback strategies (CSS/XPath, text anchors, accessibility labels, visual anchors), and updates tests with versioned audit trails.
-
-3. **End-to-End Testing Lifecycle**: Unlike point solutions focused only on test generation OR execution OR management, QUALISYS covers the complete lifecycle - from ingesting requirements and generating test artifacts, to executing tests across browsers, to providing executive dashboards with KPIs and SLA monitoring.
-
-**The "5-Minute Value Moment":** Users upload their PRD, connect their app URL and GitHub repo, select AI agents to run, and within minutes receive generated test suites (manual checklists + automated Playwright scripts) ready to execute. The time from project setup to running first automated tests collapses from weeks to minutes.
-
-### Market Opportunity & Validation
-
-**Market Size:** The AI-enabled testing market is valued at $1.01B in 2025 and projected to reach $3.82B by 2032, growing at 20.9% CAGR - **25% faster than the traditional testing market** (16.8% CAGR). This acceleration reflects the urgent need for AI-native quality assurance solutions.
-
-**Validated Pain:**
-- **$1.9B lost annually** across enterprises to undetected LLM failures and AI system bugs
-- **750M applications expected to use LLMs in 2025** - massive wave creating urgent testing demand
-- **81% of development teams** now use AI in testing workflows (2025 adoption data)
-- **40% of IT budgets** allocated to AI testing infrastructure
-
-**Market Timing:** Companies are moving from experimental AI to mission-critical AI deployments. The old "move fast, break things" playbook is now existentially dangerous - AI failures don't just lose customers, they destroy trust permanently, trigger compliance violations, and cause real-world harm. **First company to solve AI System QA owns the category.**
-
-### Competitive Landscape
-
-**Direct Competitors (AI System Testing):**
-
-1. **DeepEval/Confident AI** - CRITICAL THREAT
-   - Open-core model: Free open-source + paid platform ($30-80/user/month)
-   - **500K monthly downloads**, 700K daily evaluations
-   - Strong on LLM evaluation metrics (14+ metrics, 40+ safety checks)
-   - Enterprise customers: Microsoft, BCG, AstraZeneca
-   - **Gap:** Narrow focus on LLM evaluation only, weak on full testing lifecycle
-
-2. **Braintrust** - GROWING THREAT
-   - Freemium model ($0 → $249/month Pro → Enterprise)
-   - Strong ROI messaging: "30% accuracy improvements within weeks"
-   - Unified platform for LLM testing
-   - **Gap:** Pre-deployment evaluation focus, not continuous production testing
-
-3. **Humanloop** - MARKET OPPORTUNITY
-   - **Being acquired by Anthropic, sunsetting September 2025**
-   - Created market gap for independent AI testing platform
-   - Enterprises need alternative to vendor-locked solutions
-
-**QUALISYS Differentiation:**
-- **vs DeepEval:** Full testing lifecycle (not just evaluation), production monitoring, team collaboration
-- **vs Braintrust:** Multi-agent AI system (6 agents), self-healing automation, integration-first adoption
-- **vs Traditional Tools (Selenium, Cypress):** Built for AI systems from ground up, not bolt-on AI features
-
-**Strategic Positioning:** While competitors focus on "AI testing tools" or "LLM evaluation," QUALISYS creates the **"AI System Quality Assurance"** category - comprehensive QA for the non-deterministic era.
+**AI System Quality Assurance Platform**
 
 ---
 
-## Project Classification
+| | |
+|---|---|
+| **Product** | QUALISYS — AI System Quality Assurance Platform |
+| **Document Type** | Product Requirements Document (PRD) |
+| **Version** | 3.0 |
+| **Date** | 2026-02-15 (Updated) |
+| **Author** | Azfar |
+| **Status** | Approved — Ready for Architecture & Implementation |
+| **Method** | BMad Method PRD Workflow |
 
-**Technical Type:** SaaS B2B Platform (Multi-tenant Enterprise)
-**Domain:** General Software Testing (Medium Complexity)
-**Complexity:** Medium
-
-QUALISYS is a multi-tenant SaaS platform serving enterprise B2B customers in the software testing domain. The platform requires multi-tenancy architecture with strict data isolation, role-based access control (RBAC), SSO integration, and enterprise-grade security and compliance measures. The domain complexity is medium - while not requiring specialized regulatory compliance like healthcare (HIPAA) or fintech (PCI-DSS), it does require deep expertise in software testing methodologies, test automation frameworks, AI/LLM orchestration, and browser automation technologies.
-
-The technical architecture is sophisticated: Python FastAPI backend with LangChain for AI agent orchestration, Next.js frontend, vector database for embeddings, containerized Playwright test runners on Kubernetes, and self-hosted LLM infrastructure (Ollama for development, vLLM for production). The platform processes and analyzes diverse inputs (PDF/Word documents, source code, live application UIs) and generates complex outputs (BDD scenarios, executable test scripts, performance test harnesses).
+</div>
 
 ---
 
-## Success Criteria
+> **Change Log**
+>
+> | Version | Date | Summary |
+> |---------|------|---------|
+> | **3.0** | 2026-02-15 | Added Agent Skills Integration (FR-SK1–28), Agent Extensibility & Custom Agents (FR-CA1–9), updated Growth Features and Vision sections |
+> | **2.0** | 2026-02-01 | Original PRD — full product scope, functional & non-functional requirements |
 
-**What Winning Looks Like:** QUALISYS becomes the category-defining AI-powered testing platform that software teams trust to accelerate testing velocity while maintaining quality. Success means engineering teams spend less time on test maintenance and more time building features, while achieving better test coverage and catching bugs before production.
+---
 
-### Product Success Metrics
+> **Intended Audience & Stakeholder Guide**
+>
+> | Stakeholder | Primary Sections | Icon |
+> |---|---|---|
+> | **Executive / Leadership** | Parts I–II (Executive Summary, Scope & Roadmap) | :dart: |
+> | **Product Manager** | Parts I–III (Overview, Scope, Platform Requirements) | :clipboard: |
+> | **Architect / Tech Lead** | Parts III–V (Platform Requirements, FR, NFR) | :building_construction: |
+> | **Engineering Team** | Parts IV–V (Functional & Non-Functional Requirements) | :gear: |
+> | **QA / Test Lead** | Parts II, IV (Scope, Functional Requirements) | :white_check_mark: |
+> | **UX Designer** | Parts II–III (Scope, RBAC, Dashboards) | :art: |
+> | **Business Analyst** | Parts I–II (Overview, Scope & Roadmap) | :bar_chart: |
+
+---
+
+## Table of Contents
+
+### Part I — Overview
+- [1. Executive Summary](#1-executive-summary)
+  - [1.1 The Core Problem](#11-the-core-problem)
+  - [1.2 The Solution](#12-the-solution)
+  - [1.3 What Makes This Special](#13-what-makes-this-special)
+  - [1.4 Market Opportunity & Validation](#14-market-opportunity--validation)
+  - [1.5 Competitive Landscape](#15-competitive-landscape)
+- [2. Project Classification](#2-project-classification)
+- [3. Success Criteria](#3-success-criteria)
+  - [3.1 Product Success Metrics](#31-product-success-metrics)
+  - [3.2 Business Metrics](#32-business-metrics)
+
+### Part II — Product Scope & Roadmap
+- [4. MVP — Minimum Viable Product](#4-mvp--minimum-viable-product)
+- [5. Growth Features (Post-MVP)](#5-growth-features-post-mvp-3-6-months)
+- [6. Long-Term Vision (6-12+ months)](#6-long-term-vision-6-12-months)
+
+### Part III — Platform Requirements
+- [7. Multi-Tenancy Architecture](#7-multi-tenancy-architecture)
+- [8. Permissions & Roles (RBAC)](#8-permissions--roles-rbac)
+- [9. Integration Requirements](#9-integration-requirements)
+- [10. Compliance & Security Requirements](#10-compliance--security-requirements)
+
+### Part IV — Functional Requirements
+- [11. User Account & Access Management](#11-user-account--access-management)
+- [12. Project Management](#12-project-management)
+- [13. Document Ingestion & Analysis](#13-document-ingestion--analysis)
+- [14. AI Agent Orchestration](#14-ai-agent-orchestration)
+- [15. Test Artifact Generation](#15-test-artifact-generation)
+- [16. Test Execution — Manual Testing](#16-test-execution--manual-testing)
+- [17. Test Execution — Automated Testing](#17-test-execution--automated-testing)
+- [18. Self-Healing Test Automation](#18-self-healing-test-automation)
+- [19. Dashboards & Reporting](#19-dashboards--reporting)
+- [20. Integrations](#20-integrations)
+- [21. Administration & Configuration](#21-administration--configuration)
+- [22. Agent Extensibility & Custom Agents (Post-MVP)](#22-agent-extensibility--custom-agents-post-mvp)
+- [23. Agent Skills Integration (Post-MVP)](#23-agent-skills-integration-post-mvp)
+
+### Part V — Non-Functional Requirements
+- [24. Performance](#24-performance)
+- [25. Scalability](#25-scalability)
+- [26. Security](#26-security)
+- [27. Reliability & Availability](#27-reliability--availability)
+- [28. Integration & Interoperability](#28-integration--interoperability)
+- [29. Observability](#29-observability)
+
+### Part VI — References
+- [30. References & Source Documents](#30-references--source-documents)
+
+---
+---
+
+# Part I — Overview
+
+---
+
+## 1. Executive Summary
+
+QUALISYS is an **AI System Quality Assurance Platform** that revolutionizes software testing by creating a new category — moving beyond traditional "testing tools" to provide comprehensive quality assurance for AI-powered systems and applications. The platform automates test creation, execution, and maintenance through intelligent multi-agent AI capabilities while addressing the unique challenges of testing in the AI era.
+
+### 1.1 The Core Problem
+
+> **Software teams spend 40% of their time on manual testing activities.** Test automation scripts break constantly with UI changes requiring constant maintenance, and test coverage gaps lead to bugs escaping to production. The fundamental issue is that **testing has not evolved to match modern development velocity** — what development teams can build in days takes testing teams weeks to validate.
+
+| Pain Point | Impact | QUALISYS Solution |
+|---|---|---|
+| Manual test creation | Weeks per feature cycle | AI agents generate tests in minutes |
+| Brittle test scripts | 30-50% scripts break per UI update | Self-healing automation with fallback strategies |
+| Coverage gaps | Bugs escape to production | Requirements-to-test traceability matrix |
+| Siloed tools | Context switching, data loss | Unified platform with role-based views |
+| Slow feedback loops | Days between code commit and test results | Parallel containerized execution with real-time dashboards |
+
+### 1.2 The Solution
+
+QUALISYS transforms testing from a manual bottleneck into an intelligent, self-maintaining system. The platform:
+
+1. **Ingests** requirements documents (PRDs, SRS, RFPs), crawls application UI and APIs via Playwright, and analyzes source code from repositories
+2. **Generates** comprehensive test artifacts using 7 specialized AI agents (3 MVP + 4 Post-MVP) — from manual test checklists to automated Playwright/Puppeteer scripts
+3. **Self-heals** when application UI changes cause tests to fail — automatically detecting changes, proposing fixes, and updating test scripts
+
+> **The "5-Minute Value Moment"** — Users upload their PRD, connect their app URL and GitHub repo, select AI agents to run, and within minutes receive generated test suites (manual checklists + automated Playwright scripts) ready to execute. The time from project setup to running first automated tests collapses from **weeks to minutes**.
+
+**Target Users:**
+
+| Persona | Primary Value |
+|---|---|
+| **PM / CSM** | Project oversight, SLA compliance, executive dashboards |
+| **Manual Test Engineer** | Guided test execution with evidence capture |
+| **Automation Engineer** | AI-generated scripts with self-healing capabilities |
+| **SRE / Platform Engineer** | Infrastructure monitoring and performance testing |
+| **BA / Product Owner** | Requirements traceability and test coverage visibility |
+
+**Beachhead Market:** Software development organizations including software houses, freelance development teams, and companies with in-house application development teams — any organization with PMs, CSMs, BAs, Product Owners, Developers, and QA/SQA engineers actively building and testing software applications.
+
+**Go-to-Market Strategy:** Integration-first — connect with existing platforms (Testworthy, TestRail, JIRA) to import test plans, user stories, bugs, and manual test cases. Reduces adoption friction by fitting into existing workflows rather than requiring wholesale tool replacement.
+
+### 1.3 What Makes This Special
+
+QUALISYS combines **three breakthrough capabilities** that no existing solution offers together:
+
+| # | Capability | Description |
+|---|---|---|
+| **1** | **Multi-Agent AI System** | 7 specialized AI agents (3 MVP + 4 Post-MVP) work in orchestrated pipelines with user-selectable workflows. Post-MVP extensibility enables admin-configured custom agents per client and a progressive skill-based architecture for cost-optimized invocations. |
+| **2** | **Self-Healing Test Automation** | When application changes break tests, QUALISYS automatically detects DOM changes, proposes patched selectors using multiple fallback strategies (CSS/XPath, text anchors, accessibility labels, visual anchors), and updates tests with versioned audit trails. |
+| **3** | **End-to-End Testing Lifecycle** | Unlike point solutions focused only on test generation OR execution OR management, QUALISYS covers the complete lifecycle — from ingesting requirements, to generating artifacts, to executing tests across browsers, to executive dashboards with KPIs and SLA monitoring. |
+
+**MVP Agents (3):**
+
+| Agent | Responsibility |
+|---|---|
+| **BAConsultant** | Requirements analysis, gap/ambiguity detection, coverage matrix, user story quality scoring |
+| **QAConsultant** | Test strategy, manual checklists, BDD/Gherkin scenarios, negative/boundary tests, synthetic data |
+| **AutomationConsultant** | Playwright/Puppeteer script generation, POM/Data-Driven frameworks, DOM crawling, CI/CD integration |
+
+**Post-MVP Agents (4):**
+
+| Agent | Responsibility |
+|---|---|
+| **AI Log Reader/Summarizer** | Application log analysis and failure pattern detection |
+| **Security Scanner Orchestrator** | Security vulnerability scanning and compliance validation |
+| **Performance/Load Agent** | Load testing, performance profiling, and SLA validation |
+| **DatabaseConsultant** | Database testing, data integrity validation, query optimization |
+
+#### Multi-Agent Orchestration Flow
+
+```mermaid
+graph TB
+    subgraph "Input Sources"
+        PRD["PRD / SRS / RFP<br/>Document Upload"]
+        CODE["GitHub Repository<br/>Source Code Analysis"]
+        APP["Application URL<br/>Playwright DOM Crawling"]
+    end
+
+    subgraph "AI Agent Pipeline"
+        BA["BAConsultant<br/>Requirements Analysis"]
+        QA["QAConsultant<br/>Test Strategy & Cases"]
+        AUTO["AutomationConsultant<br/>Script Generation"]
+    end
+
+    subgraph "Outputs"
+        COV["Coverage Matrix<br/>& Gap Analysis"]
+        MANUAL["Manual Checklists<br/>BDD / Gherkin"]
+        SCRIPTS["Playwright Scripts<br/>POM Framework"]
+    end
+
+    PRD --> BA
+    CODE --> BA & AUTO
+    APP --> AUTO
+
+    BA -->|Requirements + Gaps| QA
+    BA --> COV
+    QA -->|Test Cases| AUTO
+    QA --> MANUAL
+    AUTO --> SCRIPTS
+
+    SCRIPTS --> HEAL["Self-Healing Engine<br/>Locator Fallback · DOM Diff"]
+    HEAL --> EXEC["Test Runner<br/>Parallel · Cross-Browser · Containerized"]
+    EXEC --> DASH["Dashboards & Reports<br/>Role-Based Views"]
+
+    style BA fill:#3b82f6,color:#fff
+    style QA fill:#22c55e,color:#fff
+    style AUTO fill:#8b5cf6,color:#fff
+    style HEAL fill:#eab308,color:#000
+    style EXEC fill:#06b6d4,color:#fff
+    style DASH fill:#f97316,color:#fff
+```
+
+### 1.4 Market Opportunity & Validation
+
+| Metric | Value | Significance |
+|---|---|---|
+| **Market Size (2025)** | $1.01B | AI-enabled testing market |
+| **Projected Size (2032)** | $3.82B | 20.9% CAGR — **25% faster** than traditional testing (16.8%) |
+| **Annual Enterprise Loss** | $1.9B | Lost to undetected LLM failures and AI system bugs |
+| **LLM Applications (2025)** | 750M | Massive wave creating urgent testing demand |
+| **AI in Testing Adoption** | 81% | Of development teams now use AI in testing workflows |
+| **IT Budget Allocation** | 40% | Allocated to AI testing infrastructure |
+
+> **Market Timing:** Companies are moving from experimental AI to mission-critical AI deployments. AI failures don't just lose customers — they destroy trust permanently, trigger compliance violations, and cause real-world harm. **First company to solve AI System QA owns the category.**
+
+### 1.5 Competitive Landscape
+
+| Competitor | Threat Level | Strengths | QUALISYS Advantage |
+|---|---|---|---|
+| **DeepEval / Confident AI** | :red_circle: Critical | 500K downloads, 14+ metrics, Enterprise (Microsoft, BCG) | Full testing lifecycle, not just evaluation; production monitoring; team collaboration |
+| **Braintrust** | :orange_circle: Growing | Strong ROI ("30% accuracy in weeks"), freemium model | Multi-agent AI (7 agents), self-healing automation, integration-first adoption |
+| **Humanloop** | :green_circle: Opportunity | Being acquired by Anthropic, sunsetting Sep 2025 | Independent platform — enterprises need alternative to vendor-locked solutions |
+| **Selenium / Cypress** | :yellow_circle: Indirect | Established user base, open source | Built for AI systems from ground up, not bolt-on AI features |
+
+> **Strategic Positioning:** While competitors focus on "AI testing tools" or "LLM evaluation," QUALISYS creates the **"AI System Quality Assurance" category** — comprehensive QA for the non-deterministic era.
+
+---
+
+## 2. Project Classification
+
+| Dimension | Value |
+|---|---|
+| **Technical Type** | SaaS B2B Platform (Multi-tenant Enterprise) |
+| **Domain** | General Software Testing (Medium Complexity) |
+| **Complexity** | Medium |
+| **Frontend** | Vite + React 18 + TypeScript + Tailwind CSS + shadcn/ui |
+| **Backend** | Python 3.11+ FastAPI + LangChain + SQLAlchemy 2.x |
+| **Database** | PostgreSQL 15+ with pgvector (embeddings) |
+| **Infrastructure** | Kubernetes (EKS/AKS) + Containerized Playwright Runners |
+| **LLM** | Ollama (dev) / vLLM (prod) + OpenAI + Anthropic (fallback) |
+
+QUALISYS is a multi-tenant SaaS platform serving enterprise B2B customers in the software testing domain. The platform requires multi-tenancy architecture with strict data isolation, role-based access control (RBAC), SSO integration, and enterprise-grade security and compliance measures.
+
+The platform processes diverse inputs (PDF/Word documents, source code, live application UIs) and generates complex outputs (BDD scenarios, executable test scripts, performance test harnesses).
+
+---
+
+## 3. Success Criteria
+
+> **What Winning Looks Like:** QUALISYS becomes the category-defining AI-powered testing platform that software teams trust to accelerate testing velocity while maintaining quality. Success means engineering teams spend less time on test maintenance and more time building features, while achieving better test coverage and catching bugs before production.
+
+### 3.1 Product Success Metrics
 
 **Activation & Value Delivery:**
 
@@ -128,7 +299,7 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
    - *Target:* 80% of UI-change-related test failures resolved automatically
    - *Measurement:* Auto-fix success rate tracking in platform
 
-### Business Metrics
+### 3.2 Business Metrics
 
 1. **Pricing Model:** To be determined by management (deferred to later phase)
 
@@ -141,10 +312,59 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
    - *Measurement:* % of teams with active integrations
 
 ---
+---
 
-## Product Scope
+# Part II — Product Scope & Roadmap
 
-### MVP - Minimum Viable Product
+> :dart: **Stakeholders:** Executive, Product Manager, QA Lead, Business Analyst
+
+### Product Scope Roadmap
+
+```mermaid
+graph LR
+    subgraph "MVP (6-10 Weeks)"
+        M1["3 AI Agents<br/>BA · QA · Automation"]
+        M2["Self-Healing (POC)<br/>Rules-Based Locator Fallback"]
+        M3["4 Integrations<br/>JIRA · TestRail · GitHub · Slack"]
+        M4["6 RBAC Roles<br/>Role-Based Dashboards"]
+    end
+
+    subgraph "Growth (3-6 Months)"
+        G1["+4 Agents<br/>7 Total"]
+        G2["ML Self-Healing<br/>Visual Regression"]
+        G3["Agent Extensibility<br/>Custom Agents · Registry"]
+        G4["Agent Skills<br/>Progressive Disclosure"]
+    end
+
+    subgraph "Vision (6-12+ Months)"
+        V1["Autonomous Testing<br/>Zero-Config"]
+        V2["Vertical Agents<br/>E-Commerce · Healthcare · Fintech"]
+        V3["Agent Marketplace<br/>Community Ecosystem"]
+        V4["Predictive Quality<br/>Risk-Based Prioritization"]
+    end
+
+    M1 --> G1 --> V1
+    M2 --> G2 --> V2
+    M3 --> G3 --> V3
+    M4 --> G4 --> V4
+
+    style M1 fill:#3b82f6,color:#fff
+    style M2 fill:#3b82f6,color:#fff
+    style M3 fill:#3b82f6,color:#fff
+    style M4 fill:#3b82f6,color:#fff
+    style G1 fill:#8b5cf6,color:#fff
+    style G2 fill:#8b5cf6,color:#fff
+    style G3 fill:#8b5cf6,color:#fff
+    style G4 fill:#8b5cf6,color:#fff
+    style V1 fill:#06b6d4,color:#fff
+    style V2 fill:#06b6d4,color:#fff
+    style V3 fill:#06b6d4,color:#fff
+    style V4 fill:#06b6d4,color:#fff
+```
+
+---
+
+## 4. MVP — Minimum Viable Product
 
 **Goal:** Prove the core value proposition - AI agents can generate useful test artifacts and self-healing automation reduces maintenance burden.
 
@@ -205,7 +425,7 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 
 ---
 
-### Growth Features (Post-MVP, 3-6 months)
+## 5. Growth Features (Post-MVP, 3-6 months)
 
 **Phase 1: Complete Multi-Agent Suite (Epic 6 Phase 1)**
 - Add remaining agents: AI Log Reader/Summarizer, Security Scanner Orchestrator, Performance/Load Agent, DatabaseConsultant AI Agent
@@ -256,9 +476,9 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 
 ---
 
-### Vision (6-12+ months)
+## 6. Long-Term Vision (6-12+ months)
 
-**Goal:** Become the intelligent testing co-pilot that eliminates manual testing toil entirely.
+> **Goal:** Become the intelligent testing co-pilot that eliminates manual testing toil entirely.
 
 **Strategic Initiatives:**
 
@@ -290,10 +510,15 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 - Quality forecasting: "With current test coverage, X% chance of production bug"
 
 ---
+---
 
-## SaaS B2B Platform Specific Requirements
+# Part III — Platform Requirements
 
-### Multi-Tenancy Architecture
+> :building_construction: **Stakeholders:** Architect, Tech Lead, Product Manager, Security
+
+---
+
+## 7. Multi-Tenancy Architecture
 
 **Tenant Isolation:**
 - Each customer organization is a separate tenant with complete data isolation
@@ -307,7 +532,7 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 - Team invites: Admin invites team members via email with role assignment
 - Onboarding wizard: Guide new tenants through first project setup
 
-### Permissions & Roles (RBAC)
+## 8. Permissions & Roles (RBAC)
 
 **MVP Roles:**
 
@@ -356,7 +581,53 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 | Approve self-healing fixes | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ |
 | Configure integrations | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
-### Integration Requirements
+## 9. Integration Requirements
+
+```mermaid
+graph TB
+    subgraph "QUALISYS Platform"
+        GW["Integration Gateway<br/>Unified API Layer"]
+    end
+
+    subgraph "Issue Tracking — MVP"
+        JIRA["JIRA<br/>Bi-Directional Sync"]
+        GHI["GitHub Issues<br/>Native Workflow"]
+    end
+
+    subgraph "Test Management — MVP"
+        TR["TestRail<br/>Import / Export / Sync"]
+        TW["Testworthy<br/>Import / Export / Sync"]
+    end
+
+    subgraph "Version Control — MVP"
+        GH["GitHub<br/>PR Comments · Webhooks"]
+    end
+
+    subgraph "Communication — MVP"
+        SLACK["Slack<br/>Notifications · ChatOps"]
+    end
+
+    subgraph "Growth Phase"
+        GL["GitLab CI/CD"]
+        ADO["Azure DevOps"]
+        ZEP["Zephyr · Xray"]
+        TEAMS["MS Teams"]
+        APM["DataDog · New Relic"]
+    end
+
+    GW <-->|"Create Issues · Link Tests"| JIRA & GHI
+    GW <-->|"Sync Test Plans & Results"| TR & TW
+    GW <-->|"Clone · PR · Webhooks"| GH
+    GW -->|"Alerts · Commands"| SLACK
+
+    GW -.->|"Future"| GL & ADO & ZEP & TEAMS & APM
+
+    style GW fill:#3b82f6,color:#fff
+    style JIRA fill:#0052cc,color:#fff
+    style GH fill:#24292e,color:#fff
+    style SLACK fill:#4a154b,color:#fff
+    style TR fill:#65c179,color:#fff
+```
 
 **MVP Integrations (Essential for workflow adoption):**
 
@@ -394,7 +665,7 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 - MS Teams (communication alternative to Slack)
 - DataDog, New Relic (APM correlation)
 
-### Compliance & Security Requirements
+## 10. Compliance & Security Requirements
 
 **MVP Security:**
 
@@ -438,211 +709,315 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
    - Customer owns and manages data entirely
 
 ---
+---
 
-## Functional Requirements
+# Part IV — Functional Requirements
 
-**CRITICAL:** This section defines ALL capabilities the product must have. Every capability discussed in vision, scope, and platform requirements MUST be represented as an FR. Missing FRs = missing capabilities.
+> :gear: **Stakeholders:** Engineering Team, Architect, QA Lead, Product Manager
 
-### User Account & Access Management
-
-- FR1: Users can create accounts with email/password or Google SSO
-- FR2: Users can create organizations and become the first Owner/Admin
-- FR3: Users can log in securely with session persistence across devices
-- FR4: Users can reset passwords via email verification workflow
-- FR5: Users can enable two-factor authentication (TOTP) for their accounts
-- FR6: Admins can invite team members to organization via email with role assignment
-- FR7: Invited users can accept invitations and join organization
-- FR8: Admins can remove users from organization
-- FR9: Admins can change user roles within organization
-- FR10: Users can configure their profile information and notification preferences
-
-### Project Management
-
-- FR11: Users can create new test projects within their organization
-- FR12: Users can configure project settings (name, description, app URL, repo link)
-- FR13: Users can assign team members to projects with role-based access
-- FR14: Users can archive or delete projects
-- FR15: Users can view list of all projects with status and health indicators
-
-### Document Ingestion & Analysis
-
-- FR16: Users can upload requirement documents (PDF, Word, Markdown) to projects
-- FR17: System parses uploaded documents and extracts text content
-- FR18: System generates embeddings for document content and stores in vector database
-- FR19: Users can connect GitHub repositories with read-only access tokens
-- FR20: System clones connected repositories and analyzes source code structure
-- FR21: System maps application routes, API endpoints, and components from source code
-- FR22: Users can provide application URLs for DOM crawling
-- FR23: System crawls application using Playwright to capture page structure, forms, and flows
-- FR24: System handles authentication flows (login, cookies) during crawling
-- FR25: Users can view ingested content summary (documents, code files, pages crawled)
-
-### AI Agent Orchestration
-
-- FR26: Users can select which AI agents to run on their project
-- FR27: System provides agent descriptions and capabilities for informed selection
-- FR28: Users can create agent execution pipelines (sequential or parallel workflows)
-- FR29: System executes selected agents with project context (documents, code, DOM)
-- FR30: Users can view agent execution progress and status in real-time
-- FR31: System stores agent outputs (coverage matrices, test cases, scripts) as project artifacts
-
-### Test Artifact Generation
-
-- FR32: BAConsultant AI Agent analyzes requirements, performs gap/ambiguity detection, and generates requirements-to-test coverage matrix with user story quality scoring. Generated user stories require dual-review approval (internal team review + client stakeholder review) before release to downstream agents
-- FR33: QAConsultant AI Agent generates manual test checklists with step-by-step instructions, supporting checklist-driven testing across Smoke, Sanity, Integration, Regression, Usability, and UAT types
-- FR34: QAConsultant AI Agent generates exploratory testing prompts, BDD/Gherkin scenarios, negative test cases, boundary condition tests, and domain-aware synthetic test data
-- FR35: AutomationConsultant AI Agent generates automated test scripts (Playwright, Puppeteer, REST-Assured) with smart locators, supporting multiple framework architectures (POM, Data-Driven, Hybrid)
-- FR36: QAConsultant AI Agent creates test strategy documents, test plans, and validates sprint readiness
-- FR37: AutomationConsultant AI Agent performs automated DOM crawling, sitemap generation, and coverage gap detection for application discovery
-- FR38: Users can view all generated test artifacts organized by type and agent
-- FR39: Users can edit generated test artifacts before execution
-- FR40: Users can version and track changes to test artifacts
-
-### Test Execution - Manual Testing
-
-- FR41: Manual testers can view assigned manual test checklists
-- FR42: Manual testers can execute test steps one-by-one with pass/fail/skip status
-- FR43: Manual testers can capture screenshots as evidence during manual testing
-- FR44: Manual testers can record video of test execution sessions
-- FR45: Manual testers can add notes and observations to test steps
-- FR46: Manual testers can mark tests as passed, failed, or blocked with reason
-- FR47: Manual testers can file defects directly from failed test steps
-- FR48: System links defects to test cases for traceability
-
-### Test Execution - Automated Testing
-
-- FR49: Users can execute generated Playwright scripts on-demand
-- FR50: Users can select target browsers for test execution (Chromium, Firefox, WebKit)
-- FR51: Users can configure test execution modes (headless vs headful)
-- FR52: System runs automated tests in parallel for faster execution
-- FR53: System executes tests in isolated containerized environments
-- FR54: Users can view real-time test execution progress and logs
-- FR55: System captures screenshots and videos of automated test runs
-- FR56: System stores test execution results with pass/fail status and error details
-- FR57: Users can re-run failed tests individually or in batch
-
-### Self-Healing Test Automation
-
-- FR58: System stores multiple locator strategies for each UI element (CSS, XPath, text, ARIA)
-- FR59: System detects when automated tests fail due to DOM changes
-- FR60: System captures page fingerprints to compare against known good states
-- FR61: System proposes alternative locators when primary locators fail
-- FR62: System shows confidence scores for proposed selector fixes
-- FR63: Automation engineers can review and approve proposed self-healing fixes
-- FR64: System applies approved fixes and re-runs affected tests automatically
-- FR65: System maintains audit trail of all auto-fixes with before/after comparisons
-- FR66: PMs/Admins can configure approval workflows for production test fixes
-
-### Dashboards & Reporting
-
-- FR67: PM/CSM users can view project health dashboard with key metrics
-- FR68: Dashboard shows test coverage percentage by requirements
-- FR69: Dashboard shows test execution velocity (tests run per day/week)
-- FR70: Dashboard shows P1/P2 defect leakage rates
-- FR71: Dashboard shows SLA compliance status with trend indicators
-- FR72: QA users can view test execution dashboard with current runs
-- FR73: QA dashboard shows failing test suites and flaky tests
-- FR74: QA dashboard shows environment status and runner availability
-- FR75: Users can filter dashboard metrics by date range, project, or test type
-- FR76: Users can export dashboards and reports as PDF documents
-- FR77: System sends scheduled email summaries of key metrics (configurable frequency)
-
-### Integrations - JIRA
-
-- FR78: Admins can connect JIRA instances with API credentials
-- FR79: Users can import JIRA issues (user stories, bugs) into QUALISYS projects
-- FR80: System maps JIRA issue types to QUALISYS test requirements
-- FR81: Users can link test cases to JIRA issues for bi-directional traceability
-- FR82: System automatically creates JIRA issues when tests fail
-- FR83: System includes test failure evidence (screenshots, logs, steps) in JIRA issues
-- FR84: System updates JIRA issue status when linked tests pass
-
-### Integrations - TestRail/Testworthy
-
-- FR85: Admins can connect TestRail/Testworthy instances with API credentials
-- FR86: Users can import test plans, suites, and cases from TestRail/Testworthy
-- FR87: System preserves test case IDs and folder structure during import
-- FR88: Users can export QUALISYS-generated tests to TestRail/Testworthy
-- FR89: System syncs test execution results back to TestRail/Testworthy
-- FR90: System maintains bi-directional sync to keep platforms aligned
-
-### Integrations - GitHub
-
-- FR91: Users can connect GitHub repositories with read-only access tokens
-- FR92: System posts test execution results as comments on pull requests
-- FR93: Users can configure test success/failure as PR merge gate
-- FR94: System triggers test runs automatically on push or PR events (webhook)
-- FR95: Users can view test results directly in GitHub PR interface
-
-### Integrations - Slack
-
-- FR96: Admins can connect Slack workspaces via OAuth
-- FR97: Users can configure which Slack channels receive notifications
-- FR98: System sends test run completion notifications to Slack
-- FR99: System sends test failure alerts with summary and links to Slack
-- FR100: System sends SLA breach alerts to Slack
-- FR101: Users can trigger basic test runs via Slack commands (ChatOps)
-
-### Administration & Configuration
-
-- FR102: Admins can configure organization-wide settings (name, logo, domain)
-- FR103: Admins can manage billing and subscription (when pricing model defined)
-- FR104: Admins can view usage analytics (tests run, storage consumed, agent executions)
-- FR105: Admins can configure data retention policies for their organization
-- FR106: Admins can export all organization data for backup or migration
-- FR107: Admins can delete organization and all associated data
-- FR108: System provides audit logs of all administrative actions
-- FR109: Users can configure notification preferences (email, Slack, frequency)
-- FR110: Users can manage their connected integrations and API keys
-
-### Agent Extensibility & Custom Agents (Post-MVP — Epic 6 Phase 3)
-
-- FR-CA1: Platform admins can register new agent definitions at runtime via API or admin UI without code deployment
-- FR-CA2: Platform admins can manage agent lifecycle (enable, disable, deprecate, retire) through the Agent Registry Service
-- FR-CA3: Tenant admins can enable or disable specific agents for their organization, hiding disabled agents from their team's discovery
-- FR-CA4: Tenant admins can customize agent behavior with organization-specific prompt instructions (append, prepend, or replace modes)
-- FR-CA5: Tenant admins can override LLM provider and model selection per agent per organization (from platform-configured providers only)
-- FR-CA6: System enforces per-agent fault isolation with configurable token budgets, hard timeouts, and circuit breaker patterns
-- FR-CA7: Platform admins can version agent prompts using semantic versioning with gradual rollout (percentage-based tenant bucketing)
-- FR-CA8: System provides Agent Registry discovery API returning tenant-scoped and role-filtered agent metadata
-- FR-CA9: All agent configuration changes, version deployments, and circuit breaker events are audit-logged with timestamps and actor identity
-
-### Agent Skills Integration (Post-MVP — Epic 7)
-
-- FR-SK1: System shall maintain a centralized skill registry storing metadata (name, description, version, agent_id, risk_level, tags) for all registered skills
-- FR-SK2: System shall expose REST API for skill CRUD operations with tenant-scoped access control
-- FR-SK3: System shall support skill discovery by agent_id, returning only skills mapped to the requesting agent
-- FR-SK4: System shall enforce semantic versioning (major.minor.patch) for all skills
-- FR-SK5: System shall support skill deprecation with 30-day notice period and migration guidance
-- FR-SK6: System shall prevent skill deletion when active references exist
-- FR-SK7: System shall support skill tagging for RAG pre-fetching optimization
-- FR-SK8: System shall execute custom skills via the configured LLM provider's skill execution API, supporting up to 8 skills per request
-- FR-SK9: System shall translate QUALISYS agent context (ProjectContext, tenant_id, RAG results) into Claude API format
-- FR-SK10: System shall handle skill execution timeouts (configurable, default 120s) with graceful degradation
-- FR-SK11: System shall implement retry logic with exponential backoff for transient Claude API failures
-- FR-SK12: System shall route skill execution through tenant-scoped resource limits (max concurrent skills per tenant)
-- FR-SK13: System shall support skill fallback — if skill execution fails, agent falls back to full-context mode
-- FR-SK14: System shall log all skill executions with skill_id, agent_id, tenant_id, tokens_used, execution_time_ms, status
-- FR-SK15: Library shall provide a skill adapter component compatible with the AgentOrchestrator interface
-- FR-SK16: Library shall translate LangChain context objects to Claude API skill invocation format
-- FR-SK17: Library shall translate Claude API skill responses back to LangChain-compatible format
-- FR-SK18: Library shall support skill chaining — output of Skill A available as input to Skill B within same agent invocation
-- FR-SK19: System shall classify skills by risk level: low (auto-approved), medium (QA-Automation approval), high (Architect/DBA approval)
-- FR-SK20: System shall require deployment approval for new skills and major version updates
-- FR-SK21: System shall require pre-execution approval for high-risk skills (e.g., DatabaseConsultant schema validation)
-- FR-SK22: System shall integrate skill approvals into existing approval dashboard UI
-- FR-SK23: System shall support skill execution approval exemptions for pre-approved skill+context combinations
-- FR-SK24: AgentOrchestrator shall discover available skills for the current agent before invocation
-- FR-SK25: AgentOrchestrator shall select relevant skills based on task context (document type, agent stage, project domain)
-- FR-SK26: AgentOrchestrator shall pass selected skill metadata in the agent's context initialization
-- FR-SK27: AgentOrchestrator shall support mixed execution — some capabilities via skills, others via existing agent logic
-- FR-SK28: AgentOrchestrator shall maintain backward compatibility — agents function identically with skills disabled
+> **CRITICAL:** This section defines ALL capabilities the product must have. Every capability discussed in vision, scope, and platform requirements MUST be represented as an FR. Missing FRs = missing capabilities.
 
 ---
 
-## Non-Functional Requirements
+## 11. User Account & Access Management
 
-### Performance
+| FR ID | Requirement | Actor |
+|---|---|---|
+| **FR1** | Users can create accounts with email/password or Google SSO | User |
+| **FR2** | Users can create organizations and become the first Owner/Admin | User |
+| **FR3** | Users can log in securely with session persistence across devices | User |
+| **FR4** | Users can reset passwords via email verification workflow | User |
+| **FR5** | Users can enable two-factor authentication (TOTP) for their accounts | User |
+| **FR6** | Admins can invite team members to organization via email with role assignment | Admin |
+| **FR7** | Invited users can accept invitations and join organization | User |
+| **FR8** | Admins can remove users from organization | Admin |
+| **FR9** | Admins can change user roles within organization | Admin |
+| **FR10** | Users can configure their profile information and notification preferences | User |
+
+## 12. Project Management
+
+| FR ID | Requirement | Actor |
+|---|---|---|
+| **FR11** | Users can create new test projects within their organization | Admin / PM |
+| **FR12** | Users can configure project settings (name, description, app URL, repo link) | Admin / PM |
+| **FR13** | Users can assign team members to projects with role-based access | Admin |
+| **FR14** | Users can archive or delete projects | Admin |
+| **FR15** | Users can view list of all projects with status and health indicators | All Roles |
+
+## 13. Document Ingestion & Analysis
+
+| FR ID | Requirement | Type |
+|---|---|---|
+| **FR16** | Users can upload requirement documents (PDF, Word, Markdown) to projects | Document |
+| **FR17** | System parses uploaded documents and extracts text content | Document |
+| **FR18** | System generates embeddings for document content and stores in vector database | Document |
+| **FR19** | Users can connect GitHub repositories with read-only access tokens | Code |
+| **FR20** | System clones connected repositories and analyzes source code structure | Code |
+| **FR21** | System maps application routes, API endpoints, and components from source code | Code |
+| **FR22** | Users can provide application URLs for DOM crawling | DOM |
+| **FR23** | System crawls application using Playwright to capture page structure, forms, and flows | DOM |
+| **FR24** | System handles authentication flows (login, cookies) during crawling | DOM |
+| **FR25** | Users can view ingested content summary (documents, code files, pages crawled) | All |
+
+## 14. AI Agent Orchestration
+
+| FR ID | Requirement |
+|---|---|
+| **FR26** | Users can select which AI agents to run on their project |
+| **FR27** | System provides agent descriptions and capabilities for informed selection |
+| **FR28** | Users can create agent execution pipelines (sequential or parallel workflows) |
+| **FR29** | System executes selected agents with project context (documents, code, DOM) |
+| **FR30** | Users can view agent execution progress and status in real-time |
+| **FR31** | System stores agent outputs (coverage matrices, test cases, scripts) as project artifacts |
+
+## 15. Test Artifact Generation
+
+| FR ID | Agent | Requirement |
+|---|---|---|
+| **FR32** | BAConsultant | Analyzes requirements, performs gap/ambiguity detection, generates requirements-to-test coverage matrix with user story quality scoring. Dual-review approval required before downstream release |
+| **FR33** | QAConsultant | Generates manual test checklists with step-by-step instructions (Smoke, Sanity, Integration, Regression, Usability, UAT) |
+| **FR34** | QAConsultant | Generates exploratory testing prompts, BDD/Gherkin scenarios, negative test cases, boundary tests, and synthetic test data |
+| **FR35** | AutomationConsultant | Generates automated test scripts (Playwright, Puppeteer, REST-Assured) with smart locators and framework support (POM, Data-Driven, Hybrid) |
+| **FR36** | QAConsultant | Creates test strategy documents, test plans, and validates sprint readiness |
+| **FR37** | AutomationConsultant | Performs automated DOM crawling, sitemap generation, and coverage gap detection |
+| **FR38** | — | Users can view all generated test artifacts organized by type and agent |
+| **FR39** | — | Users can edit generated test artifacts before execution |
+| **FR40** | — | Users can version and track changes to test artifacts |
+
+## 16. Test Execution — Manual Testing
+
+| FR ID | Requirement |
+|---|---|
+| **FR41** | Manual testers can view assigned manual test checklists |
+| **FR42** | Manual testers can execute test steps one-by-one with pass/fail/skip status |
+| **FR43** | Manual testers can capture screenshots as evidence during manual testing |
+| **FR44** | Manual testers can record video of test execution sessions |
+| **FR45** | Manual testers can add notes and observations to test steps |
+| **FR46** | Manual testers can mark tests as passed, failed, or blocked with reason |
+| **FR47** | Manual testers can file defects directly from failed test steps |
+| **FR48** | System links defects to test cases for traceability |
+
+## 17. Test Execution — Automated Testing
+
+| FR ID | Requirement |
+|---|---|
+| **FR49** | Users can execute generated Playwright scripts on-demand |
+| **FR50** | Users can select target browsers for test execution (Chromium, Firefox, WebKit) |
+| **FR51** | Users can configure test execution modes (headless vs headful) |
+| **FR52** | System runs automated tests in parallel for faster execution |
+| **FR53** | System executes tests in isolated containerized environments |
+| **FR54** | Users can view real-time test execution progress and logs |
+| **FR55** | System captures screenshots and videos of automated test runs |
+| **FR56** | System stores test execution results with pass/fail status and error details |
+| **FR57** | Users can re-run failed tests individually or in batch |
+
+## 18. Self-Healing Test Automation
+
+```mermaid
+graph TB
+    A["Test Execution Fails<br/>Locator Not Found"] --> B["DOM Differ<br/>Compare Page Fingerprints"]
+    B --> C["Selector Suggester<br/>CSS · XPath · Text · ARIA"]
+    C --> D["Confidence Scorer<br/>Score 0–100%"]
+    D --> E{Confidence<br/>Level?}
+    E -->|"> 80% HIGH"| F["Auto-Apply Fix<br/>+ Notify User"]
+    E -->|"50–80% MEDIUM"| G["Suggest Fix<br/>Require Approval"]
+    E -->|"< 50% LOW"| H["Flag for<br/>Manual Review"]
+    F --> I["Verify Fix<br/>Re-Run Test"]
+    G --> J{Approved?}
+    J -->|Yes| I
+    J -->|No| K["Reject + Log<br/>Feedback Loop"]
+    I --> L{Valid?}
+    L -->|Yes| M["Apply Fix<br/>Audit Trail + Rollback Window"]
+    L -->|No| H
+
+    style F fill:#22c55e,color:#fff
+    style G fill:#eab308,color:#000
+    style H fill:#ef4444,color:#fff
+    style M fill:#3b82f6,color:#fff
+```
+
+| FR ID | Requirement |
+|---|---|
+| **FR58** | System stores multiple locator strategies for each UI element (CSS, XPath, text, ARIA) |
+| **FR59** | System detects when automated tests fail due to DOM changes |
+| **FR60** | System captures page fingerprints to compare against known good states |
+| **FR61** | System proposes alternative locators when primary locators fail |
+| **FR62** | System shows confidence scores for proposed selector fixes |
+| **FR63** | Automation engineers can review and approve proposed self-healing fixes |
+| **FR64** | System applies approved fixes and re-runs affected tests automatically |
+| **FR65** | System maintains audit trail of all auto-fixes with before/after comparisons |
+| **FR66** | PMs/Admins can configure approval workflows for production test fixes |
+
+## 19. Dashboards & Reporting
+
+| FR ID | Requirement | Dashboard |
+|---|---|---|
+| **FR67** | PM/CSM users can view project health dashboard with key metrics | PM/CSM |
+| **FR68** | Dashboard shows test coverage percentage by requirements | PM/CSM |
+| **FR69** | Dashboard shows test execution velocity (tests run per day/week) | PM/CSM |
+| **FR70** | Dashboard shows P1/P2 defect leakage rates | PM/CSM |
+| **FR71** | Dashboard shows SLA compliance status with trend indicators | PM/CSM |
+| **FR72** | QA users can view test execution dashboard with current runs | QA |
+| **FR73** | QA dashboard shows failing test suites and flaky tests | QA |
+| **FR74** | QA dashboard shows environment status and runner availability | QA |
+| **FR75** | Users can filter dashboard metrics by date range, project, or test type | All |
+| **FR76** | Users can export dashboards and reports as PDF documents | All |
+| **FR77** | System sends scheduled email summaries of key metrics (configurable frequency) | All |
+
+## 20. Integrations
+
+### 20.1 JIRA
+
+| FR ID | Requirement | Direction |
+|---|---|---|
+| **FR78** | Admins can connect JIRA instances with API credentials | Setup |
+| **FR79** | Users can import JIRA issues (user stories, bugs) into QUALISYS projects | Import |
+| **FR80** | System maps JIRA issue types to QUALISYS test requirements | Import |
+| **FR81** | Users can link test cases to JIRA issues for bi-directional traceability | Bi-directional |
+| **FR82** | System automatically creates JIRA issues when tests fail | Export |
+| **FR83** | System includes test failure evidence (screenshots, logs, steps) in JIRA issues | Export |
+| **FR84** | System updates JIRA issue status when linked tests pass | Export |
+
+### 20.2 TestRail / Testworthy
+
+| FR ID | Requirement | Direction |
+|---|---|---|
+| **FR85** | Admins can connect TestRail/Testworthy instances with API credentials | Setup |
+| **FR86** | Users can import test plans, suites, and cases from TestRail/Testworthy | Import |
+| **FR87** | System preserves test case IDs and folder structure during import | Import |
+| **FR88** | Users can export QUALISYS-generated tests to TestRail/Testworthy | Export |
+| **FR89** | System syncs test execution results back to TestRail/Testworthy | Export |
+| **FR90** | System maintains bi-directional sync to keep platforms aligned | Bi-directional |
+
+### 20.3 GitHub
+
+| FR ID | Requirement | Direction |
+|---|---|---|
+| **FR91** | Users can connect GitHub repositories with read-only access tokens | Setup |
+| **FR92** | System posts test execution results as comments on pull requests | Export |
+| **FR93** | Users can configure test success/failure as PR merge gate | Export |
+| **FR94** | System triggers test runs automatically on push or PR events (webhook) | Import |
+| **FR95** | Users can view test results directly in GitHub PR interface | Export |
+
+### 20.4 Slack
+
+| FR ID | Requirement | Direction |
+|---|---|---|
+| **FR96** | Admins can connect Slack workspaces via OAuth | Setup |
+| **FR97** | Users can configure which Slack channels receive notifications | Setup |
+| **FR98** | System sends test run completion notifications to Slack | Export |
+| **FR99** | System sends test failure alerts with summary and links to Slack | Export |
+| **FR100** | System sends SLA breach alerts to Slack | Export |
+| **FR101** | Users can trigger basic test runs via Slack commands (ChatOps) | Import |
+
+## 21. Administration & Configuration
+
+| FR ID | Requirement | Actor |
+|---|---|---|
+| **FR102** | Admins can configure organization-wide settings (name, logo, domain) | Admin |
+| **FR103** | Admins can manage billing and subscription (when pricing model defined) | Admin |
+| **FR104** | Admins can view usage analytics (tests run, storage consumed, agent executions) | Admin |
+| **FR105** | Admins can configure data retention policies for their organization | Admin |
+| **FR106** | Admins can export all organization data for backup or migration | Admin |
+| **FR107** | Admins can delete organization and all associated data | Admin |
+| **FR108** | System provides audit logs of all administrative actions | System |
+| **FR109** | Users can configure notification preferences (email, Slack, frequency) | User |
+| **FR110** | Users can manage their connected integrations and API keys | User |
+
+## 22. Agent Extensibility & Custom Agents (Post-MVP — Epic 6 Phase 3)
+
+> **Scope:** Runtime agent registration, per-tenant customization, fault isolation, and prompt versioning.
+
+| FR ID | Requirement | Scope |
+|---|---|---|
+| **FR-CA1** | Platform admins can register new agent definitions at runtime via API or admin UI without code deployment | Registry |
+| **FR-CA2** | Platform admins can manage agent lifecycle (enable, disable, deprecate, retire) through the Agent Registry Service | Registry |
+| **FR-CA3** | Tenant admins can enable or disable specific agents for their organization, hiding disabled agents from discovery | Tenant Config |
+| **FR-CA4** | Tenant admins can customize agent behavior with organization-specific prompt instructions (append, prepend, or replace modes) | Tenant Config |
+| **FR-CA5** | Tenant admins can override LLM provider and model selection per agent per organization (from platform-configured providers only) | Tenant Config |
+| **FR-CA6** | System enforces per-agent fault isolation with configurable token budgets, hard timeouts, and circuit breaker patterns | Isolation |
+| **FR-CA7** | Platform admins can version agent prompts using semantic versioning with gradual rollout (percentage-based tenant bucketing) | Versioning |
+| **FR-CA8** | System provides Agent Registry discovery API returning tenant-scoped and role-filtered agent metadata | API |
+| **FR-CA9** | All agent configuration changes, version deployments, and circuit breaker events are audit-logged with timestamps and actor identity | Audit |
+
+## 23. Agent Skills Integration (Post-MVP — Epic 7)
+
+> **Scope:** Progressive skill loading for 40-60% token cost reduction, skill registry, proxy execution, adapter library, and governance.
+
+**Skill Registry (FR-SK1–7):**
+
+| FR ID | Requirement |
+|---|---|
+| **FR-SK1** | System shall maintain a centralized skill registry storing metadata (name, description, version, agent_id, risk_level, tags) |
+| **FR-SK2** | System shall expose REST API for skill CRUD operations with tenant-scoped access control |
+| **FR-SK3** | System shall support skill discovery by agent_id, returning only skills mapped to the requesting agent |
+| **FR-SK4** | System shall enforce semantic versioning (major.minor.patch) for all skills |
+| **FR-SK5** | System shall support skill deprecation with 30-day notice period and migration guidance |
+| **FR-SK6** | System shall prevent skill deletion when active references exist |
+| **FR-SK7** | System shall support skill tagging for RAG pre-fetching optimization |
+
+**Skill Proxy & Execution (FR-SK8–14):**
+
+| FR ID | Requirement |
+|---|---|
+| **FR-SK8** | System shall execute custom skills via LLM provider's skill execution API, supporting up to 8 skills per request |
+| **FR-SK9** | System shall translate QUALISYS agent context (ProjectContext, tenant_id, RAG results) into Claude API format |
+| **FR-SK10** | System shall handle skill execution timeouts (configurable, default 120s) with graceful degradation |
+| **FR-SK11** | System shall implement retry logic with exponential backoff for transient Claude API failures |
+| **FR-SK12** | System shall route skill execution through tenant-scoped resource limits (max concurrent skills per tenant) |
+| **FR-SK13** | System shall support skill fallback — if skill execution fails, agent falls back to full-context mode |
+| **FR-SK14** | System shall log all skill executions with skill_id, agent_id, tenant_id, tokens_used, execution_time_ms, status |
+
+**Skill Adapter Library (FR-SK15–18):**
+
+| FR ID | Requirement |
+|---|---|
+| **FR-SK15** | Library shall provide a skill adapter component compatible with the AgentOrchestrator interface |
+| **FR-SK16** | Library shall translate LangChain context objects to Claude API skill invocation format |
+| **FR-SK17** | Library shall translate Claude API skill responses back to LangChain-compatible format |
+| **FR-SK18** | Library shall support skill chaining — output of Skill A available as input to Skill B within same invocation |
+
+**Governance & Approvals (FR-SK19–23):**
+
+| FR ID | Requirement |
+|---|---|
+| **FR-SK19** | System shall classify skills by risk level: low (auto-approved), medium (QA-Automation approval), high (Architect/DBA approval) |
+| **FR-SK20** | System shall require deployment approval for new skills and major version updates |
+| **FR-SK21** | System shall require pre-execution approval for high-risk skills (e.g., DatabaseConsultant schema validation) |
+| **FR-SK22** | System shall integrate skill approvals into existing approval dashboard UI |
+| **FR-SK23** | System shall support skill execution approval exemptions for pre-approved skill+context combinations |
+
+**Orchestrator Integration (FR-SK24–28):**
+
+| FR ID | Requirement |
+|---|---|
+| **FR-SK24** | AgentOrchestrator shall discover available skills for the current agent before invocation |
+| **FR-SK25** | AgentOrchestrator shall select relevant skills based on task context (document type, agent stage, project domain) |
+| **FR-SK26** | AgentOrchestrator shall pass selected skill metadata in the agent's context initialization |
+| **FR-SK27** | AgentOrchestrator shall support mixed execution — some capabilities via skills, others via existing agent logic |
+| **FR-SK28** | AgentOrchestrator shall maintain backward compatibility — agents function identically with skills disabled |
+
+---
+---
+
+# Part V — Non-Functional Requirements
+
+> :gear: **Stakeholders:** Architect, Engineering Team, SRE/Platform, Security
+
+### NFR Quick Reference
+
+| Category | Key Targets |
+|---|---|
+| **Performance** | Test gen <5 min, Dashboard <3s, API P95 <500ms, LLM P95 <5s |
+| **Scalability** | 500 tenants, 25K users, 10K tests/day, 100+ concurrent runners |
+| **Security** | TLS 1.3, AES-256, OAuth 2.0 + SAML 2.0, MFA, RBAC at API level |
+| **Reliability** | 99.5% uptime (MVP), 99.9% (Growth), RPO <24h, RTO <4h |
+| **Integration** | RESTful OpenAPI 3.0, webhooks, JSON/CSV/PDF export |
+| **Observability** | OpenTelemetry tracing, Prometheus metrics, centralized logging (ELK) |
+
+---
+
+## 24. Performance
 
 **NFR-P1: Test Generation Speed**
 - Test artifact generation: <5 minutes for typical project (50-page PRD, 1000-file codebase)
@@ -665,7 +1040,7 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 - Vector search: <1 second for document similarity search (P95)
 - Concurrent agent executions: Support 10+ agents running simultaneously per tenant
 
-### Scalability
+## 25. Scalability
 
 **NFR-S1: User & Tenant Scale**
 - Support 500 tenants by first year
@@ -688,7 +1063,7 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 - Process code repositories up to 10,000 files
 - Crawl applications with up to 500 pages
 
-### Security
+## 26. Security
 
 **NFR-SEC1: Authentication & Authorization**
 - Password requirements: Min 12 characters, uppercase, lowercase, number, special character
@@ -721,7 +1096,7 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 - Data retention: Configurable policies (30/90/180/365 days)
 - Secure deletion: Cryptographic data wiping on account deletion
 
-### Reliability & Availability
+## 27. Reliability & Availability
 
 **NFR-R1: Uptime & SLA**
 - Target uptime: 99.5% (MVP), 99.9% (Growth phase)
@@ -744,7 +1119,7 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 - Business metrics: Test runs, agent executions, user signups
 - On-call alerting: PagerDuty for P0/P1 incidents
 
-### Integration & Interoperability
+## 28. Integration & Interoperability
 
 **NFR-INT1: API Design**
 - RESTful API with OpenAPI 3.0 specification
@@ -762,7 +1137,7 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 - Timeout handling: 30-second timeout for third-party API calls
 - Rate limit handling: Respect third-party rate limits with backoff
 
-### Observability
+## 29. Observability
 
 **NFR-OBS1: Logging**
 - Centralized logging: All application logs aggregated (ELK stack)
@@ -781,8 +1156,13 @@ The technical architecture is sophisticated: Python FastAPI backend with LangCha
 - Grafana dashboards for engineering team visibility
 
 ---
+---
 
-## References & Source Documents
+# Part VI — References
+
+---
+
+## 30. References & Source Documents
 
 This PRD was developed based on comprehensive discovery and strategic planning documented in the following source materials:
 
@@ -827,10 +1207,35 @@ This PRD was developed based on comprehensive discovery and strategic planning d
 **Strategic Alignment:** This PRD integrates market validation data, competitive intelligence, user experience design, agent skills optimization, and custom agent extensibility into a cohesive product vision aligned with the strategic positioning of creating the "AI System Quality Assurance" category.
 
 ---
+---
 
-_This PRD captures the complete vision for QUALISYS - an **AI System Quality Assurance Platform** that transforms testing from a manual bottleneck into an intelligent, self-maintaining system through multi-agent AI and self-healing automation, creating a new category for comprehensive quality assurance in the AI era._
+<div align="center">
 
-_Created through collaborative discovery between Azfar and Product Manager (BMad Method PRD Workflow)._
+---
 
-_Next Steps: Architecture (technical design), Epic & Story Breakdown (implementation planning), Implementation (phased rollout)._
+**QUALISYS — AI System Quality Assurance Platform**
+
+*Product Requirements Document v3.0*
+
+This PRD captures the complete vision for QUALISYS — transforming testing from a manual bottleneck into an intelligent, self-maintaining system through multi-agent AI and self-healing automation, creating a new category for comprehensive quality assurance in the AI era.
+
+Created through collaborative discovery between **Azfar** and **Product Manager** (BMad Method PRD Workflow).
+
+---
+
+**Next Steps:**
+Architecture (technical design) | Epic & Story Breakdown (implementation planning) | Implementation (phased rollout)
+
+---
+
+| Metric | Count |
+|---|---|
+| Total Functional Requirements | **FR1–FR110** + **FR-CA1–9** + **FR-SK1–28** = **147 FRs** |
+| Non-Functional Requirement Groups | **6 groups** (Performance, Scalability, Security, Reliability, Integration, Observability) |
+| MVP AI Agents | **3** (BAConsultant, QAConsultant, AutomationConsultant) |
+| Post-MVP AI Agents | **4** (Log Reader, Security Scanner, Performance, DatabaseConsultant) |
+| MVP Integrations | **4** (JIRA, TestRail/Testworthy, GitHub, Slack) |
+| RBAC Roles | **6** (Owner/Admin, PM/CSM, QA-Manual, QA-Automation, Dev, Viewer) |
+
+</div>
 
