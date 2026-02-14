@@ -1,11 +1,77 @@
-# QUALISYS UX Design Specification
+<div align="center">
 
-_Created on 2025-12-02 by Azfar with Sally (UX Designer)_
-_Generated using BMad Method - Create UX Design Workflow v1.0_
+# QUALISYS
+
+### UX Design Specification
+
+**AI System Quality Assurance Platform**
 
 ---
 
-## Executive Summary
+| | |
+|---|---|
+| **Product** | QUALISYS — AI System Quality Assurance Platform |
+| **Document Type** | UX Design Specification |
+| **Version** | 1.0 |
+| **Date** | 2025-12-02 |
+| **Authors** | Azfar + Sally (UX Designer) |
+| **Status** | Complete — Informs Architecture & Implementation |
+| **Method** | BMad Method — Create UX Design Workflow v1.0 |
+
+</div>
+
+---
+
+> **Intended Audience & Stakeholder Guide**
+>
+> | Stakeholder | Primary Sections | Icon |
+> |---|---|---|
+> | **UX Designer** | Parts I–III (Design Foundation, User Flows, Component System) | :art: |
+> | **Frontend Engineer** | Parts I, III–IV (Visual Foundation, Components, Implementation) | :gear: |
+> | **Product Manager** | Parts I–II (Experience Principles, User Journey Flows) | :clipboard: |
+> | **QA / Test Lead** | Part II (Manual Testing Flow, Self-Healing Flow, Dashboards) | :white_check_mark: |
+> | **Architect / Tech Lead** | Parts III–IV (Component Strategy, Responsive, Implementation) | :building_construction: |
+> | **Executive / Leadership** | Part I (Executive Summary, Design Direction) | :dart: |
+
+---
+
+## Table of Contents
+
+### Part I — Design Foundation
+- [1. Executive Summary](#1-executive-summary)
+- [2. Design System Choice](#2-design-system-choice)
+- [3. Experience Principles](#3-experience-principles)
+- [4. Novel UX Patterns](#4-novel-ux-patterns)
+- [5. Visual Foundation](#5-visual-foundation)
+- [6. Design Direction](#6-design-direction)
+
+### Part II — User Journey Flows
+- [7. Flow 1: 5-Minute Value Onboarding](#7-flow-1-5-minute-value-onboarding)
+- [8. Flow 2: Agent Selection & Pipeline Creation](#8-flow-2-agent-selection--pipeline-creation)
+- [9. Flow 3: Manual Test Execution](#9-flow-3-manual-test-execution)
+- [10. Flow 4: Self-Healing Magic Workflow](#10-flow-4-self-healing-magic-workflow)
+- [11. Flow 5: Role-Based Dashboards](#11-flow-5-role-based-dashboards)
+- [12. Flow 6: Integration Setup & Management](#12-flow-6-integration-setup--management)
+
+### Part III — Component System
+- [13. Component Library](#13-component-library)
+- [14. UX Pattern Decisions](#14-ux-pattern-decisions)
+- [15. Responsive Design & Accessibility](#15-responsive-design--accessibility)
+
+### Part IV — Implementation
+- [16. Implementation Guidance](#16-implementation-guidance)
+- [17. Appendix & References](#17-appendix--references)
+
+---
+---
+
+# Part I — Design Foundation
+
+> :art: **Stakeholders:** UX Designer, Frontend Engineer, Product Manager, Executive
+
+---
+
+## 1. Executive Summary
 
 QUALISYS is an AI-Powered Testing Platform serving 6 distinct user personas (Owner/Admin, PM/CSM, QA-Manual, QA-Automation, Dev, Viewer) across the complete testing lifecycle. The UX must make AI trustworthy, respect role-based workflows, and deliver instant value. This specification defines 6 critical user flows, visual foundation, and component strategy for MVP implementation.
 
@@ -13,55 +79,45 @@ QUALISYS is an AI-Powered Testing Platform serving 6 distinct user personas (Own
 
 ---
 
-## 1. Design System Foundation
-
-### 1.1 Design System Choice
+## 2. Design System Choice
 
 **Selected: Tailwind CSS + shadcn/ui**
 
-**Rationale:**
-- Aligns with tech stack (Next.js + React + TypeScript)
-- Rapid development with pre-built accessible components
-- Enterprise-quality without rigidity
-- Easy customization for QUALISYS-specific needs (self-healing diff viewer, agent cards, test timelines)
+| Layer | Technology | Purpose |
+|---|---|---|
+| **Base** | Tailwind CSS utilities | Layout, spacing, responsive design |
+| **Components** | shadcn/ui | Button, Card, Dialog, Table, Forms — accessible, enterprise-quality |
+| **Custom** | QUALISYS components | AgentCard, SelfHealingDiffViewer, TestExecutionTimeline, CoverageHeatmap |
 
-**Implementation:**
-- Base: Tailwind utilities (layout, spacing, responsive)
-- Components: shadcn/ui foundation (Button, Card, Dialog, Table, Forms)
-- Custom: QUALISYS-specific components (AgentCard, SelfHealingDiffViewer, TestExecutionTimeline, CoverageHeatmap)
+**Rationale:**
+
+| Criterion | Why Tailwind + shadcn/ui |
+|---|---|
+| **Tech Stack Alignment** | Native to Next.js + React + TypeScript |
+| **Development Speed** | Pre-built accessible components, rapid iteration |
+| **Quality** | Enterprise-quality without rigidity |
+| **Customization** | Easy to build QUALISYS-specific components |
 
 ---
 
-## 2. Core User Experience
+## 3. Experience Principles
 
-### 2.1 Experience Principles
+| # | Principle | Key Behaviors |
+|---|---|---|
+| **1** | **Confidence Through Transparency** | AI actions explained ("How I created this"); Confidence scores everywhere (Red <60%, Yellow 60-80%, Green 80-100%); Human-in-the-loop for critical actions; Preview/diff before applying changes |
+| **2** | **Role-Optimized Workflows** | PM/CSM → Executive Dashboard; QA-Manual → Test Queue; QA-Automation → Agent Workspace; Dev → My Tests; Owner/Admin → Organization Overview; Viewer → Reports Gallery |
+| **3** | **Progressive Disclosure** | Onboarding wizard (5 steps); Layered interfaces (simple → complex on-demand); Contextual help |
+| **4** | **Real-Time Feedback** | Optimistic UI updates; Live progress indicators ("Analyzing... 23%"); Toast notifications (non-blocking, actionable); WebSocket-powered live dashboards |
 
-**1. Confidence Through Transparency**
-- AI actions explained ("How I created this")
-- Confidence scores everywhere (color-coded: Red <60%, Yellow 60-80%, Green 80-100%)
-- Human-in-the-loop for critical actions
-- Preview/diff before applying changes
+## 4. Novel UX Patterns
 
-**2. Role-Optimized Workflows**
-- PM/CSM → Executive Dashboard (project health, SLA)
-- QA-Manual → Test Queue (assigned tests)
-- QA-Automation → Agent Workspace (runs, approvals)
-- Dev → My Tests (PR-related tests)
-- Owner/Admin → Organization Overview (users, billing)
-- Viewer → Reports Gallery
-
-**3. Progressive Disclosure**
-- Onboarding wizard (5 steps)
-- Layered interfaces (simple → complex on-demand)
-- Contextual help
-
-**4. Real-Time Feedback**
-- Optimistic UI updates
-- Live progress indicators with status ("Analyzing... 23% complete")
-- Toast notifications (non-blocking, actionable, grouped)
-- WebSocket-powered live dashboards
-
-### 2.2 Novel UX Patterns
+| # | Pattern | Description | Key Interaction |
+|---|---|---|---|
+| **1** | **Agent Cards + Pipeline Builder** | Drag-and-drop canvas for creating AI agent workflows | Card selection → Pipeline canvas → Validation |
+| **2** | **Self-Healing Diff Viewer** | 3-column split: Before / AI Analysis / After | Screenshot comparison + confidence score + approve/reject |
+| **3** | **Manual Test Execution Interface** | Split-screen: Test Steps (60%) + Evidence Capture (40%) | Keyboard shortcuts + inline screenshot/video |
+| **4** | **Test Execution Timeline** | Horizontal swimlanes (Gantt-style) with live updates | Color-coded bars + click to expand logs |
+| **5** | **Coverage Heatmap** | Matrix: Requirements (rows) x Test Types (columns) | Color intensity = test count; red outline = missing |
 
 **Pattern 1: Agent Cards + Pipeline Builder**
 - Agent cards show: Icon, name, description, inputs/outputs, runtime estimate
@@ -100,20 +156,26 @@ QUALISYS is an AI-Powered Testing Platform serving 6 distinct user personas (Own
 
 ---
 
-## 3. Visual Foundation
+## 5. Visual Foundation
 
-### 3.1 Color System
+### 5.1 Color System
 
 **Primary Palette:**
-- **Primary (Brand):** Deep Blue `#1E40AF` - Trust, intelligence, professionalism
-- **Secondary:** Teal `#14B8A6` - Innovation, AI/automation signals
-- **Accent:** Purple `#7C3AED` - Premium features, advanced capabilities
+
+| Role | Color | Hex | Meaning |
+|---|---|---|---|
+| **Primary (Brand)** | Deep Blue | `#1E40AF` | Trust, intelligence, professionalism |
+| **Secondary** | Teal | `#14B8A6` | Innovation, AI/automation signals |
+| **Accent** | Purple | `#7C3AED` | Premium features, advanced capabilities |
 
 **Semantic Colors:**
-- **Success:** Green `#10B981` - Tests passed, healthy status
-- **Warning:** Amber `#F59E0B` - Medium confidence, needs attention
-- **Error:** Red `#EF4444` - Tests failed, critical issues
-- **Info:** Sky Blue `#0EA5E9` - Neutral information, help tooltips
+
+| Role | Color | Hex | Usage |
+|---|---|---|---|
+| **Success** | Green | `#10B981` | Tests passed, healthy status |
+| **Warning** | Amber | `#F59E0B` | Medium confidence, needs attention |
+| **Error** | Red | `#EF4444` | Tests failed, critical issues |
+| **Info** | Sky Blue | `#0EA5E9` | Neutral information, help tooltips |
 
 **Neutrals:**
 - **Text:** Gray-900 `#111827` (primary), Gray-600 `#4B5563` (secondary)
@@ -121,9 +183,12 @@ QUALISYS is an AI-Powered Testing Platform serving 6 distinct user personas (Own
 - **Borders:** Gray-200 `#E5E7EB` (default), Gray-300 `#D1D5DB` (emphasized)
 
 **Confidence Score Gradient:**
-- 0-59%: Red `#EF4444` → "Low confidence, manual review recommended"
-- 60-79%: Amber `#F59E0B` → "Medium confidence, review suggested"
-- 80-100%: Green `#10B981` → "High confidence, safe to apply"
+
+| Range | Color | Hex | Meaning |
+|---|---|---|---|
+| **0–59%** | Red | `#EF4444` | Low confidence — manual review recommended |
+| **60–79%** | Amber | `#F59E0B` | Medium confidence — review suggested |
+| **80–100%** | Green | `#10B981` | High confidence — safe to apply |
 
 **Typography:**
 - **Headings:** Inter, 600-700 weight (modern, clean, readable)
@@ -138,9 +203,7 @@ QUALISYS is an AI-Powered Testing Platform serving 6 distinct user personas (Own
 
 ---
 
-## 4. Design Direction
-
-### 4.1 Chosen Approach
+## 6. Design Direction
 
 **Direction: "Intelligent Dashboard"**
 
@@ -159,11 +222,36 @@ QUALISYS is an AI-Powered Testing Platform serving 6 distinct user personas (Own
 
 ---
 
-## 5. User Journey Flows (6 Critical Flows)
+---
+---
 
-### Flow 1: 5-Minute Value Onboarding
+# Part II — User Journey Flows
+
+> :clipboard: **Stakeholders:** Product Manager, UX Designer, QA Lead, Frontend Engineer
+
+> **6 critical user flows** define the complete QUALISYS interaction model across all personas.
+
+---
+
+## 7. Flow 1: 5-Minute Value Onboarding
 
 **Goal:** New user → Generated test suite in <5 minutes
+
+```mermaid
+graph LR
+    S1["Step 1<br/>Welcome +<br/>Project Creation"] --> S2["Step 2<br/>Document<br/>Upload"]
+    S2 --> S3["Step 3<br/>App<br/>Connection"]
+    S3 --> S4["Step 4<br/>Agent<br/>Selection"]
+    S4 --> S5["Step 5<br/>Watch the<br/>Magic"]
+    S5 --> S6["Step 6<br/>Results<br/>Wow Moment"]
+
+    style S1 fill:#3b82f6,color:#fff
+    style S2 fill:#3b82f6,color:#fff
+    style S3 fill:#3b82f6,color:#fff
+    style S4 fill:#8b5cf6,color:#fff
+    style S5 fill:#f97316,color:#fff
+    style S6 fill:#22c55e,color:#fff
+```
 
 **Steps:**
 
@@ -226,7 +314,7 @@ QUALISYS is an AI-Powered Testing Platform serving 6 distinct user personas (Own
 
 ---
 
-### Flow 2: Agent Selection & Pipeline Creation
+## 8. Flow 2: Agent Selection & Pipeline Creation
 
 **Goal:** User understands AI agents and creates custom workflows
 
@@ -315,7 +403,7 @@ Accessed via: "Advanced: Create Custom Pipeline" link
 
 ---
 
-### Flow 3: Manual Test Execution
+## 9. Flow 3: Manual Test Execution
 
 **Goal:** QA Manual tester executes checklist with evidence capture
 
@@ -403,9 +491,31 @@ When user clicks "Fail" on any step:
 
 ---
 
-### Flow 4: Self-Healing Magic Workflow
+## 10. Flow 4: Self-Healing Magic Workflow
 
 **Goal:** Automated test failed due to DOM change → AI proposes fix → User approves → Test heals
+
+```mermaid
+graph TB
+    FAIL["Test Run Completes<br/>12 of 127 Failed"] --> ANALYZE["System Analyzes<br/>Failure Causes"]
+    ANALYZE --> DOM["9 Failures = DOM Changes<br/>Self-Healing Candidates"]
+    ANALYZE --> BUG["3 Failures = Actual Bugs<br/>Manual Investigation"]
+    DOM --> HIGH["6 High Confidence<br/>> 85%"]
+    DOM --> MED["3 Medium Confidence<br/>70-85%"]
+    HIGH --> AUTO["Auto-Apply Fixes<br/>+ Notify User"]
+    MED --> REVIEW["Review in<br/>Diff Viewer"]
+    REVIEW --> APPROVE{Approved?}
+    APPROVE -->|Yes| APPLY["Apply Fix<br/>Re-Run Test"]
+    APPROVE -->|No| MANUAL["Flag for<br/>Manual Fix"]
+    AUTO --> AUDIT["Audit Trail<br/>24h Undo Window"]
+    APPLY --> AUDIT
+
+    style HIGH fill:#22c55e,color:#fff
+    style MED fill:#eab308,color:#000
+    style BUG fill:#ef4444,color:#fff
+    style AUTO fill:#22c55e,color:#fff
+    style AUDIT fill:#3b82f6,color:#fff
+```
 
 **Trigger:**
 - Automated test run completes
@@ -539,7 +649,7 @@ If user clicks "Apply to Similar Cases":
 
 ---
 
-### Flow 5: Role-Based Dashboards
+## 11. Flow 5: Role-Based Dashboards
 
 **Goal:** Each persona sees relevant metrics and actions
 
@@ -695,7 +805,7 @@ If user clicks "Apply to Similar Cases":
 
 ---
 
-### Flow 6: Integration Setup & Management
+## 12. Flow 6: Integration Setup & Management
 
 **Goal:** Connect JIRA, TestRail, Testworthy, GitHub, Slack
 
@@ -885,9 +995,16 @@ Failed: User Login, Checkout Flow, Search
 
 ---
 
-## 6. Component Library
+---
+---
 
-### 6.1 Component Strategy
+# Part III — Component System
+
+> :gear: **Stakeholders:** Frontend Engineer, UX Designer, Architect
+
+---
+
+## 13. Component Library
 
 **Core Components (shadcn/ui):**
 - Button (Primary, Secondary, Destructive, Ghost)
@@ -905,45 +1022,18 @@ Failed: User Login, Checkout Flow, Search
 
 **Custom QUALISYS Components:**
 
-1. **AgentCard**
-   - Props: icon, name, description, inputs, outputs, runtime, selected, onToggle
-   - Variants: Grid view, List view
-
-2. **TestExecutionTimeline**
-   - Props: tests (array), status, duration, onTestClick
-   - Horizontal swimlanes with colored bars
-
-3. **SelfHealingDiffViewer**
-   - Props: beforeScreenshot, afterScreenshot, oldSelector, newSelector, confidence, rationale
-   - Three-column layout with comparison
-
-4. **CoverageHeatmap**
-   - Props: requirements (rows), testTypes (columns), data (matrix)
-   - Interactive cells with hover/click
-
-5. **TestStepChecklist**
-   - Props: steps (array), currentStep, onStepAction (pass/fail/skip)
-   - Inline evidence capture
-
-6. **EvidenceGallery**
-   - Props: screenshots (array), videos, notes
-   - Thumbnail grid with lightbox expansion
-
-7. **ConfidenceScoreCircle**
-   - Props: score (0-100), size, showLabel
-   - Color-coded circular progress (red/yellow/green)
-
-8. **StatusBadge**
-   - Props: status (passed/failed/running/skipped), size
-   - Color-coded badge with icon
-
-9. **IntegrationCard**
-   - Props: name, logo, connected, url, onConfigure
-   - Status indicator + configuration button
-
-10. **MetricCard**
-    - Props: title, value, change (percentage), trend (up/down), color
-    - Dashboard widget for KPIs
+| # | Component | Props | Description |
+|---|---|---|---|
+| **1** | `AgentCard` | icon, name, description, inputs, outputs, runtime, selected, onToggle | AI agent selection card with grid/list variants |
+| **2** | `TestExecutionTimeline` | tests, status, duration, onTestClick | Horizontal swimlanes with colored status bars |
+| **3** | `SelfHealingDiffViewer` | beforeScreenshot, afterScreenshot, oldSelector, newSelector, confidence, rationale | Three-column comparison layout |
+| **4** | `CoverageHeatmap` | requirements, testTypes, data | Interactive matrix with hover/click drill-down |
+| **5** | `TestStepChecklist` | steps, currentStep, onStepAction | Inline evidence capture per step |
+| **6** | `EvidenceGallery` | screenshots, videos, notes | Thumbnail grid with lightbox expansion |
+| **7** | `ConfidenceScoreCircle` | score, size, showLabel | Color-coded circular progress (red/yellow/green) |
+| **8** | `StatusBadge` | status, size | Color-coded badge with icon (passed/failed/running/skipped) |
+| **9** | `IntegrationCard` | name, logo, connected, url, onConfigure | Status indicator + configuration button |
+| **10** | `MetricCard` | title, value, change, trend, color | Dashboard widget for KPIs |
 
 **Component Documentation:**
 - Storybook for component library
@@ -953,9 +1043,7 @@ Failed: User Login, Checkout Flow, Search
 
 ---
 
-## 7. UX Pattern Decisions
-
-### 7.1 Consistency Rules
+## 14. UX Pattern Decisions
 
 **Navigation:**
 - Top nav: Global (projects, search, notifications, user menu)
@@ -1003,9 +1091,9 @@ Failed: User Login, Checkout Flow, Search
 
 ---
 
-## 8. Responsive Design & Accessibility
+## 15. Responsive Design & Accessibility
 
-### 8.1 Responsive Strategy
+### 15.1 Responsive Strategy
 
 **Mobile (< 640px):**
 - Single column layout
@@ -1040,7 +1128,7 @@ Failed: User Login, Checkout Flow, Search
 - Responsive images (`srcset` for different resolutions)
 - Video controls accessible (play/pause, volume, captions)
 
-### 8.2 Accessibility (WCAG 2.1 AA)
+### 15.2 Accessibility (WCAG 2.1 AA)
 
 **Color Contrast:**
 - Text: Minimum 4.5:1 (normal text), 3:1 (large text)
@@ -1079,9 +1167,16 @@ Failed: User Login, Checkout Flow, Search
 
 ---
 
-## 9. Implementation Guidance
+---
+---
 
-### 9.1 Completion Summary
+# Part IV — Implementation
+
+> :building_construction: **Stakeholders:** Frontend Engineer, Architect, Product Manager
+
+---
+
+## 16. Implementation Guidance
 
 **UX Design Specification Complete: 6 Critical Flows Designed**
 
@@ -1154,7 +1249,7 @@ Failed: User Login, Checkout Flow, Search
 
 ---
 
-## Appendix
+## 17. Appendix & References
 
 ### Related Documents
 
@@ -1186,7 +1281,31 @@ Failed: User Login, Checkout Flow, Search
 | 2025-12-02 | 1.0     | Complete UX Design Specification (6 flows, design system, component library, responsive/accessibility) | Azfar + Sally |
 
 ---
+---
 
-_This UX Design Specification was created through collaborative design facilitation with Sally (UX Designer). All flows, patterns, and design decisions are based on the aligned PRD, technical documentation, and user needs for 6 distinct personas. The design balances enterprise B2B professionalism with approachable AI-powered innovation, making complex testing workflows feel intuitive and empowering._
+<div align="center">
 
-_Next workflow: Architecture (define technical implementation) → Epic & Story Breakdown (implementation planning) → Implementation (build the product)._
+---
+
+**QUALISYS — AI System Quality Assurance Platform**
+
+*UX Design Specification v1.0*
+
+Created through collaborative design facilitation with **Sally (UX Designer)** using the BMad Method.
+
+**Completed:** 2025-12-02 | **Authors:** Azfar + Sally
+
+---
+
+| Dimension | Summary |
+|---|---|
+| **Personas** | 6 (Owner/Admin, PM/CSM, QA-Manual, QA-Automation, Dev, Viewer) |
+| **Critical Flows** | 6 (Onboarding, Agent Selection, Manual Testing, Self-Healing, Dashboards, Integrations) |
+| **Custom Components** | 10 QUALISYS-specific + shadcn/ui foundation |
+| **Novel UX Patterns** | 5 (Agent Cards, Diff Viewer, Test Execution, Timeline, Heatmap) |
+| **Design System** | Tailwind CSS + shadcn/ui + Inter + JetBrains Mono |
+| **Accessibility** | WCAG 2.1 AA compliant |
+
+**Next Steps:** Architecture (technical design) | Epic & Story Breakdown | Implementation (phased rollout)
+
+</div>
