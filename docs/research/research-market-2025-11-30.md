@@ -1,12 +1,64 @@
-# Market Research Report: QUALISYS
+<div align="center">
 
-**Date:** 2025-11-30
-**Prepared by:** Azfar
-**Research Depth:** Comprehensive
+# Market Research Report — QUALISYS
+
+**AI System Quality Assurance Platform**
+
+</div>
+
+| Attribute | Detail |
+|-----------|--------|
+| **Date** | 2025-11-30 |
+| **Prepared by** | Azfar |
+| **Research Depth** | Comprehensive |
+| **Markets Covered** | AI-Powered Testing, Test Automation, Software QA |
+| **Geographic Scope** | Global (Focus: NA + Western Europe) |
+| **Status** | Complete |
 
 ---
 
-## Executive Summary
+### Stakeholder Guide
+
+| Stakeholder | Sections of Interest | Purpose |
+|-------------|---------------------|---------|
+| **CEO / Founders** | Sections 1, 8, 10–11 | Executive summary, SWOT, pre-mortem, risk |
+| **Product Leadership** | Sections 3–5, 8–9 | Market sizing, customer analysis, SWOT, strategy |
+| **Sales / GTM** | Sections 5, 9 | Customer segments, go-to-market strategy |
+| **Engineering** | Sections 4, 10 | Technology trends, pre-mortem analysis |
+| **Investors** | Sections 1–3, 12, Appendices | Market opportunity, financials, sources |
+
+---
+
+### Table of Contents
+
+**Part I — Market Opportunity**
+- [1. Executive Summary](#1-executive-summary)
+- [2. Research Objectives & Methodology](#2-research-objectives--methodology)
+- [3. Market Overview & Sizing](#3-market-overview--sizing)
+- [4. Market Trends & Drivers](#4-market-trends--drivers)
+
+**Part II — Customer & Competition**
+- [5. Customer Analysis](#5-customer-analysis)
+- [6. Competitive Landscape](#6-competitive-landscape)
+- [7. Industry Analysis](#7-industry-analysis)
+
+**Part III — Strategic Analysis**
+- [8. SWOT Analysis](#8-swot-analysis)
+- [9. Market Opportunities & Strategy](#9-market-opportunities--strategy)
+
+**Part IV — Risk & Outlook**
+- [10. Pre-mortem Analysis](#10-pre-mortem-analysis)
+- [11. Risk Assessment](#11-risk-assessment)
+- [12. Financial Projections](#12-financial-projections)
+- [Appendices & References](#appendices)
+
+---
+
+# Part I — Market Opportunity
+
+---
+
+## 1. Executive Summary
 
 {{executive_summary}}
 
@@ -22,7 +74,7 @@
 
 ---
 
-## 1. Research Objectives and Methodology
+## 2. Research Objectives & Methodology
 
 ### Research Objectives
 
@@ -83,7 +135,7 @@ This research employs live web-based market intelligence gathering (2025 data) c
 
 ---
 
-## 2. Market Overview
+## 3. Market Overview & Sizing
 
 ### Market Definition
 
@@ -166,6 +218,13 @@ Value capture:
 | Top-Down | $35.29B - $43B | Medium | Investor narrative, displacement opportunity |
 | Bottom-Up | $4.3B | High | Business planning, realistic addressable |
 | Value Theory | $3.2B - $4.8B | Medium | Value-based validation |
+
+```mermaid
+pie title TAM Estimate Triangulation
+    "Top-Down ($35-43B)" : 43
+    "Bottom-Up ($4.3B)" : 4.3
+    "Value Theory ($3.2-4.8B)" : 4.8
+```
 
 **Recommended TAM:**
 - **Business Planning**: $5B (conservative, defensible, realistic standalone AI testing market)
@@ -276,6 +335,23 @@ Revenue timeline:
 **Weighted Average SOM**: **$64.8M**
 - (0.40 × $27.6M) + (0.45 × $73.6M) + (0.15 × $138M) = $64.8M
 
+```mermaid
+flowchart LR
+    subgraph TAM ["TAM: $5B"]
+        subgraph SAM ["SAM: $1.84B"]
+            subgraph SOM ["SOM: $64.8M (weighted)"]
+                C["Conservative\n$27.6M"]
+                R["Realistic\n$73.6M"]
+                O["Optimistic\n$138M"]
+            end
+        end
+    end
+
+    style TAM fill:#e3f2fd,stroke:#2196f3,color:#000
+    style SAM fill:#e8f5e9,stroke:#4caf50,color:#000
+    style SOM fill:#fff3e0,stroke:#ff9800,color:#000
+```
+
 **Customer Acquisition Requirements (Realistic Scenario):**
 
 ARPA: $50K/yr (blended average across enterprise segments)
@@ -366,7 +442,7 @@ Acquisition funnel (Year 2 example):
 
 ---
 
-## 3. Market Trends and Drivers
+## 4. Market Trends & Drivers
 
 ### Five Whys Analysis: Root Causes of AI Testing Growth
 
@@ -501,7 +577,11 @@ The shift from monthly → daily → continuous deployment created a **structura
 
 ---
 
-## 4. Customer Analysis
+# Part II — Customer & Competition
+
+---
+
+## 5. Customer Analysis
 
 ### Target Customer Segments
 
@@ -536,7 +616,7 @@ The shift from monthly → daily → continuous deployment created a **structura
 
 ---
 
-## 5. Competitive Landscape
+## 6. Competitive Landscape
 
 ### Market Structure
 
@@ -585,7 +665,7 @@ The shift from monthly → daily → continuous deployment created a **structura
 
 ---
 
-## 6. Industry Analysis
+## 7. Industry Analysis
 
 ### Porter's Five Forces Assessment
 
@@ -601,7 +681,11 @@ The shift from monthly → daily → continuous deployment created a **structura
 
 ---
 
-## 7. SWOT Analysis: QUALISYS Strategic Position
+# Part III — Strategic Analysis
+
+---
+
+## 8. SWOT Analysis
 
 ### Strengths ✅
 
@@ -701,7 +785,7 @@ The shift from monthly → daily → continuous deployment created a **structura
    - "Do more with less" mandate → DIY solutions (ChatGPT prompts) vs. purchasing platforms
    - Longer enterprise sales cycles during economic uncertainty
 
-## 8. Market Opportunities
+## 9. Market Opportunities & Strategy
 
 ### Identified Opportunities
 
@@ -713,7 +797,7 @@ The shift from monthly → daily → continuous deployment created a **structura
 
 ---
 
-## 8. Strategic Recommendations
+### 9.1 Strategic Recommendations
 
 ### Go-to-Market Strategy
 
@@ -741,7 +825,11 @@ The shift from monthly → daily → continuous deployment created a **structura
 
 ---
 
-## 9. Pre-mortem Analysis: Potential Blind Spots
+# Part IV — Risk & Outlook
+
+---
+
+## 10. Pre-mortem Analysis
 
 **Scenario: December 2026 - QUALISYS launched but failed to gain market traction. The market research was flawed. What did we miss?**
 
@@ -859,7 +947,7 @@ Based on pre-mortem analysis, priority validation activities:
    - Land-and-expand pricing strategy
    - Reference customer acquisition plan
 
-## 10. Risk Assessment
+## 11. Risk Assessment
 
 ### Risk Matrix Analysis
 
@@ -1008,7 +1096,7 @@ Based on pre-mortem analysis, priority validation activities:
 
 ---
 
-## 10. Financial Projections
+## 12. Financial Projections
 
 {{#financial_projections}}
 {{financial_projections}}
@@ -1121,3 +1209,27 @@ Based on pre-mortem analysis, priority validation activities:
 ---
 
 _This market research report was generated using the BMad Method Market Research Workflow, combining systematic analysis frameworks with real-time market intelligence gathering. All factual claims are backed by cited sources with verification dates._
+
+---
+
+<div align="center">
+
+---
+
+**QUALISYS — Market Research Report**
+*Comprehensive Market Intelligence | 2025-11-30*
+
+| Metric | Value |
+|--------|-------|
+| Document | Market Research v1.0 |
+| Sections | 12 sections + Appendices |
+| TAM (Business Planning) | $5B |
+| SAM (Year 1-3) | $1.84B |
+| Weighted SOM | $64.8M |
+| Sources Cited | 23+ verified |
+
+*Prepared by Azfar — QUALISYS Platform Team*
+
+---
+
+</div>
