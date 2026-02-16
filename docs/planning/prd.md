@@ -187,6 +187,7 @@ graph TB
     end
 
     subgraph "Outputs"
+        STORIES["User Stories<br/>Test-Ready · Quality-Scored"]
         COV["Coverage Matrix<br/>& Gap Analysis"]
         MANUAL["Manual Checklists<br/>BDD / Gherkin"]
         SCRIPTS["Playwright Scripts<br/>POM Framework"]
@@ -196,7 +197,8 @@ graph TB
     CODE --> BA & AUTO
     APP --> AUTO
 
-    BA -->|Requirements + Gaps| QA
+    BA -->|User Stories + Gaps| QA
+    BA --> STORIES
     BA --> COV
     QA -->|Test Cases| AUTO
     QA --> MANUAL
@@ -209,6 +211,7 @@ graph TB
     style BA fill:#3b82f6,color:#fff
     style QA fill:#22c55e,color:#fff
     style AUTO fill:#8b5cf6,color:#fff
+    style STORIES fill:#93c5fd,color:#000
     style HEAL fill:#eab308,color:#000
     style EXEC fill:#06b6d4,color:#fff
     style DASH fill:#f97316,color:#fff

@@ -101,6 +101,49 @@ From ingesting requirements documents and generating test artifacts, to executin
 </tr>
 </table>
 
+#### How It All Connects
+
+```mermaid
+flowchart LR
+    subgraph INPUT ["Input Sources"]
+        PRD["PRD / SRS"]
+        CODE["GitHub Repo"]
+        APP["App URL"]
+    end
+
+    subgraph AGENTS ["AI Agent Pipeline"]
+        BA["BAConsultant"]
+        QA["QAConsultant"]
+        AUTO["AutomationConsultant"]
+    end
+
+    subgraph OUTPUT ["Outputs"]
+        US["User Stories"]
+        COV["Coverage Matrix"]
+        TC["Test Cases<br/>BDD / Gherkin"]
+        PW["Playwright Scripts"]
+    end
+
+    PRD & CODE --> BA
+    APP & CODE --> AUTO
+    BA -->|"Stories + Gaps"| QA
+    BA --> US & COV
+    QA -->|"Test Cases"| AUTO
+    QA --> TC
+    AUTO --> PW
+
+    PW --> HEAL["Self-Healing<br/>Engine"]
+    HEAL --> EXEC["Test Runner<br/>Containerized"]
+    EXEC --> DASH["Dashboards<br/>Role-Based"]
+
+    style BA fill:#3b82f6,color:#fff
+    style QA fill:#22c55e,color:#fff
+    style AUTO fill:#8b5cf6,color:#fff
+    style HEAL fill:#eab308,color:#000
+    style EXEC fill:#06b6d4,color:#fff
+    style DASH fill:#f97316,color:#fff
+```
+
 ---
 
 ### Core AI Agents (MVP)
@@ -178,20 +221,30 @@ QUALISYS ingests diverse input sources and creates a unified knowledge base for 
 
 ### Self-Healing Test Automation Engine
 
-```
-Test Failure Detected
-    |
-    +-- Try Primary Selector (CSS)        --> Success --> Continue
-    +-- Try Fallback 1 (XPath)            --> Success --> Propose Fix (Confidence Score)
-    +-- Try Fallback 2 (Text Anchor)      --> Success --> Propose Fix (Confidence Score)
-    +-- Try Fallback 3 (ARIA Label)       --> Success --> Propose Fix (Confidence Score)
-    +-- Try Fallback 4 (Visual Anchor)    --> Success --> Propose Fix (Confidence Score)
-    +-- All Failed --> Root Cause Analysis --> Human Investigation
-    |
-    Confidence Score Assigned (0-100%)
-    |
-    +-- Staging: Auto-approve if >= 85% confidence
-    +-- Production: ALWAYS require human approval
+```mermaid
+flowchart TD
+    FAIL["Test Failure<br/>Detected"] --> CSS["Try Primary Selector<br/>(CSS)"]
+    CSS -->|"Success"| CONT["Continue<br/>Execution"]
+    CSS -->|"Fail"| XPATH["Try Fallback 1<br/>(XPath)"]
+    XPATH -->|"Success"| FIX1["Propose Fix"]
+    XPATH -->|"Fail"| TEXT["Try Fallback 2<br/>(Text Anchor)"]
+    TEXT -->|"Success"| FIX2["Propose Fix"]
+    TEXT -->|"Fail"| ARIA["Try Fallback 3<br/>(ARIA Label)"]
+    ARIA -->|"Success"| FIX3["Propose Fix"]
+    ARIA -->|"Fail"| VIS["Try Fallback 4<br/>(Visual Anchor)"]
+    VIS -->|"Success"| FIX4["Propose Fix"]
+    VIS -->|"All Failed"| RCA["Root Cause Analysis<br/>→ Human Investigation"]
+
+    FIX1 & FIX2 & FIX3 & FIX4 --> SCORE{"Confidence<br/>Score 0-100%"}
+    SCORE -->|"≥ 85%<br/>Staging"| AUTO_AP["Auto-Approve"]
+    SCORE -->|"Production<br/>Always"| HUMAN["Human Approval<br/>Required"]
+
+    style FAIL fill:#ffebee,stroke:#f44336,color:#000
+    style CONT fill:#e8f5e9,stroke:#4caf50,color:#000
+    style AUTO_AP fill:#e8f5e9,stroke:#4caf50,color:#000
+    style HUMAN fill:#fff3e0,stroke:#ff9800,color:#000
+    style RCA fill:#ffebee,stroke:#f44336,color:#000
+    style SCORE fill:#e3f2fd,stroke:#2196f3,color:#000
 ```
 
 | Metric | Value |
@@ -350,6 +403,52 @@ Test Failure Detected
 
 ### Stack Overview
 
+```mermaid
+flowchart TD
+    subgraph CLIENT ["Client Layer"]
+        WEB["React SPA<br/>Vite + TypeScript + Tailwind"]
+    end
+
+    subgraph API_LAYER ["API Layer"]
+        GW["FastAPI Gateway<br/>RBAC · Rate Limiting · SSE"]
+    end
+
+    subgraph AI ["AI Agent Layer"]
+        ORCH["Agent Orchestrator<br/>LangChain / Custom"]
+        BA["BAConsultant"] & QA["QAConsultant"] & AUT["AutomationConsultant"]
+        SKILL["Skill Proxy<br/>Progressive Disclosure"]
+    end
+
+    subgraph DATA ["Data Layer"]
+        PG["PostgreSQL 15+<br/>pgvector · Multi-Tenant"]
+        RD["Redis 7+<br/>Cache · Queues · Sessions"]
+        S3["S3 / Blob Storage<br/>Artifacts · Evidence"]
+    end
+
+    subgraph INFRA ["Infrastructure"]
+        K8S["Kubernetes (EKS / AKS)<br/>Terraform · Helm"]
+        PW["Playwright Containers<br/>Pre-warmed · Isolated"]
+        OBS["Observability<br/>Prometheus · Grafana · Loki"]
+    end
+
+    WEB --> GW
+    GW --> ORCH
+    ORCH --> BA & QA & AUT
+    ORCH --> SKILL
+    BA & QA & AUT --> PG
+    GW --> PG & RD & S3
+    K8S --> PW
+    K8S --> OBS
+
+    style WEB fill:#3b82f6,color:#fff
+    style GW fill:#22c55e,color:#fff
+    style ORCH fill:#8b5cf6,color:#fff
+    style PG fill:#f59e0b,color:#000
+    style RD fill:#ef4444,color:#fff
+    style K8S fill:#06b6d4,color:#fff
+    style SKILL fill:#ec4899,color:#fff
+```
+
 | Layer | Technology | Why This Choice |
 |-------|-----------|----------------|
 | **Frontend** | Vite + React 18 + TypeScript + Tailwind CSS + shadcn/ui | Modern, performant, component-driven UI with design system |
@@ -442,6 +541,25 @@ QUALISYS serves **6 distinct personas** with role-optimized interfaces:
 | **7** | Agent Skills Integration | 4-5 weeks | 21 skills across 7 agents, 40-60% token cost reduction, progressive disclosure model |
 
 **Total Platform Timeline:** 27-35 weeks (6.5-8.5 months)
+
+```mermaid
+gantt
+    title QUALISYS Platform Roadmap
+    dateFormat  YYYY-MM-DD
+    axisFormat  %b %Y
+
+    section MVP
+    Epic 0 — Infrastructure         :done, e0, 2026-01-06, 3w
+    Epic 1 — Foundation             :active, e1, after e0, 2w
+    Epic 2 — AI Agent Platform      :e2, after e1, 4w
+    Epic 3 — Manual Testing         :e3, after e2, 4w
+    Epic 4 — Self-Healing           :crit, e4, after e3, 5w
+    Epic 5 — Dashboards & Ecosystem :e5, after e4, 4w
+
+    section Post-MVP
+    Epic 6 — Advanced Agents        :e6, after e5, 11w
+    Epic 7 — Agent Skills           :e7, after e6, 5w
+```
 
 ### By The Numbers
 
