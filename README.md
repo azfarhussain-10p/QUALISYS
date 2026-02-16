@@ -405,18 +405,24 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    subgraph CLIENT ["Client Layer"]
-        WEB["React SPA<br/>Vite + TypeScript + Tailwind"]
+    subgraph CLIENT ["Frontend"]
+        WEB["React 18 SPA<br/>Vite · TypeScript · Tailwind · shadcn/ui"]
     end
 
-    subgraph API_LAYER ["API Layer"]
-        GW["FastAPI Gateway<br/>RBAC · Rate Limiting · SSE"]
+    subgraph BACKEND ["Backend"]
+        GW["FastAPI Gateway<br/>SQLAlchemy 2.x · RBAC · SSE"]
     end
 
-    subgraph AI ["AI Agent Layer"]
-        ORCH["Agent Orchestrator<br/>LangChain / Custom"]
+    subgraph AI ["AI Orchestration"]
+        ORCH["Agent Orchestrator<br/>LangChain (MVP) · Custom (Prod)"]
         BA["BAConsultant"] & QA["QAConsultant"] & AUT["AutomationConsultant"]
         SKILL["Skill Proxy<br/>Progressive Disclosure"]
+    end
+
+    subgraph LLM ["LLM Providers"]
+        GPT["OpenAI GPT-4<br/>(MVP)"]
+        CLAUDE["Claude API<br/>(Agent Skills)"]
+        VLLM["Self-Hosted vLLM<br/>(Post-MVP)"]
     end
 
     subgraph DATA ["Data Layer"]
@@ -425,27 +431,49 @@ flowchart TD
         S3["S3 / Blob Storage<br/>Artifacts · Evidence"]
     end
 
-    subgraph INFRA ["Infrastructure"]
-        K8S["Kubernetes (EKS / AKS)<br/>Terraform · Helm"]
-        PW["Playwright Containers<br/>Pre-warmed · Isolated"]
-        OBS["Observability<br/>Prometheus · Grafana · Loki"]
+    subgraph BROWSER ["Browser Automation"]
+        PW["Playwright<br/>Cross-Browser · Smart Locators"]
+        HEAL["Self-Healing Engine<br/>DOM Diff · Confidence Scoring"]
+    end
+
+    subgraph RUNTIME ["Container Runtime & Infrastructure"]
+        K8S["Kubernetes (EKS / AKS)<br/>Podman · HPA Autoscaling"]
+        IaC["Terraform · Helm<br/>GitHub Actions CI/CD"]
+    end
+
+    subgraph OBS_LAYER ["Observability"]
+        OTEL["OpenTelemetry<br/>+ LangFuse (LLM Tracing)"]
+        PROM["Prometheus · Grafana<br/>Loki · Alerting"]
     end
 
     WEB --> GW
     GW --> ORCH
     ORCH --> BA & QA & AUT
     ORCH --> SKILL
-    BA & QA & AUT --> PG
+    SKILL --> CLAUDE
+    BA & QA & AUT --> GPT & VLLM
     GW --> PG & RD & S3
-    K8S --> PW
-    K8S --> OBS
+    AUT --> PW
+    PW --> HEAL
+    K8S --> PW & GW & ORCH
+    IaC --> K8S
+    OTEL --> PROM
 
     style WEB fill:#3b82f6,color:#fff
     style GW fill:#22c55e,color:#fff
     style ORCH fill:#8b5cf6,color:#fff
+    style GPT fill:#10b981,color:#fff
+    style CLAUDE fill:#ec4899,color:#fff
+    style VLLM fill:#6366f1,color:#fff
     style PG fill:#f59e0b,color:#000
     style RD fill:#ef4444,color:#fff
+    style S3 fill:#f97316,color:#fff
+    style PW fill:#0ea5e9,color:#fff
+    style HEAL fill:#eab308,color:#000
     style K8S fill:#06b6d4,color:#fff
+    style IaC fill:#64748b,color:#fff
+    style OTEL fill:#a855f7,color:#fff
+    style PROM fill:#84cc16,color:#000
     style SKILL fill:#ec4899,color:#fff
 ```
 
