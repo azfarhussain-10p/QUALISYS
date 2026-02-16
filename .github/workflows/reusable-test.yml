@@ -83,7 +83,7 @@ jobs:
 
       - name: Setup Python
         if: inputs.test_type == 'integration' || inputs.test_type == 'e2e'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ inputs.python_version }}
           cache: "pip"
