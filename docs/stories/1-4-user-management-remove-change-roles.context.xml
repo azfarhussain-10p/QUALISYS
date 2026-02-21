@@ -1,0 +1,194 @@
+<story-context id="1-4-user-management-remove-change-roles" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>4</storyId>
+    <title>User Management (Remove, Change Roles)</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-02-17</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-4-user-management-remove-change-roles.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Owner/Admin</asA>
+    <iWant>remove users from my organization or change their roles</iWant>
+    <soThat>I can manage team access and ensure appropriate permissions as team composition evolves</soThat>
+    <tasks>
+      <task id="1" title="Database Schema Updates" acs="3,7">Add is_active, removed_at, removed_by columns to public.tenants_users; create index on (tenant_id, is_active); update existing queries; write rollback</task>
+      <task id="2" title="User Management Service" acs="2,3,5,6">Create UserManagementService with change_role(), remove_member(), get_active_members(), check_last_admin() methods</task>
+      <task id="3" title="Session/Access Invalidation on Removal" acs="5">Redis session invalidation for (user_id, tenant_id); middleware membership check; HTTP 403 for removed users</task>
+      <task id="4" title="FastAPI Endpoints" acs="1,2,3,6,8">GET members (paginated+search), PATCH role, DELETE member; validation, rate limiting (30 ops/org/hour), audit logging</task>
+      <task id="5" title="Email Notifications" acs="4">Role-changed and member-removed email templates; async delivery via existing email service</task>
+      <task id="6" title="React UI — Member Management" acs="1,2,3,6">Enhance active members list with search/pagination, inline role-change dropdown, remove button, confirmation dialogs, RBAC visibility, last-admin guard UI</task>
+      <task id="7" title="Testing" acs="all">Unit, integration, RBAC, session invalidation, re-invitation, rate limiting, audit trail, and frontend tests</task>
+      <task id="8" title="Security Review" acs="5,6,7">RBAC enforcement, self-action prevention, atomic last-admin guard, session invalidation verification, cross-tenant isolation, audit completeness</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1" title="Active Members List with Management Actions">Paginated member list (25/page) with search, action buttons for Owner/Admin only, read-only for others</ac>
+    <ac id="2" title="Change Role">Dropdown for all 6 roles, confirmation dialog, immediate effect, cannot change own role, last-admin guard</ac>
+    <ac id="3" title="Remove User (Soft Delete)">Confirmation dialog, soft delete via is_active flag + removed_at/removed_by, user account preserved, cannot remove self, last-admin guard</ac>
+    <ac id="4" title="Email Notifications">Role-changed email (org, old role, new role), member-removed email (org, access revoked), async via SendGrid/SES</ac>
+    <ac id="5" title="Access Revocation on Removal">Immediate session invalidation (Redis), HTTP 403 on API requests, other orgs unaffected, re-invitation possible</ac>
+    <ac id="6" title="Ownership Transfer Safety">Last Owner/Admin cannot be removed or role-changed, HTTP 409 Conflict response, UI disables action with tooltip</ac>
+    <ac id="7" title="Audit Trail">All management actions logged: role changed, user removed, blocked attempts; includes actor, target, old/new values, tenant</ac>
+    <ac id="8" title="Rate Limiting">30 ops/org/hour via Redis, HTTP 429 with Retry-After header</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/planning/prd.md" title="Product Requirements Document v3.0" section="User Account &amp; Access Management" snippet="FR8: Admins can remove users from organization. FR9: Admins can change user roles within organization. Owner/Admin has full platform access including user management." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="RBAC Permission Matrix" snippet="6 roles with permission boundaries: Owner/Admin, PM/CSM, QA-Manual, QA-Automation, Dev, Viewer. Owner/Admin can invite/remove users, assign roles." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="Multi-Tenancy Architecture" snippet="public.tenants (registry), public.tenants_users (membership), tenant_{slug} schemas. ContextVar-based DB routing." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="Authentication Architecture" snippet="JWT in httpOnly cookies, 7-day expiry, Redis for session storage, refresh token rotation." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Four-Pillar Multi-Tenancy" snippet="Schema-level tenant isolation with RLS defense-in-depth. public.tenants_users for cross-tenant membership. ContextVar routing middleware." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Security Threat Model" snippet="RBAC enforcement on all endpoints. Audit trails for administrative actions. Session invalidation on access revocation." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Third-Party Services" snippet="SendGrid or AWS SES for transactional emails. Redis 7+ for caching, sessions, and rate limiting." />
+      <doc path="docs/epics/epics.md" title="Epics &amp; Stories" section="Story 1.4" snippet="AC1: User list with roles. AC2: Remove User (soft delete, audit trail). AC3: Change Role dropdown. AC4: Email notification on removal/role change. FRs: FR8, FR9." />
+      <doc path="docs/stories/1-1-user-account-creation.md" title="Story 1.1" section="Full Story" snippet="Establishes user registration, email verification service (SendGrid/SES), password policy, rate limiting patterns, error handling conventions." />
+      <doc path="docs/stories/1-2-organization-creation-setup.md" title="Story 1.2" section="Full Story" snippet="Establishes public.tenants, public.tenants_users, TenantProvisioningService, tenant context middleware (ContextVar), RBAC decorators, org settings page." />
+      <doc path="docs/stories/1-3-team-member-invitation.md" title="Story 1.3" section="Full Story" snippet="Establishes Team Members tab in org settings, active members list, InvitationService, audit logging for invitation actions, Redis rate limiting (50 invites/org/hour), email templates." />
+    </docs>
+
+    <code>
+      <!-- Existing code artifacts -->
+      <artifact path="src/test-utils/tenant-isolation.ts" kind="test-utility" symbol="createTestTenant, cleanupTestTenant, setTenantContext, requireTenantContext" lines="1-302" reason="Tenant isolation patterns for integration tests. Contains TestTenant interface, SQL identifier validation, schema provisioning with RLS. Note: tenant schema users table already has is_active column." />
+      <artifact path="src/test-utils/tenant-fixtures.ts" kind="test-utility" symbol="useTenantIsolation, withTenantIsolation, TenantTestContext" lines="1-207" reason="Jest lifecycle hooks for tenant-scoped tests. Use useTenantIsolation() for describe-level fixtures in member management integration tests." />
+      <artifact path="src/test-utils/index.ts" kind="barrel-export" symbol="createTestTenant, cleanupTestTenant, setTenantContext, useTenantIsolation, withTenantIsolation" lines="1-5" reason="Barrel export for test utilities. Import from 'src/test-utils' in tests." />
+      <artifact path="tests/conftest.py" kind="pytest-fixtures" symbol="db_pool, test_tenant, tenant_connection, TENANT_TABLES_DDL, RLS_POLICY_DDL" lines="1-170" reason="Python pytest fixtures for async tenant isolation. Provides test_tenant (creates schema per test) and tenant_connection (with app.current_tenant set). Tenant schema users table has is_active column." />
+      <artifact path="scripts/init-local-db.sql" kind="database-init" symbol="tenant_dev_1, tenant_dev_2, public.organizations" lines="1-164" reason="Local dev DB initialization. Creates tenant schemas with base tables (users has is_active), RLS policies, and public.organizations registry. Shows existing schema pattern." />
+      <artifact path="scripts/dev-seed.ts" kind="seed-script" symbol="seedOrganization, seedUsers, seedProjects, DEV_TENANTS" lines="1-284" reason="Dev seed script creates sample orgs, users (with roles: admin, member, viewer), and projects. Shows existing data patterns and public.organizations structure." />
+
+      <!-- Planned code artifacts (to be created in this story) -->
+      <artifact path="src/services/user_management_service.py" kind="service" symbol="UserManagementService" reason="[PLANNED] Core service: change_role(), remove_member(), get_active_members(), check_last_admin(). Operates on public.tenants_users." />
+      <artifact path="src/api/v1/members/" kind="api-routes" symbol="GET /members, PATCH /members/{id}/role, DELETE /members/{id}" reason="[PLANNED] FastAPI routes for member management. Under org scope with RBAC enforcement." />
+      <artifact path="src/templates/email/role-changed.html" kind="email-template" symbol="role_changed_email" reason="[PLANNED] Notification email for role changes. Reuse email service from Story 1.1." />
+      <artifact path="src/templates/email/member-removed.html" kind="email-template" symbol="member_removed_email" reason="[PLANNED] Notification email for member removal. Reuse email service from Story 1.1." />
+      <artifact path="src/middleware/tenant_context.py" kind="middleware" symbol="TenantContextMiddleware" reason="[PLANNED by Story 1.2] Tenant context middleware using ContextVar. This story adds tenant membership check (is_active verification) to the middleware chain." />
+      <artifact path="src/middleware/rbac.py" kind="middleware" symbol="require_role" reason="[PLANNED by Story 1.2] RBAC decorator. This story uses @require_role('owner') for all management endpoints." />
+      <artifact path="src/pages/settings/team/" kind="react-component" symbol="TeamMembersTab, ActiveMembersList" reason="[PLANNED by Story 1.3] Team Members tab with active members list. This story enhances with role-change dropdown, remove button, confirmation dialogs, search, pagination." />
+    </code>
+
+    <dependencies>
+      <note>No package.json or pyproject.toml found in repo yet. Dependencies are specified in planning docs and will be established during Story 1.1/1.2 implementation.</note>
+      <planned-backend>
+        <dep name="Python" version="3.11+" />
+        <dep name="FastAPI" role="Web framework with async support" />
+        <dep name="SQLAlchemy" role="ORM for PostgreSQL" />
+        <dep name="Alembic" role="Database migrations" />
+        <dep name="asyncpg" role="Async PostgreSQL driver" />
+        <dep name="Redis" version="7+" role="Session storage, rate limiting, cache invalidation" />
+        <dep name="SendGrid/AWS SES" role="Transactional email delivery" />
+        <dep name="Pydantic" role="Request/response validation" />
+        <dep name="bcrypt" role="Password hashing (from Story 1.1)" />
+        <dep name="pytest" role="Testing framework with async support" />
+      </planned-backend>
+      <planned-frontend>
+        <dep name="React" version="18" />
+        <dep name="Vite" role="Build tool" />
+        <dep name="Tailwind CSS" role="Utility-first styling" />
+        <dep name="shadcn/ui" role="UI components (Dialog, Select, DropdownMenu, Button, Table, Input)" />
+        <dep name="Vitest" role="Frontend testing" />
+        <dep name="React Testing Library" role="Component testing" />
+      </planned-frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="1" category="multi-tenancy">Membership records in public.tenants_users (not tenant schema). Soft delete with is_active flag preserves referential integrity across tenants.</constraint>
+    <constraint id="2" category="rbac">Only Owner/Admin can change roles or remove members. Use @require_role('owner') decorator on all mutation endpoints. Server-side validation — UI-only checks are insufficient.</constraint>
+    <constraint id="3" category="self-action-prevention">Users cannot change their own role or remove themselves. Server-side check: actor_id != target_user_id. Prevents accidental self-demotion or self-removal.</constraint>
+    <constraint id="4" category="last-admin-guard">At least one Owner/Admin must remain in every organization. Use SELECT ... FOR UPDATE to prevent race conditions where two admins simultaneously change each other's roles.</constraint>
+    <constraint id="5" category="session-invalidation">On removal, immediately invalidate all Redis sessions for (user_id, tenant_id). Add middleware-level membership check (is_active=true) as defense-in-depth.</constraint>
+    <constraint id="6" category="security">Parameterized queries ONLY — no dynamic SQL. Sanitize all user input. TLS 1.3 in transit, AES-256 at rest.</constraint>
+    <constraint id="7" category="email">Emails sent asynchronously (non-blocking to API response). Reuse SendGrid/AWS SES infrastructure from Story 1.1/1.3. Mobile-responsive HTML templates.</constraint>
+    <constraint id="8" category="rate-limiting">30 management operations per org per hour (Redis-backed). Return HTTP 429 with Retry-After header. Reuse rate limiting pattern from Story 1.3.</constraint>
+    <constraint id="9" category="audit">All management actions logged with: timestamp, actor_id, target_user_id, action_type, tenant_id, metadata (old/new values). Include blocked attempts (last-admin guard).</constraint>
+    <constraint id="10" category="cross-tenant">Management actions scoped to current tenant only. Cannot remove/change roles for users in other organizations. Tenant context middleware enforces scope.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="GET /api/v1/orgs/{org_id}/members" kind="REST" signature="GET /api/v1/orgs/{org_id}/members?page=1&amp;per_page=25&amp;q=search_term → { members: [{id, email, full_name, role, joined_at}], total, page, per_page }" path="src/api/v1/members/" notes="RBAC: any authenticated member of the org. Returns only is_active=true members." />
+    <interface name="PATCH /api/v1/orgs/{org_id}/members/{user_id}/role" kind="REST" signature="PATCH /api/v1/orgs/{org_id}/members/{user_id}/role { role: string } → { id, email, full_name, role, updated_at }" path="src/api/v1/members/" notes="RBAC: Owner/Admin only. Validates: role in enum, not self, not last admin. Returns 409 if last admin." />
+    <interface name="DELETE /api/v1/orgs/{org_id}/members/{user_id}" kind="REST" signature="DELETE /api/v1/orgs/{org_id}/members/{user_id} → { message: 'Member removed', removed_at }" path="src/api/v1/members/" notes="RBAC: Owner/Admin only. Soft delete. Validates: not self, not last admin. Returns 409 if last admin. Triggers session invalidation." />
+    <interface name="UserManagementService.change_role()" kind="service-method" signature="async change_role(tenant_id: UUID, actor_id: UUID, target_user_id: UUID, new_role: str) → TenantUser" path="src/services/user_management_service.py" notes="Validates role enum, self-action, last-admin. Updates public.tenants_users.role. Sends notification email. Logs audit entry." />
+    <interface name="UserManagementService.remove_member()" kind="service-method" signature="async remove_member(tenant_id: UUID, actor_id: UUID, target_user_id: UUID) → None" path="src/services/user_management_service.py" notes="Soft delete: sets is_active=false, removed_at, removed_by. Invalidates Redis sessions. Sends notification email. Logs audit entry." />
+    <interface name="UserManagementService.get_active_members()" kind="service-method" signature="async get_active_members(tenant_id: UUID, page: int, per_page: int, search: str|None) → PaginatedResult[TenantUser]" path="src/services/user_management_service.py" notes="Paginated query on public.tenants_users WHERE is_active=true. Search by name/email ILIKE." />
+    <interface name="UserManagementService.check_last_admin()" kind="service-method" signature="async check_last_admin(tenant_id: UUID, exclude_user_id: UUID) → bool" path="src/services/user_management_service.py" notes="Returns true if excluding the user would leave zero Owner/Admin members. Uses SELECT ... FOR UPDATE for atomicity." />
+    <interface name="public.tenants_users schema" kind="database-table" signature="id UUID PK, tenant_id UUID FK, user_id UUID FK, role VARCHAR(30), is_active BOOLEAN DEFAULT true, removed_at TIMESTAMPTZ NULL, removed_by UUID FK NULL, joined_at TIMESTAMPTZ, created_at TIMESTAMPTZ" path="N/A (public schema)" notes="Existing table from Story 1.2. This story adds is_active, removed_at, removed_by columns via Alembic migration." />
+    <interface name="Redis session invalidation" kind="cache-operation" signature="DELETE sessions:{user_id}:{tenant_id}:*" path="src/services/user_management_service.py" notes="On member removal, delete all Redis session keys matching the user+tenant pattern. Pattern depends on session key structure from Story 1.5." />
+  </interfaces>
+
+  <tests>
+    <standards>Backend: Pytest with async test client (httpx.AsyncClient), PostgreSQL test database with per-test transaction rollback via conftest.py fixtures. Frontend: Vitest + React Testing Library. Coverage target: 80%+ for new code. Multi-tenant isolation: every test runs in its own tenant schema. Email sending mocked (verify template rendering and delivery calls). Rate limiting tested with Redis. Session invalidation tested end-to-end.</standards>
+    <locations>
+      <loc>tests/ (Python backend — pytest)</loc>
+      <loc>src/**/__tests__/ (Frontend — Vitest)</loc>
+      <loc>tests/integration/ (API integration tests)</loc>
+    </locations>
+    <ideas>
+      <group ac="1" title="Active Members List">
+        <idea>List returns only is_active=true members, excludes removed</idea>
+        <idea>Pagination: page 1 returns 25 members, page 2 returns remainder</idea>
+        <idea>Search by name (partial match, case-insensitive)</idea>
+        <idea>Search by email (partial match)</idea>
+        <idea>Non-member of org cannot list members (403)</idea>
+      </group>
+      <group ac="2" title="Change Role">
+        <idea>Valid role change: PM/CSM → QA-Manual updates immediately</idea>
+        <idea>Self-change blocked: actor tries to change own role → 403</idea>
+        <idea>Last admin guard: only Owner/Admin cannot have role changed → 409</idea>
+        <idea>Invalid role value → 422 validation error</idea>
+        <idea>Non-admin tries to change role → 403</idea>
+        <idea>Cross-tenant: cannot change role of user in different org</idea>
+      </group>
+      <group ac="3" title="Remove User (Soft Delete)">
+        <idea>Valid removal: sets is_active=false, removed_at populated, removed_by = actor</idea>
+        <idea>Self-removal blocked → 403</idea>
+        <idea>Last admin removal blocked → 409</idea>
+        <idea>Already-removed user → 404 or 409</idea>
+        <idea>Removed user not returned in members list</idea>
+        <idea>User's public.users account still exists after removal</idea>
+      </group>
+      <group ac="4" title="Email Notifications">
+        <idea>Role change sends email with old role, new role, org name</idea>
+        <idea>Removal sends email with org name, access revoked message</idea>
+        <idea>Email sending is async (does not block API response)</idea>
+        <idea>Email delivery failure logged but does not fail the API call</idea>
+      </group>
+      <group ac="5" title="Access Revocation">
+        <idea>Removed user's active session returns 403 on next API request</idea>
+        <idea>Removed user can still access other organizations</idea>
+        <idea>Removed user can be re-invited and gets fresh tenants_users record</idea>
+        <idea>Redis sessions for (user_id, tenant_id) are deleted on removal</idea>
+      </group>
+      <group ac="6" title="Ownership Transfer Safety">
+        <idea>Cannot remove last Owner/Admin → 409 with clear message</idea>
+        <idea>Cannot change last Owner/Admin role → 409</idea>
+        <idea>Race condition: two admins simultaneously demote each other (one must succeed, one must fail)</idea>
+        <idea>Org with 2 admins: removing one succeeds, second is protected</idea>
+      </group>
+      <group ac="7" title="Audit Trail">
+        <idea>Role change creates audit entry with actor, target, old_role, new_role</idea>
+        <idea>Removal creates audit entry with actor, target, tenant</idea>
+        <idea>Blocked last-admin attempt creates audit entry with blocked reason</idea>
+      </group>
+      <group ac="8" title="Rate Limiting">
+        <idea>31st operation in same hour returns 429 with Retry-After</idea>
+        <idea>Operations from different orgs have independent limits</idea>
+        <idea>Rate limit resets after time window</idea>
+      </group>
+      <group ac="frontend" title="Frontend Tests">
+        <idea>Members list renders with name, email, role badge, joined date</idea>
+        <idea>Role change dialog shows confirmation with old → new role</idea>
+        <idea>Remove dialog shows destructive warning</idea>
+        <idea>Own row has disabled action buttons</idea>
+        <idea>Last admin row shows tooltip explaining protection</idea>
+        <idea>Non-admin user sees read-only list (no action buttons)</idea>
+        <idea>Search input filters list</idea>
+        <idea>Pagination controls navigate pages</idea>
+      </group>
+    </ideas>
+  </tests>
+</story-context>

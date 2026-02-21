@@ -1,0 +1,230 @@
+<story-context id="1-5-login-session-management" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>5</storyId>
+    <title>Login &amp; Session Management</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-02-17</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-5-login-session-management.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>returning user</asA>
+    <iWant>log in securely with session persistence across devices</iWant>
+    <soThat>I can access my projects without repeatedly authenticating</soThat>
+    <tasks>
+      <task id="1" title="JWT &amp; Token Infrastructure" acs="3,4,5">RS256 key pair, TokenService (create/validate/rotate), access token (JWT 15min), refresh token (opaque Redis 7/30d), rotation with reuse detection, Remember me</task>
+      <task id="2" title="Authentication Service" acs="1,2,9">AuthService (login_with_password, login_with_google, logout, logout_all), bcrypt verification, Google OAuth callback with PKCE, account linking, account lockout</task>
+      <task id="3" title="FastAPI Auth Endpoints" acs="1,2,3,4,8,9">POST login, POST google, GET google/callback, POST refresh, POST logout, POST logout-all, GET sessions, DELETE sessions/{id}; httpOnly cookies, rate limiting, audit</task>
+      <task id="4" title="Auth Middleware Integration" acs="10">JWT extraction from cookie, RS256 validation, tenant context integration (tenant_id from JWT → ContextVar), membership check (is_active), expired/missing token handling, public endpoint exemptions</task>
+      <task id="5" title="Multi-Organization Session" acs="6">Query user orgs, single-org auto-select, multi-org selector, POST select-org, POST switch-org (new JWT with tenant_id)</task>
+      <task id="6" title="React Login UI" acs="1,2,5,6">Login page (email/password, Google OAuth, Remember me), form validation, error states, redirect after login, /select-org page, org switcher dropdown in header</task>
+      <task id="7" title="Session Management UI" acs="7,8">Active sessions list (device, last active, IP), revoke per session, Log Out All Devices, Log Out button in header, automatic token refresh interceptor</task>
+      <task id="8" title="Testing" acs="all">Unit (JWT, tokens, bcrypt, rate limiting), integration (login flows, OAuth, refresh rotation, logout, multi-org, rate limiting, middleware), security (forgery, cookies, enumeration), frontend tests</task>
+      <task id="9" title="Security Review" acs="3,4,9">RS256 key storage, opaque refresh token, httpOnly/Secure/SameSite cookies, no email enumeration, reuse detection, lockout bypass check, PKCE enforcement, audit completeness</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1" title="Email/Password Login Form">Login page with email/password, validation, POST /auth/login, redirect on success, generic error on failure (no email enumeration)</ac>
+    <ac id="2" title="Google OAuth Login">Sign in with Google button, OAuth 2.0 authorization code flow with PKCE, account linking for existing local users, redirect to signup if new user</ac>
+    <ac id="3" title="JWT Token Issuance">RS256-signed JWT access token (15min, user_id/email/tenant_id/role), opaque refresh token in Redis (7/30d), both in httpOnly Secure SameSite=Lax cookies</ac>
+    <ac id="4" title="Refresh Token Rotation">Auto-refresh on 401, new token pair issued, old token invalidated (single-use), reuse detection revokes ALL user sessions</ac>
+    <ac id="5" title="Remember Me Option">Checkbox extends refresh token to 30 days (vs 7-day default), stored in Redis metadata</ac>
+    <ac id="6" title="Multi-Organization Session">Org selector for multi-org users (/select-org), auto-select for single org, org switching in header without re-login, new JWT with tenant_id</ac>
+    <ac id="7" title="Session Persistence Across Devices">Per-device refresh tokens in Redis, independent sessions, active sessions list (device, last active, IP), individual session revocation, Log Out All Devices</ac>
+    <ac id="8" title="Logout">POST /auth/logout invalidates refresh token + clears cookies, POST /auth/logout-all invalidates ALL refresh tokens</ac>
+    <ac id="9" title="Login Rate Limiting &amp; Security">5 failed/email/15min → 429, 10 consecutive/email/hour → account lockout (email verify to unlock), audit all attempts (timestamp, email, IP, user_agent, result)</ac>
+    <ac id="10" title="Tenant Context After Login">Auth middleware extracts tenant_id from JWT, validates membership (is_active=true), sets ContextVar for RLS, 403 on invalid/missing tenant</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/planning/prd.md" title="Product Requirements Document v3.0" section="User Account &amp; Access Management" snippet="FR3: Users can log in securely with session persistence across devices. OAuth 2.0 for Google SSO." />
+      <doc path="docs/planning/prd.md" title="PRD v3.0" section="NFR-SEC1: Authentication &amp; Authorization" snippet="Password: min 12 chars, complexity rules. Session tokens: JWT with 7-day expiry, secure httpOnly cookies. MFA: TOTP. SSO: OAuth 2.0 (Google), SAML 2.0 (deferred). API auth: Bearer tokens with rate limiting." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="Session Management" snippet="JWT tokens (7-day expiry, httpOnly cookies), refresh token rotation for security, Redis for session storage and rate limiting, MFA (TOTP) challenge at login time." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="Authentication Flow (Mermaid)" snippet="User → Email/Password or Google SSO → Validate → MFA Check → If no MFA → Issue JWT → httpOnly Cookie 7-day expiry → Session (Redis) → Tenant Context → Application." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="RBAC Permission Matrix" snippet="6 roles: Owner/Admin, PM/CSM, QA-Manual, QA-Automation, Dev, Viewer. Role stored in JWT claims for middleware authorization." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="API Gateway — FastAPI" snippet="Auth Middleware (OAuth 2.0 / SAML 2.0 / MFA) → Tenant Context (Schema Routing) → Rate Limiter (Per-Tenant Quotas)." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Four-Pillar Multi-Tenancy" snippet="Incoming Request → JWT Extraction (tenant_id + role) → SET search_path tenant_xyz → Resource Quota → Token Meter → Circuit Breaker." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Security Threat Model" snippet="RBAC enforcement, audit trails, rate limiting on login, token security. Redis for caching (24h TTL for LLM responses, session management)." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Third-Party Services" snippet="OAuth 2.0 + SAML 2.0, Redis 7+ for sessions/caching/rate limiting, SendGrid/AWS SES for email." />
+      <doc path="docs/epics/epics.md" title="Epics &amp; Stories" section="Story 1.5" snippet="AC1: Login form (email/password). AC2: Google OAuth. AC3: JWT 7-day expiry. AC4: Remember me 30 days. AC5: Session persists across devices. FRs: FR3." />
+      <doc path="docs/stories/1-1-user-account-creation.md" title="Story 1.1" section="Full Story" snippet="Establishes public.users table, bcrypt password hashing, Google OAuth registration, email verification, rate limiting patterns, error handling conventions." />
+      <doc path="docs/stories/1-2-organization-creation-setup.md" title="Story 1.2" section="Full Story" snippet="Establishes public.tenants, public.tenants_users, TenantProvisioningService, ContextVar tenant context middleware, RBAC decorators, org settings." />
+      <doc path="docs/stories/1-3-team-member-invitation.md" title="Story 1.3" section="Full Story" snippet="Users may belong to multiple orgs via invitations. InvitationService, audit logging patterns, Redis rate limiting (50 invites/org/hour)." />
+      <doc path="docs/stories/1-4-user-management-remove-change-roles.md" title="Story 1.4" section="AC5: Access Revocation" snippet="Depends on this story's session key structure for Redis session invalidation on member removal. Middleware membership check (is_active=true) as defense-in-depth." />
+    </docs>
+
+    <code>
+      <!-- Existing code artifacts -->
+      <artifact path="src/test-utils/tenant-isolation.ts" kind="test-utility" symbol="createTestTenant, cleanupTestTenant, setTenantContext, requireTenantContext" lines="1-302" reason="Tenant isolation for integration tests. setTenantContext sets app.current_tenant — same pattern auth middleware will use after JWT extraction." />
+      <artifact path="src/test-utils/tenant-fixtures.ts" kind="test-utility" symbol="useTenantIsolation, withTenantIsolation, TenantTestContext" lines="1-207" reason="Jest lifecycle hooks for tenant-scoped tests. Use for auth middleware integration tests." />
+      <artifact path="src/test-utils/index.ts" kind="barrel-export" symbol="createTestTenant, cleanupTestTenant, setTenantContext, useTenantIsolation, withTenantIsolation" lines="1-5" reason="Barrel export for test utilities." />
+      <artifact path="tests/conftest.py" kind="pytest-fixtures" symbol="db_pool, test_tenant, tenant_connection, TENANT_TABLES_DDL, RLS_POLICY_DDL" lines="1-170" reason="Pytest fixtures for tenant-scoped tests. tenant_connection sets app.current_tenant — auth middleware will do the same from JWT claims." />
+      <artifact path="scripts/init-local-db.sql" kind="database-init" symbol="tenant_dev_1, tenant_dev_2, public.organizations" lines="1-164" reason="Local dev DB with tenant schemas and public.organizations. Login flow needs user records in public.users and membership in public.tenants_users (not yet created in this SQL — will come from Story 1.1/1.2)." />
+      <artifact path="scripts/dev-seed.ts" kind="seed-script" symbol="seedOrganization, seedUsers, DEV_TENANTS, DEFAULT_PASSWORD_HASH" lines="1-284" reason="Dev seed creates users with bcrypt password hash (password123). Login tests can use these seeded credentials. Shows public.organizations structure." />
+
+      <!-- Planned code artifacts (to be created in this story) -->
+      <artifact path="src/services/token_service.py" kind="service" symbol="TokenService" reason="[PLANNED] JWT creation (RS256), refresh token generation (secrets.token_urlsafe), validation, rotation, reuse detection. Core auth infrastructure." />
+      <artifact path="src/services/auth_service.py" kind="service" symbol="AuthService" reason="[PLANNED] login_with_password (bcrypt verify), login_with_google (OAuth callback), logout, logout_all. Orchestrates TokenService + Redis." />
+      <artifact path="src/api/v1/auth/" kind="api-routes" symbol="login, google, callback, refresh, logout, logout-all, sessions" reason="[PLANNED] FastAPI auth endpoints. 8 routes for login, OAuth, token refresh, session management." />
+      <artifact path="src/middleware/auth.py" kind="middleware" symbol="JWTAuthMiddleware" reason="[PLANNED] Extract JWT from httpOnly cookie, validate RS256 signature, extract claims, integrate with tenant context middleware (Story 1.2)." />
+      <artifact path="src/pages/auth/login/" kind="react-page" symbol="LoginPage" reason="[PLANNED] Email/password form, Google OAuth button, Remember me checkbox, error handling, redirect after login." />
+      <artifact path="src/pages/auth/select-org/" kind="react-page" symbol="SelectOrgPage" reason="[PLANNED] Organization selector for multi-org users. Shows org list with name, role, select button." />
+      <artifact path="src/components/auth/" kind="react-components" symbol="LoginForm, GoogleButton, OrgSelector, OrgSwitcher, SessionList" reason="[PLANNED] Reusable auth UI components. OrgSwitcher goes in app header." />
+      <artifact path="src/lib/api-client.ts" kind="utility" symbol="apiClient, refreshInterceptor" reason="[PLANNED] Axios/fetch wrapper with automatic token refresh on 401. Interceptor calls POST /auth/refresh and retries failed request." />
+      <artifact path="src/middleware/tenant_context.py" kind="middleware" symbol="TenantContextMiddleware" reason="[PLANNED by Story 1.2] This story integrates with it: auth middleware passes tenant_id from JWT, tenant context middleware sets ContextVar." />
+      <artifact path="src/middleware/rbac.py" kind="middleware" symbol="require_role" reason="[PLANNED by Story 1.2] RBAC decorator reads role from JWT claims (set by auth middleware)." />
+    </code>
+
+    <dependencies>
+      <note>No package.json or pyproject.toml in repo yet. Dependencies specified in planning docs.</note>
+      <planned-backend>
+        <dep name="Python" version="3.11+" />
+        <dep name="FastAPI" role="Web framework, async endpoints" />
+        <dep name="PyJWT" role="JWT creation and validation (RS256)" />
+        <dep name="cryptography" role="RS256 key pair generation/loading" />
+        <dep name="bcrypt" role="Password hash verification (from Story 1.1)" />
+        <dep name="asyncpg" role="Async PostgreSQL driver" />
+        <dep name="Redis" version="7+" role="Refresh token storage, session metadata, rate limiting, lockout counters" />
+        <dep name="aioredis / redis-py[async]" role="Async Redis client" />
+        <dep name="httpx" role="HTTP client for Google OAuth token exchange" />
+        <dep name="Pydantic" role="Request/response validation" />
+        <dep name="pytest" role="Testing framework" />
+        <dep name="pytest-asyncio" role="Async test support" />
+      </planned-backend>
+      <planned-frontend>
+        <dep name="React" version="18" />
+        <dep name="Vite" role="Build tool" />
+        <dep name="Tailwind CSS" role="Utility-first styling" />
+        <dep name="shadcn/ui" role="UI components (Input, Button, Checkbox, Card, Dialog, DropdownMenu)" />
+        <dep name="axios / fetch" role="API client with interceptor support" />
+        <dep name="react-router-dom" role="Routing (/login, /select-org, protected routes)" />
+        <dep name="Vitest" role="Frontend testing" />
+        <dep name="React Testing Library" role="Component testing" />
+      </planned-frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="1" category="jwt-security">JWT signed with RS256 (asymmetric). Private key in AWS Secrets Manager / Azure Key Vault (Story 0.7). NEVER in code, env vars, or config files. Public key distributable for verification.</constraint>
+    <constraint id="2" category="token-delivery">Both access and refresh tokens in httpOnly, Secure, SameSite=Lax cookies. NO localStorage or sessionStorage — prevents XSS token theft. SameSite=Lax prevents CSRF for state-changing requests.</constraint>
+    <constraint id="3" category="refresh-rotation">Refresh tokens are single-use. Every refresh issues new pair + invalidates old. Reuse of already-used refresh token triggers revocation of ALL user sessions (token theft protection).</constraint>
+    <constraint id="4" category="no-enumeration">Login failure returns generic "Invalid email or password" regardless of whether email exists. No timing differences between existing/non-existing email (constant-time comparison for password check even with dummy hash).</constraint>
+    <constraint id="5" category="rate-limiting">5 failed login attempts per email per 15 minutes → 429. 10 consecutive failures per email per hour → account lockout (email verification to unlock). Redis-backed counters.</constraint>
+    <constraint id="6" category="multi-tenancy">JWT contains tenant_id (null for multi-org users pre-selection). Auth middleware validates tenant membership (public.tenants_users.is_active=true) on every request. Missing/invalid tenant → 403.</constraint>
+    <constraint id="7" category="session-keys">Redis session keys MUST follow discoverable pattern for downstream session invalidation (Story 1.4). Recommended: refresh:{token_hash} with secondary index user_sessions:{user_id} → set of token_hashes.</constraint>
+    <constraint id="8" category="google-oauth">Google OAuth MUST use PKCE (code_verifier/code_challenge). Authorization code flow only — no implicit grant. Validate id_token signature and issuer.</constraint>
+    <constraint id="9" category="audit">All login attempts logged: timestamp, email, IP, user_agent, success/failure, failure_reason (invalid_password, account_locked, rate_limited, email_not_found — internal only, NOT returned to client).</constraint>
+    <constraint id="10" category="device-sessions">Each device gets independent refresh token keyed by user_agent fingerprint. Logging in on new device does NOT invalidate existing sessions. Users can view and revoke individual sessions.</constraint>
+    <constraint id="11" category="security">Parameterized queries ONLY. TLS 1.3 in transit. AES-256 at rest. Refresh tokens stored as SHA-256 hash in Redis (not plaintext).</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="POST /api/v1/auth/login" kind="REST" signature="POST /api/v1/auth/login { email: string, password: string, remember_me: bool } → 200 Set-Cookie: access_token, refresh_token + { user_id, email, tenant_id, needs_org_select: bool }" path="src/api/v1/auth/" notes="Public endpoint. Rate-limited: 5 fails/email/15min. Generic error on failure. Sets httpOnly cookies." />
+    <interface name="POST /api/v1/auth/google" kind="REST" signature="POST /api/v1/auth/google → 302 Redirect to Google OAuth authorize URL (with PKCE code_challenge)" path="src/api/v1/auth/" notes="Public. Initiates OAuth flow. Stores code_verifier in server-side session/Redis." />
+    <interface name="GET /api/v1/auth/google/callback" kind="REST" signature="GET /api/v1/auth/google/callback?code=X&amp;state=Y → 302 Redirect to dashboard/select-org + Set-Cookie" path="src/api/v1/auth/" notes="Public. Exchanges auth code for tokens, validates id_token, finds/links user, issues JWT cookies." />
+    <interface name="POST /api/v1/auth/refresh" kind="REST" signature="POST /api/v1/auth/refresh (reads refresh_token cookie) → 200 Set-Cookie: new access_token, new refresh_token" path="src/api/v1/auth/" notes="Public. Token rotation: old refresh invalidated, new pair issued. Reuse detection → revoke all sessions." />
+    <interface name="POST /api/v1/auth/logout" kind="REST" signature="POST /api/v1/auth/logout → 200 Clear-Cookie: access_token, refresh_token" path="src/api/v1/auth/" notes="Authenticated. Invalidates current refresh token in Redis, clears cookies." />
+    <interface name="POST /api/v1/auth/logout-all" kind="REST" signature="POST /api/v1/auth/logout-all → 200 Clear-Cookie + { sessions_revoked: int }" path="src/api/v1/auth/" notes="Authenticated. Invalidates ALL refresh tokens for user in Redis." />
+    <interface name="GET /api/v1/auth/sessions" kind="REST" signature="GET /api/v1/auth/sessions → { sessions: [{id, device, last_active, ip, is_current}] }" path="src/api/v1/auth/" notes="Authenticated. Lists active sessions from Redis. Device parsed from user_agent." />
+    <interface name="DELETE /api/v1/auth/sessions/{session_id}" kind="REST" signature="DELETE /api/v1/auth/sessions/{session_id} → 200 { message: 'Session revoked' }" path="src/api/v1/auth/" notes="Authenticated. Revokes specific session (deletes refresh token from Redis)." />
+    <interface name="POST /api/v1/auth/select-org" kind="REST" signature="POST /api/v1/auth/select-org { tenant_id: UUID } → 200 Set-Cookie: new access_token with tenant_id" path="src/api/v1/auth/" notes="Authenticated (no tenant required). Validates membership, issues new JWT with tenant_id." />
+    <interface name="POST /api/v1/auth/switch-org" kind="REST" signature="POST /api/v1/auth/switch-org { tenant_id: UUID } → 200 Set-Cookie: new access_token with tenant_id" path="src/api/v1/auth/" notes="Authenticated. Validates membership in target org, issues new JWT. No re-login needed." />
+    <interface name="TokenService.create_access_token()" kind="service-method" signature="create_access_token(user_id: UUID, email: str, tenant_id: UUID|None, role: str|None) → str (JWT)" path="src/services/token_service.py" notes="RS256 signed. Claims: user_id, email, tenant_id, role, exp (15min), iat, jti." />
+    <interface name="TokenService.create_refresh_token()" kind="service-method" signature="create_refresh_token(user_id: UUID, device_id: str, tenant_id: UUID|None, remember_me: bool) → str (opaque)" path="src/services/token_service.py" notes="secrets.token_urlsafe(64). Stored in Redis as SHA-256 hash with metadata. 7d or 30d expiry." />
+    <interface name="TokenService.rotate_refresh_token()" kind="service-method" signature="rotate_refresh_token(old_token: str) → tuple[str, str] (new_access, new_refresh)" path="src/services/token_service.py" notes="Validates old token, invalidates it, issues new pair. Detects reuse → revokes all." />
+    <interface name="AuthService.login_with_password()" kind="service-method" signature="login_with_password(email: str, password: str, remember_me: bool, device_id: str, ip: str, user_agent: str) → AuthResult" path="src/services/auth_service.py" notes="Validates credentials, checks lockout/rate limit, issues tokens, logs audit. Returns user + tokens + needs_org_select." />
+    <interface name="AuthService.login_with_google()" kind="service-method" signature="login_with_google(auth_code: str, code_verifier: str, device_id: str, ip: str, user_agent: str) → AuthResult" path="src/services/auth_service.py" notes="Exchanges code, validates id_token, finds/links user, issues tokens." />
+    <interface name="Redis session key structure" kind="data-model" signature="refresh:{sha256(token)} → {user_id, device_id, tenant_id, remember_me, created_at, expires_at, ip, user_agent} | user_sessions:{user_id} → SET of sha256(token) hashes | login_attempts:{email} → counter (TTL 15min) | lockout:{email} → 1 (TTL 1h)" path="Redis" notes="Secondary index user_sessions:{user_id} enables: list sessions, logout-all, session invalidation by Story 1.4. Login counters for rate limiting." />
+  </interfaces>
+
+  <tests>
+    <standards>Backend: Pytest with async test client (httpx.AsyncClient), PostgreSQL test database with per-test transaction rollback via conftest.py fixtures. Redis required for session/token tests (test Redis instance). Frontend: Vitest + React Testing Library. Coverage target: 80%+ for new code. Google OAuth tested with mocked Google API responses. JWT tests verify RS256 signature validation. Rate limiting tests use Redis counters.</standards>
+    <locations>
+      <loc>tests/ (Python backend — pytest)</loc>
+      <loc>tests/integration/ (API integration tests)</loc>
+      <loc>src/**/__tests__/ (Frontend — Vitest)</loc>
+    </locations>
+    <ideas>
+      <group ac="1" title="Email/Password Login">
+        <idea>Valid credentials → 200, JWT cookies set, user data returned</idea>
+        <idea>Invalid password → 401, generic error, no email enumeration</idea>
+        <idea>Non-existent email → 401, same generic error (constant-time)</idea>
+        <idea>Unverified email → 403, "Please verify your email"</idea>
+        <idea>Locked account → 403, "Account locked" message</idea>
+        <idea>Missing email/password → 422 validation error</idea>
+      </group>
+      <group ac="2" title="Google OAuth Login">
+        <idea>Valid auth code → exchanges for tokens, finds user, issues JWT</idea>
+        <idea>Account linking: Google email matches existing local user → linked</idea>
+        <idea>Unknown Google user → redirect to signup</idea>
+        <idea>Invalid auth code → 400 error</idea>
+        <idea>PKCE: code_verifier validated against code_challenge</idea>
+      </group>
+      <group ac="3" title="JWT Token Issuance">
+        <idea>Access token contains correct claims (user_id, email, tenant_id, role, exp)</idea>
+        <idea>Access token signed with RS256, verifiable with public key</idea>
+        <idea>Access token expires in 15 minutes</idea>
+        <idea>Cookies are httpOnly, Secure, SameSite=Lax</idea>
+        <idea>Forged JWT (wrong signature) rejected by middleware</idea>
+      </group>
+      <group ac="4" title="Refresh Token Rotation">
+        <idea>Valid refresh → new access + refresh tokens, old refresh invalidated</idea>
+        <idea>Expired refresh → 401, redirect to login</idea>
+        <idea>Reused refresh (already rotated) → ALL user sessions revoked</idea>
+        <idea>Invalid/unknown refresh → 401</idea>
+      </group>
+      <group ac="5" title="Remember Me">
+        <idea>Remember me checked → refresh token TTL = 30 days</idea>
+        <idea>Remember me unchecked → refresh token TTL = 7 days</idea>
+        <idea>Redis metadata stores remember_me flag</idea>
+      </group>
+      <group ac="6" title="Multi-Organization Session">
+        <idea>Single-org user: auto-selects org, JWT has tenant_id, redirect to dashboard</idea>
+        <idea>Multi-org user: JWT without tenant_id, redirect to /select-org</idea>
+        <idea>Select org: validates membership, issues new JWT with tenant_id</idea>
+        <idea>Switch org: issues new JWT, no re-login</idea>
+        <idea>Select non-member org → 403</idea>
+        <idea>Select org where is_active=false → 403</idea>
+      </group>
+      <group ac="7" title="Session Persistence &amp; Management">
+        <idea>Login on device A, login on device B → both sessions active</idea>
+        <idea>GET /sessions lists both sessions with device info</idea>
+        <idea>Revoke device A session → device A gets 401, device B unaffected</idea>
+        <idea>Logout-all → all sessions revoked</idea>
+      </group>
+      <group ac="8" title="Logout">
+        <idea>POST /logout → refresh token deleted from Redis, cookies cleared</idea>
+        <idea>POST /logout-all → all refresh tokens for user deleted</idea>
+        <idea>After logout, using old refresh token returns 401</idea>
+      </group>
+      <group ac="9" title="Rate Limiting &amp; Security">
+        <idea>6th failed login in 15min → 429 with Retry-After</idea>
+        <idea>Successful login resets failure counter</idea>
+        <idea>11th consecutive failure in 1 hour → account locked</idea>
+        <idea>Locked account cannot login even with correct password</idea>
+        <idea>Audit log records all attempts with IP, user_agent, result</idea>
+      </group>
+      <group ac="10" title="Tenant Context Integration">
+        <idea>Request with valid JWT + tenant_id → tenant context set, RLS active</idea>
+        <idea>Request with expired JWT → 401 token_expired</idea>
+        <idea>Request without JWT → 401 authentication_required</idea>
+        <idea>Request with valid JWT but invalid tenant_id → 403</idea>
+        <idea>Public endpoints (login, signup, health) bypass auth</idea>
+      </group>
+      <group ac="frontend" title="Frontend Tests">
+        <idea>Login form renders email, password, Remember me, Google button</idea>
+        <idea>Invalid email format shows validation error</idea>
+        <idea>401 response shows "Invalid email or password"</idea>
+        <idea>429 response shows rate limit message with countdown</idea>
+        <idea>Org selector renders org list for multi-org users</idea>
+        <idea>Org switcher dropdown in header</idea>
+        <idea>Session list renders device, last active, revoke button</idea>
+        <idea>Automatic token refresh on 401 retries original request</idea>
+      </group>
+    </ideas>
+  </tests>
+</story-context>

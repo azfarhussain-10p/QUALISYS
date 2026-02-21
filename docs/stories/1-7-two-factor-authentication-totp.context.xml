@@ -1,0 +1,240 @@
+<story-context id="1-7-two-factor-authentication-totp" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>7</storyId>
+    <title>Two-Factor Authentication (TOTP)</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-02-17</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-7-two-factor-authentication-totp.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>security-conscious user</asA>
+    <iWant>enable two-factor authentication with an authenticator app</iWant>
+    <soThat>my account is protected even if my password is compromised</soThat>
+    <tasks>
+      <task id="1" title="Database Schema Updates" acs="3,4">Alembic migration: add totp_secret_encrypted (bytea), totp_enabled_at (timestamptz), mfa_lockout_until (timestamptz) to public.users; create public.user_backup_codes table (id UUID PK, user_id FK, code_hash varchar 255, used_at timestamptz nullable, created_at timestamptz); index on user_id</task>
+      <task id="2" title="TOTP Service" acs="2,3,5,9">TOTPService: generate_secret() (160-bit base32), generate_qr_uri() (otpauth://totp/QUALISYS:{email}), verify_code() (±1 window tolerance), encrypt_secret() / decrypt_secret() (AES-256 with Secrets Manager key)</task>
+      <task id="3" title="Backup Code Service" acs="4,6,8">BackupCodeService: generate_codes() (10 codes, 8 alphanum chars), verify_code() (bcrypt compare against unused), regenerate_codes() (delete all + generate new), get_remaining_count()</task>
+      <task id="4" title="MFA Integration with Login Flow" acs="5,6,9">Modify AuthService.login_with_password() to check totp_enabled_at; return mfa_required + mfa_token (5-min Redis: mfa:{hash} → user_id/device_id/remember_me); POST /auth/mfa/verify (TOTP), POST /auth/mfa/backup (backup code); MFA lockout (10 fails/user/hour)</task>
+      <task id="5" title="FastAPI MFA Management Endpoints" acs="1,2,3,7,8,10">POST setup, POST setup/confirm, POST disable, POST backup-codes/regenerate, GET status; audit logging all MFA operations</task>
+      <task id="6" title="React UI — MFA Setup &amp; Management" acs="1,2,3,4,7,8">Security settings section: MFA status, Enable/Disable 2FA, QR code display (SVG, local render), manual secret text, 6-digit confirmation input, backup codes modal (download/copy/acknowledge), Regenerate Backup Codes, remaining codes warning</task>
+      <task id="7" title="React UI — MFA Login Challenge" acs="5,6">MFA challenge page after password validation: 6-digit TOTP input (auto-focus, auto-submit on 6th digit), "Use a backup code" toggle (8-char input), error handling, 5-min timeout redirect</task>
+      <task id="8" title="Testing" acs="all">Unit (TOTP generation/verification/±1 window, AES round-trip, backup code gen/verify/regen), integration (setup flow, login+MFA, backup code login, disable, rate limiting, lockout, depletion warning), security (encrypted in DB, bcrypt hashes, mfa_token short-lived), frontend (QR, code input, modal, toggle, warning)</task>
+      <task id="9" title="Security Review" acs="9,10">AES-256 key from Secrets Manager, bcrypt backup codes, mfa_token (5-min Redis hash), ±1 window only, brute-force rate limiting, QR local render (no external API), password confirmation for disable/regenerate, audit trail completeness</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1" title="Enable 2FA — Settings UI">Security settings page (/settings/security) shows 2FA section: status (Enabled/Disabled), Enable/Disable buttons (disable requires password), enabled date, last used date</ac>
+    <ac id="2" title="TOTP Setup Flow — QR Code">Generate 160-bit base32 TOTP secret (RFC 6238), display QR code in otpauth:// URI (issuer QUALISYS, SHA1, 6 digits, 30s period), SVG render (no external service), manual entry fallback</ac>
+    <ac id="3" title="TOTP Setup Confirmation">User enters valid 6-digit TOTP code to confirm setup (±1 window tolerance). Valid: encrypt secret (AES-256) and store in public.users. Invalid: error + retry (up to 5). Secret is temporary (Redis TTL) until confirmed</ac>
+    <ac id="4" title="Backup/Recovery Codes">After setup confirmation: generate 10 single-use backup codes (8 alphanum chars), display in modal with Download/Copy buttons, store as bcrypt hashes in public.user_backup_codes, require acknowledgment checkbox before close</ac>
+    <ac id="5" title="Login with TOTP Challenge">MFA-enabled user after correct password: HTTP 200 with {mfa_required, mfa_token}. Frontend shows 6-digit input (auto-focus, auto-submit). Validate TOTP (±1 window). Valid: issue JWT + refresh tokens. Invalid: retry up to 5/mfa_token. mfa_token: 5-min Redis token proving password validated</ac>
+    <ac id="6" title="Login with Backup Code">"Use a backup code" link on TOTP form. 8-char alphanumeric input. Validate against bcrypt hashes. Valid: mark used, proceed with login. Single-use. Warning when &lt; 3 codes remain</ac>
+    <ac id="7" title="Disable 2FA">Requires current password confirmation. Clears totp_secret_encrypted, nulls totp_enabled_at, deletes all backup codes. Existing sessions remain valid</ac>
+    <ac id="8" title="Regenerate Backup Codes">Requires password confirmation. Deletes all existing codes (used + unused), generates 10 new, displays in modal. Available only when 2FA enabled</ac>
+    <ac id="9" title="Rate Limiting &amp; Security">5 TOTP attempts/mfa_token, 5 backup attempts/mfa_token (exceed: token invalidated, re-enter password). 10 failed MFA/user/hour: 1-hour lockout. TOTP secrets AES-256 encrypted. Backup codes bcrypt hashed</ac>
+    <ac id="10" title="Audit Trail">Log: 2FA enabled/disabled, TOTP verified (success/failure), backup code used (index), backup codes regenerated, MFA lockout triggered — with user_id, IP, user_agent, timestamp</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/planning/prd.md" title="Product Requirements Document v3.0" section="User Account &amp; Access Management" snippet="FR5: Users can enable two-factor authentication (TOTP) for their accounts. MFA support: TOTP-based two-factor authentication (optional)." />
+      <doc path="docs/planning/prd.md" title="PRD v3.0" section="NFR-SEC1: Authentication &amp; Authorization" snippet="MFA: Support TOTP-based two-factor authentication. TLS 1.3, AES-256, OAuth 2.0 + SAML 2.0, MFA, RBAC at API level." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="Authentication Flow (Mermaid)" snippet="User → Validate → MFA Check → TOTP Required? → Yes → TOTP Verification → Valid → Issue JWT → httpOnly Cookie → Session (Redis) → Tenant Context." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="Session Management" snippet="MFA (TOTP) challenge at login time. JWT tokens (7-day expiry, httpOnly cookies), refresh token rotation, Redis for session storage and rate limiting." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="In Scope Stories" snippet="Story 1.7: Two-Factor Authentication (TOTP) — FR5. Enterprise Ready: OAuth 2.0, SAML 2.0 (Phase 2), MFA (TOTP), audit logging." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Security &amp; Authentication" snippet="Authentication: OAuth 2.0 (Google), SAML 2.0 (Okta, Azure AD), MFA (TOTP). Auth Middleware handles OAuth 2.0 / SAML 2.0 / MFA." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="ADR: Authentication" snippet="TOTP: RFC 6238, MFA for Owner/Admin roles, security compliance. Enterprise requirement: TOTP MFA for sensitive operations." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Data Model — public.users" snippet="totp_secret VARCHAR(255) — MFA secret (encrypted), totp_enabled BOOLEAN DEFAULT FALSE. Architecture schema reference for MFA columns." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="API Endpoints" snippet="POST /api/v1/auth/mfa/enable, POST /api/v1/auth/mfa/verify — MFA management and verification endpoints." />
+      <doc path="docs/epics/epics.md" title="Epics &amp; Stories" section="Story 1.7" snippet="AC1: Settings page shows 'Enable 2FA'. AC2: QR code for authenticator app. AC3: 6-digit code confirmation. AC4: 10 backup codes. AC5: Login requires TOTP after password. FRs: FR5." />
+      <doc path="docs/stories/1-5-login-session-management.md" title="Story 1.5" section="Full Story" snippet="Login flow: AuthService.login_with_password() validates credentials, issues JWT + refresh tokens. Redis session keys: refresh:{hash}, user_sessions:{user_id}, login_attempts:{email}. This story modifies the login flow to insert MFA challenge step." />
+      <doc path="docs/stories/1-6-password-reset-flow.md" title="Story 1.6" section="Full Story" snippet="Password reset flow: after reset, user redirected to login. If MFA enabled, user still needs TOTP code on login. AuthService.logout_all() pattern. public.users.password_hash field." />
+    </docs>
+
+    <code>
+      <!-- Existing code artifacts -->
+      <artifact path="src/test-utils/tenant-isolation.ts" kind="test-utility" symbol="createTestTenant, cleanupTestTenant, setTenantContext" lines="1-302" reason="Tenant isolation for integration tests. MFA operates on public schema but login flow integration tests need tenant context." />
+      <artifact path="tests/conftest.py" kind="pytest-fixtures" symbol="db_pool, test_tenant, tenant_connection" lines="1-170" reason="Pytest fixtures for async DB tests. Use db_pool for public schema operations (public.users MFA columns, public.user_backup_codes)." />
+      <artifact path="scripts/init-local-db.sql" kind="database-init" symbol="tenant_dev_1, tenant_dev_2" lines="1-164" reason="Local dev DB init. MFA columns (totp_secret_encrypted, totp_enabled_at) will be added to public.users via Alembic migration." />
+      <artifact path="scripts/dev-seed.ts" kind="seed-script" symbol="seedUsers, DEFAULT_PASSWORD_HASH" lines="1-284" reason="Dev seed with bcrypt password hash. Useful for testing MFA login flow — seeded users can have MFA enabled/disabled for testing." />
+
+      <!-- Planned code artifacts (created by predecessor stories) -->
+      <artifact path="src/services/auth_service.py" kind="service" symbol="AuthService.login_with_password(), AuthService.logout_all()" reason="[PLANNED by Story 1.5] This story MODIFIES login_with_password() to check if user has MFA enabled (totp_enabled_at IS NOT NULL). If MFA enabled: return mfa_token instead of JWT. logout_all() used by Story 1.6 for password reset." />
+      <artifact path="src/services/token_service.py" kind="service" symbol="TokenService (create_access_token, create_refresh_token)" reason="[PLANNED by Story 1.5] JWT and refresh token creation. MFA verify/backup endpoints call TokenService to issue tokens after successful MFA validation." />
+      <artifact path="src/api/v1/auth/" kind="api-routes" symbol="login, refresh, logout, forgot-password, reset-password" reason="[PLANNED by Stories 1.5/1.6] Existing auth routes. This story adds /mfa/* routes (setup, confirm, verify, backup, disable, regenerate, status) to the same router." />
+      <artifact path="src/middleware/auth.py" kind="middleware" symbol="JWTAuthMiddleware" reason="[PLANNED by Story 1.5] Auth middleware. MFA management endpoints (setup, confirm, disable, regenerate, status) require authentication. MFA login endpoints (verify, backup) use mfa_token instead of JWT." />
+      <artifact path="src/pages/auth/login/" kind="react-page" symbol="LoginPage" reason="[PLANNED by Story 1.5] Login page. This story adds MFA challenge step after password validation (conditional on mfa_required response)." />
+
+      <!-- Planned code artifacts (to be created in this story) -->
+      <artifact path="src/services/totp_service.py" kind="service" symbol="TOTPService" reason="[PLANNED] generate_secret() (160-bit base32), generate_qr_uri() (otpauth://), verify_code() (HMAC-SHA1, ±1 window), encrypt_secret() / decrypt_secret() (AES-256). Core TOTP logic." />
+      <artifact path="src/services/backup_code_service.py" kind="service" symbol="BackupCodeService" reason="[PLANNED] generate_codes() (10 codes, 8 alphanum), verify_code() (bcrypt compare against unused), regenerate_codes() (delete + generate), get_remaining_count()." />
+      <artifact path="src/api/v1/auth/mfa/" kind="api-routes" symbol="setup, confirm, verify, backup, disable, regenerate, status" reason="[PLANNED] 7 MFA endpoints: POST setup (generate temp secret), POST setup/confirm (validate TOTP + store), POST verify (login TOTP), POST backup (login backup code), POST disable, POST backup-codes/regenerate, GET status." />
+      <artifact path="src/models/user_backup_code.py" kind="model" symbol="UserBackupCode" reason="[PLANNED] SQLAlchemy model for public.user_backup_codes (id, user_id, code_hash, used_at, created_at)." />
+      <artifact path="src/pages/settings/security/" kind="react-page" symbol="SecuritySettingsPage" reason="[PLANNED] Two-Factor Authentication section: status badge, Enable/Disable buttons, enabled date, last used, remaining backup codes with warning." />
+      <artifact path="src/components/auth/MFAChallenge/" kind="react-components" symbol="MFAChallenge, TOTPInput, BackupCodeInput" reason="[PLANNED] MFA challenge UI for login flow: 6-digit TOTP input (auto-focus, auto-submit), backup code toggle (8-char input), error handling, timeout redirect." />
+      <artifact path="src/components/auth/MFASetup/" kind="react-components" symbol="QRCodeDisplay, SecretKeyDisplay, ConfirmCodeInput, BackupCodesModal" reason="[PLANNED] MFA setup flow UI: QR code SVG render, manual secret text, 6-digit confirmation, backup codes display with Download/Copy/Acknowledge." />
+    </code>
+
+    <dependencies>
+      <note>No package.json or pyproject.toml in repo yet. Dependencies specified in planning docs.</note>
+      <planned-backend>
+        <dep name="Python" version="3.11+" />
+        <dep name="FastAPI" role="Web framework, async endpoints" />
+        <dep name="SQLAlchemy" role="ORM for public.users MFA columns and public.user_backup_codes" />
+        <dep name="Alembic" role="Database migrations for MFA schema changes" />
+        <dep name="pyotp" role="TOTP generation and verification (RFC 6238)" />
+        <dep name="cryptography" role="AES-256 encryption/decryption for TOTP secrets (Fernet or AES-GCM)" />
+        <dep name="bcrypt" role="Backup code hashing (one-way)" />
+        <dep name="redis[hiredis]" role="mfa_token storage (5-min TTL), MFA rate limiting, temp secret during setup (10-min TTL)" />
+        <dep name="Pydantic" role="Request/response schemas for MFA endpoints" />
+      </planned-backend>
+      <planned-frontend>
+        <dep name="React" version="18" />
+        <dep name="Vite" role="Build tool" />
+        <dep name="Tailwind CSS" role="Utility-first CSS" />
+        <dep name="shadcn/ui" role="UI components (Button, Input, Dialog, InputOTP)" />
+        <dep name="qrcode" role="QR code generation as SVG (local render, no external API)" />
+        <dep name="axios" role="HTTP client for MFA API calls" />
+      </planned-frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" source="architecture.md" severity="critical">TOTP secrets MUST be encrypted at rest with AES-256. Encryption key stored in AWS Secrets Manager / Azure Key Vault (Story 0.7). Never store plaintext TOTP secrets in database.</constraint>
+    <constraint id="C2" source="story-1-7" severity="critical">Backup codes MUST be stored as bcrypt hashes (one-way). Cannot be recovered from database — only verified. Prevents secret leakage on DB compromise.</constraint>
+    <constraint id="C3" source="prd.md#NFR-SEC1" severity="critical">TOTP implementation MUST be RFC 6238 compliant. SHA1 algorithm, 6-digit codes, 30-second period. Compatible with Google Authenticator, Authy, Microsoft Authenticator, 1Password.</constraint>
+    <constraint id="C4" source="story-1-7" severity="high">mfa_token MUST be short-lived (5 minutes), stored as hash in Redis. Proves password was validated without re-entry. Single-purpose — only valid for MFA verification.</constraint>
+    <constraint id="C5" source="story-1-7" severity="high">TOTP verification MUST use ±1 time window tolerance only (previous, current, next 30-second period). Wider windows increase replay attack risk.</constraint>
+    <constraint id="C6" source="story-1-7" severity="high">QR code MUST be rendered locally (SVG library, no external API call). External QR services would leak the TOTP secret.</constraint>
+    <constraint id="C7" source="story-1-7" severity="high">Temporary TOTP secret during setup stored in Redis with 10-minute TTL. Only persisted to DB after user confirms with valid code. Prevents partial setup states.</constraint>
+    <constraint id="C8" source="architecture.md" severity="high">Rate limiting: 5 TOTP attempts per mfa_token, 10 failed MFA per user per hour triggers 1-hour lockout. Redis-backed counters.</constraint>
+    <constraint id="C9" source="story-1-5" severity="high">Login flow modification: after password validation, check totp_enabled_at IS NOT NULL. If MFA enabled, return {mfa_required: true, mfa_token} instead of JWT. Do NOT issue JWT until MFA is verified.</constraint>
+    <constraint id="C10" source="architecture.md" severity="medium">Disable 2FA and Regenerate Backup Codes MUST require current password confirmation. Prevents CSRF-style attacks on MFA settings.</constraint>
+    <constraint id="C11" source="architecture.md" severity="medium">All MFA lifecycle events MUST be logged to audit trail with user_id, IP, user_agent, timestamp. Required for SOC 2 compliance.</constraint>
+    <constraint id="C12" source="architecture.md" severity="medium">Architecture schema shows totp_secret VARCHAR(255) and totp_enabled BOOLEAN. Story spec refines to totp_secret_encrypted (bytea) and totp_enabled_at (timestamptz) for stronger typing. Follow story spec — it supersedes architecture sketch.</constraint>
+  </constraints>
+
+  <interfaces>
+    <!-- MFA Management REST Endpoints (authenticated) -->
+    <interface name="POST /api/v1/auth/mfa/setup" kind="REST endpoint" signature="POST /api/v1/auth/mfa/setup → { qr_uri: string, secret: string, setup_token: string }" path="src/api/v1/auth/mfa/" />
+    <interface name="POST /api/v1/auth/mfa/setup/confirm" kind="REST endpoint" signature="POST /api/v1/auth/mfa/setup/confirm { setup_token: string, totp_code: string } → { backup_codes: string[] }" path="src/api/v1/auth/mfa/" />
+    <interface name="POST /api/v1/auth/mfa/disable" kind="REST endpoint" signature="POST /api/v1/auth/mfa/disable { password: string } → { success: bool }" path="src/api/v1/auth/mfa/" />
+    <interface name="POST /api/v1/auth/mfa/backup-codes/regenerate" kind="REST endpoint" signature="POST /api/v1/auth/mfa/backup-codes/regenerate { password: string } → { backup_codes: string[] }" path="src/api/v1/auth/mfa/" />
+    <interface name="GET /api/v1/auth/mfa/status" kind="REST endpoint" signature="GET /api/v1/auth/mfa/status → { enabled: bool, enabled_at: datetime|null, last_used: datetime|null, backup_codes_remaining: int }" path="src/api/v1/auth/mfa/" />
+
+    <!-- MFA Login REST Endpoints (use mfa_token, not JWT) -->
+    <interface name="POST /api/v1/auth/mfa/verify" kind="REST endpoint" signature="POST /api/v1/auth/mfa/verify { mfa_token: string, totp_code: string } → { access_token: JWT, refresh_token: cookie }" path="src/api/v1/auth/mfa/" />
+    <interface name="POST /api/v1/auth/mfa/backup" kind="REST endpoint" signature="POST /api/v1/auth/mfa/backup { mfa_token: string, backup_code: string } → { access_token: JWT, refresh_token: cookie }" path="src/api/v1/auth/mfa/" />
+
+    <!-- Service Methods -->
+    <interface name="TOTPService.generate_secret" kind="service method" signature="generate_secret() → str (160-bit base32-encoded secret)" path="src/services/totp_service.py" />
+    <interface name="TOTPService.generate_qr_uri" kind="service method" signature="generate_qr_uri(secret: str, email: str) → str (otpauth://totp/QUALISYS:{email}?secret=...&amp;issuer=QUALISYS&amp;algorithm=SHA1&amp;digits=6&amp;period=30)" path="src/services/totp_service.py" />
+    <interface name="TOTPService.verify_code" kind="service method" signature="verify_code(encrypted_secret: bytes, code: str) → bool (validates TOTP with ±1 window tolerance)" path="src/services/totp_service.py" />
+    <interface name="TOTPService.encrypt_secret" kind="service method" signature="encrypt_secret(secret: str) → bytes (AES-256 encrypted)" path="src/services/totp_service.py" />
+    <interface name="TOTPService.decrypt_secret" kind="service method" signature="decrypt_secret(encrypted: bytes) → str (plaintext base32 secret)" path="src/services/totp_service.py" />
+    <interface name="BackupCodeService.generate_codes" kind="service method" signature="generate_codes(user_id: UUID) → list[str] (10 plaintext codes, hashes stored in DB)" path="src/services/backup_code_service.py" />
+    <interface name="BackupCodeService.verify_code" kind="service method" signature="verify_code(user_id: UUID, code: str) → bool (bcrypt compare, marks used on match)" path="src/services/backup_code_service.py" />
+    <interface name="AuthService.login_with_password (modified)" kind="service method" signature="login_with_password(email, password, device_id, remember_me) → LoginResult (either JWT+refresh OR mfa_required+mfa_token)" path="src/services/auth_service.py" />
+
+    <!-- Redis Data Model -->
+    <interface name="Redis MFA Keys" kind="redis-data-model" signature="mfa:{sha256(mfa_token)} → JSON{user_id, device_id, remember_me} (TTL 300s); mfa_setup:{user_id} → JSON{secret} (TTL 600s); mfa_attempts:{mfa_token_hash} → int (TTL 300s); mfa_lockout:{user_id} → 1 (TTL 3600s); mfa_failures:{user_id} → int (TTL 3600s)" path="(Redis)" />
+
+    <!-- Database Schema -->
+    <interface name="public.users MFA columns" kind="database-schema" signature="ALTER TABLE public.users ADD COLUMN totp_secret_encrypted BYTEA, ADD COLUMN totp_enabled_at TIMESTAMPTZ, ADD COLUMN mfa_lockout_until TIMESTAMPTZ" path="(Alembic migration)" />
+    <interface name="public.user_backup_codes" kind="database-schema" signature="CREATE TABLE public.user_backup_codes (id UUID PK, user_id UUID FK→public.users, code_hash VARCHAR(255), used_at TIMESTAMPTZ NULL, created_at TIMESTAMPTZ); INDEX ON (user_id)" path="(Alembic migration)" />
+  </interfaces>
+
+  <tests>
+    <standards>
+      Backend: Pytest with async test client (httpx.AsyncClient), PostgreSQL test database with per-test transaction rollback via conftest.py fixtures. Frontend: Vitest + React Testing Library. Coverage target: 80%+ for new code. TOTP tests use known secrets + known timestamps for deterministic code generation. AES encryption tests verify round-trip (encrypt → decrypt = original). Redis required for mfa_token, rate limiting, setup temp secret, and lockout tests. Email mocking not required (no emails in this story).
+    </standards>
+    <locations>
+      <location>tests/unit/services/test_totp_service.py</location>
+      <location>tests/unit/services/test_backup_code_service.py</location>
+      <location>tests/integration/auth/test_mfa_setup.py</location>
+      <location>tests/integration/auth/test_mfa_login.py</location>
+      <location>tests/integration/auth/test_mfa_backup_codes.py</location>
+      <location>tests/integration/auth/test_mfa_disable.py</location>
+      <location>tests/integration/auth/test_mfa_rate_limiting.py</location>
+      <location>tests/security/test_mfa_security.py</location>
+      <location>src/__tests__/components/auth/MFAChallenge.test.tsx</location>
+      <location>src/__tests__/components/auth/MFASetup.test.tsx</location>
+      <location>src/__tests__/pages/settings/SecuritySettings.test.tsx</location>
+    </locations>
+    <ideas>
+      <group ac="2" title="TOTP Secret Generation &amp; QR Code">
+        <idea>Verify generated secret is 160-bit base32 encoded (32 characters)</idea>
+        <idea>Verify QR URI format: otpauth://totp/QUALISYS:{email}?secret={secret}&amp;issuer=QUALISYS&amp;algorithm=SHA1&amp;digits=6&amp;period=30</idea>
+        <idea>Verify QR code renders as SVG (no external HTTP call made)</idea>
+        <idea>Verify manual secret display matches encoded secret</idea>
+      </group>
+      <group ac="3" title="TOTP Setup Confirmation">
+        <idea>Verify valid TOTP code (current window) confirms setup and stores encrypted secret</idea>
+        <idea>Verify TOTP code from ±1 window is accepted (clock drift tolerance)</idea>
+        <idea>Verify invalid code returns error, allows retry up to 5 times</idea>
+        <idea>Verify 6th failed attempt rejects setup (temp secret expired or invalidated)</idea>
+        <idea>Verify stored secret is AES-256 encrypted (not plaintext) in DB</idea>
+        <idea>Verify temporary secret in Redis has 10-minute TTL</idea>
+        <idea>Verify setup incomplete if user never confirms — no permanent DB record</idea>
+      </group>
+      <group ac="4" title="Backup Code Generation &amp; Storage">
+        <idea>Verify 10 codes generated, each 8 alphanumeric characters</idea>
+        <idea>Verify codes stored as bcrypt hashes (not plaintext or reversible)</idea>
+        <idea>Verify codes are unique within a set</idea>
+        <idea>Verify codes displayed only once (cannot be retrieved after modal close)</idea>
+      </group>
+      <group ac="5" title="Login with TOTP Challenge">
+        <idea>Verify MFA-enabled user gets {mfa_required: true, mfa_token} after correct password (no JWT issued yet)</idea>
+        <idea>Verify valid TOTP code with mfa_token issues JWT + refresh token</idea>
+        <idea>Verify invalid TOTP code returns error, allows retry</idea>
+        <idea>Verify mfa_token expires after 5 minutes (Redis TTL)</idea>
+        <idea>Verify expired mfa_token requires re-entering password</idea>
+        <idea>Verify mfa_token cannot be reused after successful MFA verification</idea>
+        <idea>Verify non-MFA user gets JWT directly (no MFA challenge)</idea>
+        <idea>Verify auto-submit on 6th digit (frontend behavior)</idea>
+      </group>
+      <group ac="6" title="Login with Backup Code">
+        <idea>Verify valid backup code with mfa_token issues JWT + refresh token</idea>
+        <idea>Verify backup code marked as used (used_at set) after successful login</idea>
+        <idea>Verify used backup code cannot be reused (returns error)</idea>
+        <idea>Verify warning shown when fewer than 3 backup codes remain</idea>
+        <idea>Verify all 10 codes can be used (no off-by-one)</idea>
+      </group>
+      <group ac="7" title="Disable 2FA">
+        <idea>Verify disable requires correct current password</idea>
+        <idea>Verify wrong password returns 403 (does not disable)</idea>
+        <idea>Verify totp_secret_encrypted cleared, totp_enabled_at nulled</idea>
+        <idea>Verify all backup codes deleted from user_backup_codes</idea>
+        <idea>Verify subsequent login skips MFA challenge</idea>
+        <idea>Verify existing sessions remain valid (no logout)</idea>
+      </group>
+      <group ac="8" title="Regenerate Backup Codes">
+        <idea>Verify regenerate requires correct current password</idea>
+        <idea>Verify old codes (used + unused) deleted before new codes generated</idea>
+        <idea>Verify 10 new codes generated and displayed</idea>
+        <idea>Verify old unused codes no longer work after regeneration</idea>
+        <idea>Verify regenerate only available when 2FA is enabled</idea>
+      </group>
+      <group ac="9" title="Rate Limiting &amp; MFA Lockout">
+        <idea>Verify 5 failed TOTP attempts per mfa_token invalidates the token</idea>
+        <idea>Verify 5 failed backup code attempts per mfa_token invalidates the token</idea>
+        <idea>Verify 10 failed MFA attempts per user per hour triggers 1-hour lockout</idea>
+        <idea>Verify lockout blocks all MFA attempts (TOTP + backup) for the user</idea>
+        <idea>Verify lockout expires after 1 hour (user can attempt MFA again)</idea>
+        <idea>Verify successful MFA does not reset lockout counter (only time expiry resets it)</idea>
+      </group>
+      <group ac="10" title="Audit Trail">
+        <idea>Verify 2FA enabled event logged with user_id, IP, user_agent, timestamp</idea>
+        <idea>Verify 2FA disabled event logged</idea>
+        <idea>Verify TOTP verification (success/failure) logged</idea>
+        <idea>Verify backup code usage logged with code index</idea>
+        <idea>Verify backup codes regeneration logged</idea>
+        <idea>Verify MFA lockout trigger logged</idea>
+      </group>
+    </ideas>
+  </tests>
+</story-context>

@@ -1,0 +1,255 @@
+<story-context id="1-12-usage-analytics-audit-logs-basic" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>12</storyId>
+    <title>Usage Analytics &amp; Audit Logs (Basic)</title>
+    <status>drafted</status>
+    <generatedAt>2026-02-18</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-12-usage-analytics-audit-logs-basic.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Admin</asA>
+    <iWant>view usage analytics and audit logs</iWant>
+    <soThat>I can monitor platform usage</soThat>
+    <tasks>
+      <task id="1" title="Database Schema — Audit Logs Table" acs="2">Alembic migration: create {tenant_schema}.audit_logs table (id UUID PK, tenant_id UUID NOT NULL, actor_user_id UUID FK→public.users NOT NULL, action VARCHAR(100) NOT NULL, resource_type VARCHAR(50) NOT NULL, resource_id UUID nullable, details JSONB, ip_address VARCHAR(45), user_agent TEXT, created_at TIMESTAMPTZ DEFAULT NOW()). Indexes on (tenant_id, created_at DESC), (tenant_id, action), (tenant_id, actor_user_id). RLS policy for tenant isolation. INSERT-ONLY: REVOKE UPDATE and DELETE (immutable). Add audit_logs to TENANT_TABLES_DDL in conftest.py</task>
+      <task id="2" title="Audit Service" acs="3,7">AuditService: log_action(), log_user_action(), log_project_action(), log_org_action(). Non-blocking via FastAPI BackgroundTasks or asyncio.create_task. @audit_action decorator for auto-logging on endpoints. Extract IP and user_agent from Request. Graceful failure handling (log error, don't fail request). Action naming convention: {resource_type}.{verb}. Document audit action catalog (21 action types from Stories 1.1-1.11)</task>
+      <task id="3" title="Analytics Service" acs="1">AnalyticsService: get_dashboard_metrics(). Metrics: active users count (tenants_users), active projects count (projects WHERE is_active), test runs (placeholder 0), storage consumed (placeholder "—"). Redis-cached with 5-minute TTL</task>
+      <task id="4" title="FastAPI Endpoints" acs="1,4,5,6,8">GET /api/v1/admin/analytics (dashboard metrics, Owner/Admin). GET /api/v1/admin/audit-logs (list with date_from, date_to, action, actor_user_id, page, per_page=50). POST /api/v1/admin/audit-logs/export (CSV streaming response). RBAC @require_role(['owner', 'admin']). Rate limiting: 5 exports/user/hour. Register AuditService in FastAPI DI</task>
+      <task id="5" title="React UI — Admin Dashboard" acs="1">Admin dashboard page (/admin/dashboard) with MetricCard widgets (shadcn/ui Card). 4 cards: Active Users, Active Projects, Test Runs (placeholder), Storage (placeholder). Each card: title, large value, neutral trend indicator. Owner/Admin only with redirect for non-Admin. Admin Dashboard link in sidebar/nav</task>
+      <task id="6" title="React UI — Audit Log Viewer" acs="4,5,6">Audit log page (/admin/audit-logs) with table: timestamp (user timezone), actor (avatar + name), action (human label), resource (type + name/ID), details (expandable row), IP. Filter bar: date range picker (presets + custom), action type dropdown, actor dropdown (searchable). Active filter chips. Pagination 50/page. Export CSV button. Filters persisted in URL query params. Empty state message</task>
+      <task id="7" title="Testing" acs="all">Unit (AuditService.log_action inserts, action naming, AnalyticsService metrics). Integration (analytics RBAC, audit-logs list with filters, pagination, CSV export, empty CSV, rate limiting, immutability — UPDATE/DELETE rejected, tenant isolation, @audit_action decorator, non-blocking audit). Security (RBAC bypass, SQL injection in filters, cross-tenant). Frontend (dashboard metrics, audit log table, filters, export, pagination)</task>
+      <task id="8" title="Security Review" acs="2,8">Verify INSERT-ONLY on audit_logs. Verify tenant isolation via ContextVar + RLS. Verify RBAC Owner/Admin only. Verify non-blocking audit. Verify no sensitive data in audit details. Verify CSV export tenant-scoped. Verify rate limiting on export</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1" title="Admin Dashboard — Basic Metrics">Admin dashboard (/admin/dashboard) shows MetricCard widgets: total active users (tenants_users count), total projects (active count), test runs (placeholder 0), storage (placeholder "—"). Each card: title, large value, neutral trend. Owner/Admin only. API: GET /api/v1/admin/analytics</ac>
+    <ac id="2" title="Audit Log Table">{tenant_schema}.audit_logs via Alembic: id UUID PK, tenant_id, actor_user_id FK→public.users, action VARCHAR(100), resource_type VARCHAR(50), resource_id UUID nullable, details JSONB, ip_address VARCHAR(45), user_agent TEXT, created_at TIMESTAMPTZ. RLS tenant isolation. Indexes on (tenant_id, created_at DESC), (tenant_id, action), (tenant_id, actor_user_id). INSERT-ONLY: no UPDATE or DELETE (immutable)</ac>
+    <ac id="3" title="Audit Service">AuditService.log_action(): accepts actor_user_id, action, resource_type, resource_id, details, ip_address, user_agent. Non-blocking (BackgroundTasks). Convenience methods: log_user_action(), log_project_action(), log_org_action(). Action naming: {resource_type}.{verb} (e.g., user.invited, project.created)</ac>
+    <ac id="4" title="Audit Log Viewer Page">Audit log page (/admin/audit-logs): reverse chronological order. Table: timestamp (user timezone), actor (name + avatar), action (human-readable), resource (type + name/ID), details (expandable old/new), IP. Paginated 50/page. Owner/Admin only</ac>
+    <ac id="5" title="Audit Log Filtering">Filters: date range picker (Last 7/30/90 days, custom), action type dropdown (All, User/Project/Org actions, or granular), actor dropdown (searchable org members). Server-side filtering via query params. Active filter chips removable. Filters persisted in URL</ac>
+    <ac id="6" title="Audit Log Export">Export CSV button. CSV columns: timestamp, actor_email, actor_name, action, resource_type, resource_id, details JSON, ip_address, user_agent. POST /api/v1/admin/audit-logs/export returns streaming CSV. Rate-limited: 5 exports/user/hour</ac>
+    <ac id="7" title="Retroactive Audit Integration">AuditService as importable module for all story endpoints. Audit action catalog documented (21 types from Stories 1.1-1.11). @audit_action('project.created') decorator pattern for auto-logging on endpoints</ac>
+    <ac id="8" title="Validation &amp; Error Handling">Invalid date range: 400. Invalid action type filter: 400. Export with no matches: empty CSV with headers. All endpoints require JWT + Owner/Admin role. Consistent error format from Story 1.1</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/planning/prd.md" title="Product Requirements Document v3.0" section="Administration &amp; Configuration" snippet="FR104: Admins can view usage analytics (tests run, storage consumed, agent executions). FR108: System provides audit logs of all administrative actions." />
+      <doc path="docs/planning/prd.md" title="PRD v3.0" section="Roles &amp; Permissions" snippet="Owner/Admin: Full platform access including audit logs and analytics. Admin-only access to usage metrics and audit trail." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="In Scope Stories" snippet="Story 1.12: Usage Analytics &amp; Audit Logs (Basic) — FR104, FR108. Establishes audit infrastructure and basic analytics dashboard." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="RBAC Permission Matrix" snippet="Admin-only access to analytics and audit. Owner/Admin can view usage analytics, audit logs. All other roles denied." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Four-Pillar Multi-Tenancy" snippet="Schema-per-tenant isolation. audit_logs table in {tenant_schema}. Tenant-scoped via ContextVar + RLS. Incoming Request → JWT → SET search_path → Resource Quota." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Security Threat Model" snippet="Immutable audit trails — no UPDATE or DELETE on audit_logs. Daily audit log scanning. Parameterized queries ONLY. TLS 1.3 in transit." />
+      <doc path="docs/epics/epics.md" title="Epics &amp; Stories" section="Story 1.12" snippet="AC source: metrics dashboard, audit log page, filtering, export. FRs: FR104, FR108. Final story in Epic 1 (Foundation &amp; Administration)." />
+      <doc path="docs/planning/ux-design-specification.md" title="UX Design Specification" section="MetricCard" snippet="MetricCard component pattern for dashboard: title, large value, trend indicator. shadcn/ui Card variant." />
+      <doc path="docs/stories/1-2-organization-creation-setup.md" title="Story 1.2" section="Architecture Patterns" snippet="RBAC @require_role decorator. ContextVar tenant middleware. Audit trail AC pattern referenced by all subsequent stories. Tenant context for schema-per-tenant." />
+      <doc path="docs/stories/1-5-login-session-management.md" title="Story 1.5" section="JWT Auth" snippet="JWT auth middleware extracts user_id and tenant_id from claims. Tenant context set via ContextVar for RLS. All authenticated endpoints require valid JWT." />
+      <doc path="docs/stories/1-9-project-creation-configuration.md" title="Story 1.9" section="Dev Notes" snippet="Audit: project created (name, slug, created_by), settings updated (changed fields old/new). Pattern for project lifecycle audit events." />
+      <doc path="docs/stories/1-10-project-team-assignment.md" title="Story 1.10" section="Rate Limiting &amp; Audit" snippet="Audit: member added (user_id, added_by, project_id), member removed (user_id, removed_by, project_id). user_id, IP, user_agent, timestamp." />
+      <doc path="docs/stories/1-11-project-management-archive-delete-list.md" title="Story 1.11" section="Dev Notes" snippet="Audit before delete — log BEFORE hard-delete when data still available. Archive/restore/delete actions in audit catalog. is_active pattern for soft-delete." />
+    </docs>
+
+    <code>
+      <!-- Existing code artifacts -->
+      <artifact path="scripts/init-local-db.sql" kind="database-init" symbol="tenant schema tables, RLS policies" lines="1-163" reason="EXISTING tenant schema setup: users, organizations, projects, test_cases, test_executions tables with RLS policies. Story 1.12 creates a NEW audit_logs table in tenant schemas following same RLS pattern (tenant_isolation USING tenant_id = current_setting('app.current_tenant'))." />
+      <artifact path="tests/conftest.py" kind="pytest-fixtures" symbol="db_pool, test_tenant, tenant_connection, TENANT_TABLES_DDL, RLS_POLICY_DDL" lines="1-170" reason="Pytest fixtures. TENANT_TABLES_DDL needs audit_logs table addition. test_tenant fixture creates schema and applies RLS — must include audit_logs in table loop. RLS_POLICY_DDL pattern reused for audit_logs (with INSERT-ONLY check)." />
+
+      <!-- Planned code artifacts (created by predecessor stories) -->
+      <artifact path="src/middleware/auth.py" kind="middleware" symbol="JWTAuthMiddleware" reason="[PLANNED by Story 1.5] JWT auth. All admin endpoints require authentication. Extracts user_id and tenant_id from JWT claims." />
+      <artifact path="src/middleware/tenant_context.py" kind="middleware" symbol="TenantContextMiddleware" reason="[PLANNED by Story 1.2] Sets search_path to tenant schema. audit_logs queries automatically scoped to correct tenant." />
+      <artifact path="src/middleware/rbac.py" kind="middleware" symbol="require_role" reason="[PLANNED by Story 1.2] @require_role(['owner', 'admin']) for all admin endpoints (analytics, audit-logs, export)." />
+      <artifact path="src/services/project_service.py" kind="service" symbol="ProjectService" reason="[PLANNED by Story 1.9] Project CRUD. AnalyticsService queries projects table for active project count." />
+      <artifact path="src/services/project_member_service.py" kind="service" symbol="ProjectMemberService" reason="[PLANNED by Story 1.10] Project membership. Stories 1.10 member operations generate audit events (member.added, member.removed)." />
+      <artifact path="src/api/v1/projects/" kind="api-routes" symbol="Project endpoints" reason="[PLANNED by Story 1.9] Existing project endpoints. Story 1.12 provides AuditService and @audit_action decorator these endpoints will use." />
+      <artifact path="src/api/v1/projects/members.py" kind="api-routes" symbol="Member endpoints" reason="[PLANNED by Story 1.10] Member management endpoints. Will integrate @audit_action decorator from this story." />
+
+      <!-- Planned code artifacts (to be created in this story) -->
+      <artifact path="src/services/audit_service.py" kind="service" symbol="AuditService" reason="[PLANNED] Core audit service: log_action(), log_user_action(), log_project_action(), log_org_action(). Non-blocking via BackgroundTasks. Registered as FastAPI dependency for cross-router use." />
+      <artifact path="src/services/analytics_service.py" kind="service" symbol="AnalyticsService" reason="[PLANNED] Dashboard metrics: get_dashboard_metrics(). Active users count, active projects count, placeholder test runs and storage. Redis-cached (5-min TTL)." />
+      <artifact path="src/models/audit_log.py" kind="model" symbol="AuditLog" reason="[PLANNED] SQLAlchemy model for {tenant_schema}.audit_logs with all columns: id, tenant_id, actor_user_id, action, resource_type, resource_id, details, ip_address, user_agent, created_at." />
+      <artifact path="src/decorators/audit.py" kind="decorator" symbol="@audit_action" reason="[PLANNED] Decorator for auto-logging endpoint calls. Usage: @audit_action('project.created'). Extracts actor, IP, user_agent from request context. May live in audit_service.py instead." />
+      <artifact path="src/api/v1/admin/analytics.py" kind="api-routes" symbol="GET /api/v1/admin/analytics" reason="[PLANNED] Admin analytics endpoint returning dashboard metrics. Owner/Admin RBAC." />
+      <artifact path="src/api/v1/admin/audit_logs.py" kind="api-routes" symbol="GET /api/v1/admin/audit-logs, POST /api/v1/admin/audit-logs/export" reason="[PLANNED] Audit log list (paginated, filtered) and CSV export (streaming response). Owner/Admin RBAC. Rate limited export." />
+      <artifact path="src/pages/admin/Dashboard.tsx" kind="react-page" symbol="AdminDashboard" reason="[PLANNED] Admin dashboard page with 4 MetricCard widgets: Active Users, Active Projects, Test Runs (placeholder), Storage (placeholder). Owner/Admin only." />
+      <artifact path="src/pages/admin/AuditLogs.tsx" kind="react-page" symbol="AuditLogsPage" reason="[PLANNED] Audit log viewer with table, filter bar, pagination, CSV export button. Owner/Admin only." />
+      <artifact path="src/components/admin/MetricCard.tsx" kind="react-component" symbol="MetricCard" reason="[PLANNED] Reusable metric card: title, large value, trend indicator. Based on shadcn/ui Card." />
+      <artifact path="src/components/admin/AuditLogTable.tsx" kind="react-component" symbol="AuditLogTable" reason="[PLANNED] Audit log table with expandable detail rows, pagination controls." />
+      <artifact path="src/components/admin/AuditFilters.tsx" kind="react-component" symbol="AuditFilters" reason="[PLANNED] Filter bar: date range picker, action type dropdown, actor dropdown (searchable). Active filter chips." />
+    </code>
+
+    <dependencies>
+      <note>No package.json or pyproject.toml in repo yet. Dependencies specified in planning docs.</note>
+      <planned-backend>
+        <dep name="Python" version="3.11+" />
+        <dep name="FastAPI" role="Web framework, async endpoints, BackgroundTasks for non-blocking audit" />
+        <dep name="SQLAlchemy" role="ORM for {tenant_schema}.audit_logs" />
+        <dep name="Alembic" role="Database migration for audit_logs table" />
+        <dep name="redis[hiredis]" role="Analytics cache (5-min TTL), rate limiting (5 exports/user/hour)" />
+        <dep name="Pydantic" role="Request/response schemas for admin endpoints" />
+        <dep name="asyncpg" role="Async PostgreSQL driver for non-blocking audit inserts" />
+      </planned-backend>
+      <planned-frontend>
+        <dep name="React" version="18" />
+        <dep name="Vite" role="Build tool" />
+        <dep name="Tailwind CSS" role="Utility-first CSS" />
+        <dep name="shadcn/ui" role="UI components (Card, Table, Button, DatePicker, Select, DropdownMenu, Avatar, Badge, Pagination)" />
+        <dep name="axios" role="HTTP client for admin API calls" />
+      </planned-frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" source="architecture.md" severity="critical">All audit_logs queries MUST be tenant-scoped via ContextVar middleware setting search_path. RLS policies provide defense-in-depth. NEVER query audit_logs across tenant boundaries.</constraint>
+    <constraint id="C2" source="architecture.md" severity="critical">ALL database queries MUST use parameterized statements (SQLAlchemy ORM). Zero dynamic SQL with user input. Prevents SQL injection in filter parameters (date range, action type, actor).</constraint>
+    <constraint id="C3" source="architecture.md" severity="critical">audit_logs table MUST be INSERT-ONLY. No UPDATE or DELETE permissions granted. Immutable audit trail. If correction needed, add a new correction entry referencing the original record.</constraint>
+    <constraint id="C4" source="story-1-12" severity="critical">AuditService.log_action() MUST be non-blocking. Uses FastAPI BackgroundTasks or asyncio.create_task for fire-and-forget insertion. Audit logging failure MUST NOT cause the main request to fail. Log errors to application error log.</constraint>
+    <constraint id="C5" source="tech-spec-epic-1.md" severity="high">Only Owner/Admin roles can access analytics dashboard and audit log viewer. Enforce via @require_role(['owner', 'admin']) on all admin endpoints. Non-Admin users redirected to projects page on frontend.</constraint>
+    <constraint id="C6" source="story-1-12" severity="high">Action naming convention MUST follow {resource_type}.{verb} format. 21 standardized action types defined in audit action catalog. All stories (1.1-1.11) use this convention when integrating AuditService.</constraint>
+    <constraint id="C7" source="story-1-12" severity="high">CSV export uses streaming response to avoid loading entire result set into memory. Server generates CSV rows from query results and streams to client for large datasets.</constraint>
+    <constraint id="C8" source="story-1-12" severity="high">Rate limiting on export endpoint: 5 exports per user per hour. Redis-backed counters. HTTP 429 with Retry-After header on exceeded limit.</constraint>
+    <constraint id="C9" source="story-1-12" severity="medium">Analytics metrics cached in Redis with 5-minute TTL to avoid repeated COUNT queries on every dashboard load. Cache key scoped to tenant_id.</constraint>
+    <constraint id="C10" source="story-1-12" severity="medium">No sensitive data in audit details JSONB: no password hashes, no tokens, no secrets. Only log field names with old/new values for non-sensitive fields.</constraint>
+    <constraint id="C11" source="story-1-11" severity="medium">AuditService must support synchronous pre-action logging for delete operations (Story 1.11: audit BEFORE hard-delete while data still available), not only background fire-and-forget.</constraint>
+    <constraint id="C12" source="story-1-12" severity="medium">Audit log filters persisted in URL query parameters for shareable links. Active filters displayed as removable chips. Server-side filtering via parameterized queries.</constraint>
+  </constraints>
+
+  <interfaces>
+    <!-- Admin REST Endpoints -->
+    <interface name="GET /api/v1/admin/analytics" kind="REST endpoint" signature="GET /api/v1/admin/analytics → { active_users: number, active_projects: number, test_runs: number | null, storage_consumed: string | null, cached_at: string }" path="src/api/v1/admin/analytics.py" />
+    <interface name="GET /api/v1/admin/audit-logs" kind="REST endpoint" signature="GET /api/v1/admin/audit-logs?date_from=&amp;date_to=&amp;action=&amp;actor_user_id=&amp;page=1&amp;per_page=50 → { items: AuditLogEntry[], total: number, page: number, per_page: number, pages: number }" path="src/api/v1/admin/audit_logs.py" />
+    <interface name="POST /api/v1/admin/audit-logs/export" kind="REST endpoint" signature="POST /api/v1/admin/audit-logs/export { date_from?, date_to?, action?, actor_user_id? } → StreamingResponse (text/csv). Rate-limited: 5/user/hour" path="src/api/v1/admin/audit_logs.py" />
+
+    <!-- Service Methods — AuditService -->
+    <interface name="AuditService.log_action" kind="service method" signature="log_action(actor_user_id: UUID, action: str, resource_type: str, resource_id: UUID | None, details: dict | None, ip_address: str | None, user_agent: str | None) → None (non-blocking background insert into {tenant_schema}.audit_logs)" path="src/services/audit_service.py" />
+    <interface name="AuditService.log_user_action" kind="service method" signature="log_user_action(actor_user_id: UUID, action: str, resource_id: UUID | None, details: dict | None, ip_address: str | None, user_agent: str | None) → None (pre-fills resource_type='user')" path="src/services/audit_service.py" />
+    <interface name="AuditService.log_project_action" kind="service method" signature="log_project_action(actor_user_id: UUID, action: str, resource_id: UUID | None, details: dict | None, ip_address: str | None, user_agent: str | None) → None (pre-fills resource_type='project')" path="src/services/audit_service.py" />
+    <interface name="AuditService.log_org_action" kind="service method" signature="log_org_action(actor_user_id: UUID, action: str, resource_id: UUID | None, details: dict | None, ip_address: str | None, user_agent: str | None) → None (pre-fills resource_type='organization')" path="src/services/audit_service.py" />
+
+    <!-- Service Methods — AnalyticsService -->
+    <interface name="AnalyticsService.get_dashboard_metrics" kind="service method" signature="get_dashboard_metrics(tenant_id: UUID) → { active_users: int, active_projects: int, test_runs: int | None, storage_consumed: str | None } (Redis-cached, 5-min TTL)" path="src/services/analytics_service.py" />
+
+    <!-- Decorator -->
+    <interface name="@audit_action" kind="decorator" signature="@audit_action(action_name: str) — decorator for FastAPI endpoints. Auto-logs action with actor from JWT, IP and user_agent from Request. Non-blocking." path="src/decorators/audit.py" />
+
+    <!-- Database Schema (new) -->
+    <interface name="{tenant_schema}.audit_logs" kind="database-schema" signature="CREATE TABLE {tenant_schema}.audit_logs (id UUID PK DEFAULT gen_random_uuid(), tenant_id UUID NOT NULL, actor_user_id UUID FK→public.users NOT NULL, action VARCHAR(100) NOT NULL, resource_type VARCHAR(50) NOT NULL, resource_id UUID, details JSONB, ip_address VARCHAR(45), user_agent TEXT, created_at TIMESTAMPTZ DEFAULT NOW()); INSERT-ONLY (no UPDATE/DELETE). INDEXES: (tenant_id, created_at DESC), (tenant_id, action), (tenant_id, actor_user_id)" path="(Alembic migration)" />
+
+    <!-- Cross-story dependencies -->
+    <interface name="TenantContextMiddleware (Story 1.2)" kind="cross-story" signature="Sets search_path to tenant schema from JWT tenant_id. All audit_logs queries automatically scoped." path="src/middleware/tenant_context.py" />
+    <interface name="require_role (Story 1.2)" kind="cross-story" signature="@require_role(['owner', 'admin']) decorator enforces RBAC on all admin endpoints (analytics, audit-logs, export)" path="src/middleware/rbac.py" />
+    <interface name="JWTAuthMiddleware (Story 1.5)" kind="cross-story" signature="Extracts user_id and tenant_id from JWT httpOnly cookie. Required for all admin endpoints and for @audit_action decorator to identify actor." path="src/middleware/auth.py" />
+    <interface name="Stories 1.1-1.11 endpoints" kind="cross-story" signature="All Epic 1 story endpoints import AuditService and use @audit_action decorator or direct log_action() calls. 21 action types across user, project, org, member, invitation, session resource types." path="src/api/v1/" />
+  </interfaces>
+
+  <tests>
+    <standards>
+      Backend: Pytest with async test client (httpx.AsyncClient), PostgreSQL test database with per-test transaction rollback via conftest.py fixtures. Frontend: Vitest + React Testing Library. Coverage target: 80%+ for new code. CRITICAL: All audit log tests MUST use tenant context (test_tenant + tenant_connection fixtures). TENANT_TABLES_DDL must include audit_logs table. Immutability tests are critical: verify UPDATE/DELETE blocked on audit_logs via RLS and REVOKE. Tenant isolation tests MUST verify cross-tenant audit log query prevention. Non-blocking tests: verify request completes even if audit insert is delayed or fails.
+    </standards>
+    <locations>
+      <location>tests/unit/services/test_audit_service.py</location>
+      <location>tests/unit/services/test_analytics_service.py</location>
+      <location>tests/unit/decorators/test_audit_decorator.py</location>
+      <location>tests/integration/admin/test_analytics_endpoint.py</location>
+      <location>tests/integration/admin/test_audit_logs_list.py</location>
+      <location>tests/integration/admin/test_audit_logs_export.py</location>
+      <location>tests/integration/admin/test_audit_log_immutability.py</location>
+      <location>tests/integration/admin/test_audit_log_tenant_isolation.py</location>
+      <location>tests/integration/admin/test_audit_action_decorator.py</location>
+      <location>tests/integration/admin/test_audit_non_blocking.py</location>
+      <location>tests/security/test_admin_security.py</location>
+      <location>src/__tests__/pages/admin/Dashboard.test.tsx</location>
+      <location>src/__tests__/pages/admin/AuditLogs.test.tsx</location>
+      <location>src/__tests__/components/admin/MetricCard.test.tsx</location>
+      <location>src/__tests__/components/admin/AuditFilters.test.tsx</location>
+    </locations>
+    <ideas>
+      <group ac="1" title="Admin Dashboard — Basic Metrics">
+        <idea>Verify GET /api/v1/admin/analytics returns active_users, active_projects, test_runs (0), storage (null)</idea>
+        <idea>Verify metrics reflect actual tenant data (insert users/projects, verify counts)</idea>
+        <idea>Verify Redis caching: second call within 5 min returns cached result (no DB query)</idea>
+        <idea>Verify cache invalidation after TTL expiry returns fresh counts</idea>
+        <idea>Verify non-Admin user gets 403 on analytics endpoint</idea>
+        <idea>Verify dashboard page renders 4 MetricCard widgets with correct values</idea>
+        <idea>Verify non-Admin user redirected away from /admin/dashboard</idea>
+        <idea>Verify Admin Dashboard link visible in nav for Owner/Admin only</idea>
+      </group>
+      <group ac="2" title="Audit Log Table">
+        <idea>Verify Alembic migration creates audit_logs table with all columns and correct types</idea>
+        <idea>Verify indexes created: (tenant_id, created_at DESC), (tenant_id, action), (tenant_id, actor_user_id)</idea>
+        <idea>Verify RLS policy active on audit_logs table (tenant isolation)</idea>
+        <idea>Verify INSERT succeeds on audit_logs</idea>
+        <idea>Verify UPDATE rejected on audit_logs (immutable)</idea>
+        <idea>Verify DELETE rejected on audit_logs (immutable)</idea>
+        <idea>Verify audit_logs in TENANT_TABLES_DDL in conftest.py</idea>
+      </group>
+      <group ac="3" title="Audit Service">
+        <idea>Verify AuditService.log_action() inserts correct record with all fields</idea>
+        <idea>Verify log_user_action() pre-fills resource_type='user'</idea>
+        <idea>Verify log_project_action() pre-fills resource_type='project'</idea>
+        <idea>Verify log_org_action() pre-fills resource_type='organization'</idea>
+        <idea>Verify non-blocking: main request completes before audit insert finishes</idea>
+        <idea>Verify audit failure does not cause main request to fail (graceful error handling)</idea>
+        <idea>Verify action naming validation follows {resource_type}.{verb} convention</idea>
+      </group>
+      <group ac="4" title="Audit Log Viewer Page">
+        <idea>Verify audit log page renders table with correct columns</idea>
+        <idea>Verify reverse chronological order (newest first)</idea>
+        <idea>Verify timestamp displayed in user's timezone</idea>
+        <idea>Verify actor shows name and avatar</idea>
+        <idea>Verify details row expandable showing old/new values</idea>
+        <idea>Verify pagination: 50 entries per page, page navigation works</idea>
+        <idea>Verify empty state: "No audit entries match your filters."</idea>
+      </group>
+      <group ac="5" title="Audit Log Filtering">
+        <idea>Verify date range filter with preset (Last 7 days) returns correct entries</idea>
+        <idea>Verify custom date range filter works</idea>
+        <idea>Verify action type dropdown filters by specific action (e.g., user.invited)</idea>
+        <idea>Verify action type category filter (User Actions, Project Actions)</idea>
+        <idea>Verify actor dropdown searchable and filters by actor_user_id</idea>
+        <idea>Verify multiple filters combine (AND logic)</idea>
+        <idea>Verify active filter chips shown and removable</idea>
+        <idea>Verify filters persisted in URL query params (shareable link)</idea>
+      </group>
+      <group ac="6" title="Audit Log Export">
+        <idea>Verify POST /api/v1/admin/audit-logs/export returns CSV with correct headers</idea>
+        <idea>Verify CSV contains all matching entries with correct column values</idea>
+        <idea>Verify export with no matching entries returns empty CSV (headers only)</idea>
+        <idea>Verify streaming response for large datasets (no full memory load)</idea>
+        <idea>Verify 6th export within hour returns 429 with Retry-After header</idea>
+        <idea>Verify export respects current filter parameters</idea>
+        <idea>Verify Export CSV button shows loading state during download</idea>
+      </group>
+      <group ac="7" title="Retroactive Audit Integration">
+        <idea>Verify AuditService importable from src/services/audit_service.py</idea>
+        <idea>Verify @audit_action decorator auto-logs endpoint calls with correct action</idea>
+        <idea>Verify decorator extracts actor_user_id from JWT, IP and user_agent from Request</idea>
+        <idea>Verify all 21 action types from audit catalog are valid action strings</idea>
+        <idea>Verify AuditService registered in FastAPI dependency injection</idea>
+      </group>
+      <group ac="8" title="Validation &amp; Error Handling">
+        <idea>Verify invalid date range (date_from &gt; date_to) returns 400</idea>
+        <idea>Verify invalid action type filter returns 400</idea>
+        <idea>Verify unauthenticated request returns 401</idea>
+        <idea>Verify non-Admin authenticated request returns 403</idea>
+        <idea>Verify error responses follow { error: { code, message, details } } format</idea>
+      </group>
+      <group title="Tenant Isolation (Critical)">
+        <idea>Verify audit logs in tenant A not visible via GET in tenant B</idea>
+        <idea>Verify RLS prevents direct SQL query of audit_logs across tenants</idea>
+        <idea>Verify CSV export only includes current tenant's audit logs</idea>
+        <idea>Verify analytics metrics scoped to current tenant only</idea>
+        <idea>Verify Redis cache key includes tenant_id (no cross-tenant cache leaks)</idea>
+      </group>
+      <group title="Security">
+        <idea>Verify SQL injection in filter parameters blocked (parameterized queries)</idea>
+        <idea>Verify RBAC bypass attempts fail (non-Admin cannot access admin endpoints)</idea>
+        <idea>Verify no sensitive data (passwords, tokens) in audit details JSONB</idea>
+        <idea>Verify cross-tenant access attempts blocked at RLS level</idea>
+      </group>
+    </ideas>
+  </tests>
+</story-context>

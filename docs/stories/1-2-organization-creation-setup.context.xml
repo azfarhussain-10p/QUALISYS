@@ -4,7 +4,7 @@
     <storyId>2</storyId>
     <title>Organization Creation &amp; Setup</title>
     <status>drafted</status>
-    <generatedAt>2026-02-01</generatedAt>
+    <generatedAt>2026-02-17</generatedAt>
     <generator>BMAD Story Context Workflow</generator>
     <sourceStoryPath>docs/stories/1-2-organization-creation-setup.md</sourceStoryPath>
   </metadata>
@@ -14,229 +14,189 @@
     <iWant>create my organization and configure settings</iWant>
     <soThat>my team can collaborate on the QUALISYS platform</soThat>
     <tasks>
-      <task id="1" title="Database Schema — Tenants and Membership" acs="2,4">
-        <subtask>1.1 Create Alembic migration for public.tenants table (UUID PK, name, slug unique, logo_url, custom_domain, data_retention_days, plan, settings JSONB, created_by FK, timestamps)</subtask>
-        <subtask>1.2 Create unique index on LOWER(slug)</subtask>
-        <subtask>1.3 Create Alembic migration for public.tenants_users join table (tenant_id, user_id, role, joined_at)</subtask>
-        <subtask>1.4 Add default_tenant_id column to public.users</subtask>
+      <task id="1" title="Database Schema — Tenants &amp; Membership" acs="2,4">
+        <subtask>1.1 Alembic migration for public.tenants table (UUID PK, name, slug unique, logo_url, custom_domain, data_retention_days default 365, plan default 'free', settings JSONB, created_by FK, timestamps)</subtask>
+        <subtask>1.2 Create unique index on LOWER(slug) for case-insensitive uniqueness</subtask>
+        <subtask>1.3 Alembic migration for public.tenants_users join table (tenant_id FK, user_id FK, role varchar 30, joined_at timestamptz, PK on tenant_id + user_id)</subtask>
+        <subtask>1.4 Add default_tenant_id column (UUID FK nullable) to public.users via migration</subtask>
         <subtask>1.5 Create SQLAlchemy models: Tenant, TenantUser</subtask>
         <subtask>1.6 Write migration rollback scripts</subtask>
       </task>
       <task id="2" title="Tenant Schema Provisioning Service" acs="3">
         <subtask>2.1 Create TenantProvisioningService that creates PostgreSQL schema tenant_{slug}</subtask>
-        <subtask>2.2 Implement base migration runner for new tenant schemas (org_members, audit_logs)</subtask>
+        <subtask>2.2 Implement base migration runner for new tenant schemas (creates org_members, audit_logs tables)</subtask>
         <subtask>2.3 Wrap schema creation + migration in transaction with rollback on failure</subtask>
         <subtask>2.4 Implement async provisioning with status tracking (pending/provisioning/ready/failed)</subtask>
-        <subtask>2.5 Validate schema name: allow only [a-z0-9_] pattern</subtask>
+        <subtask>2.5 Validate schema name against SQL injection: allow only [a-z0-9_] pattern</subtask>
       </task>
       <task id="3" title="Tenant Context Middleware" acs="8">
-        <subtask>3.1 Create FastAPI middleware extracting default_tenant_id from authenticated user JWT</subtask>
-        <subtask>3.2 Set PostgreSQL search_path to tenant_{slug} using ContextVar</subtask>
-        <subtask>3.3 Validate tenant exists and user has membership</subtask>
-        <subtask>3.4 Return 403 on no membership</subtask>
-        <subtask>3.5 Ensure ContextVar immutable per request</subtask>
+        <subtask>3.1 Create FastAPI middleware that extracts default_tenant_id from authenticated user JWT</subtask>
+        <subtask>3.2 Set PostgreSQL search_path to tenant_{slug} for current request using ContextVar</subtask>
+        <subtask>3.3 Validate tenant exists in public.tenants and user has membership in public.tenants_users</subtask>
+        <subtask>3.4 Return 403 if user has no membership in the requested tenant</subtask>
+        <subtask>3.5 Ensure ContextVar is immutable per request (prevent tenant context switching mid-request)</subtask>
       </task>
       <task id="4" title="FastAPI Organization Endpoints" acs="1,2,4,5,7,9">
-        <subtask>4.1 Create POST /api/v1/orgs — create organization</subtask>
-        <subtask>4.2 Implement slug auto-generation with collision detection</subtask>
-        <subtask>4.3 Implement Owner/Admin role assignment + default_tenant_id update</subtask>
-        <subtask>4.4 Trigger async tenant schema provisioning</subtask>
-        <subtask>4.5 Create GET /api/v1/orgs/{org_id}/settings (Owner/Admin only)</subtask>
-        <subtask>4.6 Create PATCH /api/v1/orgs/{org_id}/settings (Owner/Admin only)</subtask>
-        <subtask>4.7 Rate limit org creation: 3 per user per hour</subtask>
+        <subtask>4.1 POST /api/v1/orgs — create organization (name, slug, logo_url, custom_domain)</subtask>
+        <subtask>4.2 Slug auto-generation from name (slugify + collision detection with incrementing suffix)</subtask>
+        <subtask>4.3 Owner/Admin role assignment in tenants_users + update users.default_tenant_id</subtask>
+        <subtask>4.4 Trigger async tenant schema provisioning after org record created</subtask>
+        <subtask>4.5 GET /api/v1/orgs/{org_id}/settings (Owner/Admin only)</subtask>
+        <subtask>4.6 PATCH /api/v1/orgs/{org_id}/settings (Owner/Admin only, slug uniqueness check)</subtask>
+        <subtask>4.7 Rate limit org creation: 3 per user per hour (Redis-backed)</subtask>
         <subtask>4.8 Audit log all org creation and settings changes</subtask>
       </task>
       <task id="5" title="Logo Upload" acs="6">
-        <subtask>5.1 Create POST /api/v1/orgs/{org_id}/logo/presigned-url endpoint</subtask>
+        <subtask>5.1 POST /api/v1/orgs/{org_id}/logo/presigned-url — generates S3 pre-signed upload URL</subtask>
         <subtask>5.2 Validate file type (PNG, JPG, SVG) and size (max 2MB)</subtask>
-        <subtask>5.3 Create S3 bucket path: tenants/{tenant_id}/logo/{filename}</subtask>
-        <subtask>5.4 Implement server-side image resize to 256x256 thumbnail</subtask>
+        <subtask>5.3 S3 bucket path: tenants/{tenant_id}/logo/{filename}</subtask>
+        <subtask>5.4 Server-side image resize to 256x256 thumbnail (Pillow or Lambda trigger)</subtask>
         <subtask>5.5 Update tenants.logo_url after upload confirmation</subtask>
       </task>
       <task id="6" title="React Organization UI" acs="1,5,6">
-        <subtask>6.1 Create /create-org route with organization form</subtask>
-        <subtask>6.2 Implement slug auto-preview with availability check</subtask>
-        <subtask>6.3 Implement logo drag-and-drop with preview and crop</subtask>
-        <subtask>6.4 Create async provisioning progress page</subtask>
-        <subtask>6.5 Create /settings/organization page (Owner/Admin only)</subtask>
-        <subtask>6.6 Implement data retention policy dropdown</subtask>
-        <subtask>6.7 First-time user detection: redirect to /create-org if no org</subtask>
+        <subtask>6.1 /create-org route with org creation form (name, slug preview, logo upload, custom domain)</subtask>
+        <subtask>6.2 Slug auto-preview (debounced, availability check)</subtask>
+        <subtask>6.3 Logo drag-and-drop upload with preview and crop</subtask>
+        <subtask>6.4 "Setting up your organization..." progress page with async status polling</subtask>
+        <subtask>6.5 /settings/organization page for Owner/Admin</subtask>
+        <subtask>6.6 Data retention policy dropdown (30/90/180/365 days)</subtask>
+        <subtask>6.7 First-time user detection: redirect to /create-org if no org membership</subtask>
       </task>
       <task id="7" title="Testing" acs="all">
-        <subtask>7.1 Unit tests: slug generation, validation, schema name sanitization, middleware</subtask>
-        <subtask>7.2 Integration tests: POST /api/v1/orgs (happy path, duplicate slug, rate limit)</subtask>
-        <subtask>7.3 Integration tests: tenant schema provisioning (create, migrate, rollback)</subtask>
-        <subtask>7.4 Integration tests: tenant context middleware (search_path, 403, immutable)</subtask>
-        <subtask>7.5 Integration tests: org settings CRUD (Owner access, non-Owner denied)</subtask>
-        <subtask>7.6 Integration tests: logo upload (pre-signed URL, file validation)</subtask>
-        <subtask>7.7 Security tests: SQL injection in slug, cross-tenant access, RBAC</subtask>
-        <subtask>7.8 Frontend tests: create-org form, slug preview, logo upload, settings page</subtask>
+        <subtask>7.1 Unit tests: slug generation, validation, schema name sanitization, tenant context middleware</subtask>
+        <subtask>7.2 Integration: POST /api/v1/orgs (happy path, duplicate slug, rate limit, invalid input)</subtask>
+        <subtask>7.3 Integration: tenant schema provisioning (schema created, migration applied, rollback on failure)</subtask>
+        <subtask>7.4 Integration: tenant context middleware (correct search_path, 403 on no membership, immutable context)</subtask>
+        <subtask>7.5 Integration: org settings CRUD (Owner access, non-Owner denied, slug change validation)</subtask>
+        <subtask>7.6 Integration: logo upload (pre-signed URL, file type validation, size limit)</subtask>
+        <subtask>7.7 Security: SQL injection in slug/schema rejected, cross-tenant access denied, RBAC enforced</subtask>
+        <subtask>7.8 Frontend: create-org form, slug preview, logo upload, settings page</subtask>
       </task>
       <task id="8" title="Security Review" acs="9">
-        <subtask>8.1 Verify parameterized DDL for schema creation</subtask>
-        <subtask>8.2 Verify ContextVar prevents tenant context switching</subtask>
-        <subtask>8.3 Verify RBAC on all settings endpoints</subtask>
-        <subtask>8.4 Verify audit logging for all org events</subtask>
-        <subtask>8.5 Verify S3 bucket policy restricts tenant-scoped access</subtask>
+        <subtask>8.1 Verify tenant schema name uses parameterized DDL (no string interpolation)</subtask>
+        <subtask>8.2 Verify ContextVar prevents tenant context switching mid-request</subtask>
+        <subtask>8.3 Verify RBAC check on all settings endpoints (Owner/Admin only)</subtask>
+        <subtask>8.4 Verify audit logging captures all org creation and modification events</subtask>
+        <subtask>8.5 Verify S3 bucket policy restricts access to tenant-scoped paths only</subtask>
       </task>
     </tasks>
   </story>
 
   <acceptanceCriteria>
-    <ac id="1" title="First-Time User Onboarding Prompt">After verification/OAuth, users with no org membership redirected to Create Your Organization page. Form: name (3-100 chars), slug (auto-generated, editable, URL-safe, unique), logo (optional, 2MB max, PNG/JPG/SVG), custom domain (optional). Skip option for invited users.</ac>
-    <ac id="2" title="Organization Database Record">Record in public.tenants: id UUID, name, slug unique lowercase, logo_url, custom_domain, data_retention_days (default 365), plan (default free), settings JSONB, created_by FK, timestamps. Slug: lowercase alphanumeric + hyphens, no leading/trailing hyphens.</ac>
-    <ac id="3" title="Tenant Schema Provisioning">Creates PostgreSQL schema tenant_{slug}. Base migrations applied (org_members, audit_logs). Transaction-wrapped — rollback on failure. Async with progress indicator.</ac>
-    <ac id="4" title="Owner/Admin Role Assignment">Creating user assigned owner role in public.tenants_users (tenant_id, user_id, role, joined_at). users.default_tenant_id set. Redirect to org dashboard with Owner permissions.</ac>
-    <ac id="5" title="Organization Settings Page">Owner/Admin only (RBAC enforced). Edit: name, slug (uniqueness recheck), logo, custom domain, data retention (30/90/180/365 days). PATCH /api/v1/orgs/{org_id}/settings. Slug change requires confirmation dialog.</ac>
-    <ac id="6" title="Logo Upload">S3 path: tenants/{tenant_id}/logo/{filename}. PNG/JPG/SVG, max 2MB. Server-side resize to 256x256 thumbnail. Pre-signed URL for direct browser-to-S3 upload. logo_url stored in public.tenants.</ac>
-    <ac id="7" title="Duplicate Organization Prevention">Reject if slug exists (case-insensitive). Error: This organization URL is already taken. Auto-generation appends incrementing number on collision.</ac>
-    <ac id="8" title="Tenant Context Middleware">FastAPI middleware extracts default_tenant_id from JWT. Sets search_path to tenant schema. ContextVar immutable per request. Validates tenant exists + user membership. 403 on no membership.</ac>
+    <ac id="1" title="First-Time User Onboarding Prompt">After signup, first-time users redirected to Create Organization page. Form: name (3-100 chars), slug (auto-generated, editable, URL-safe, unique), logo upload (optional, max 2MB, PNG/JPG/SVG), custom domain (optional). Skip option for invited users.</ac>
+    <ac id="2" title="Organization Database Record">Record in public.tenants with UUID, name, slug (unique lowercase), logo_url, custom_domain, data_retention_days (default 365), plan (default 'free'), settings JSONB, created_by FK, timestamps. Slug validated: lowercase alphanumeric + hyphens, no leading/trailing hyphens.</ac>
+    <ac id="3" title="Tenant Schema Provisioning">Creates PostgreSQL schema tenant_{slug}. Base migration tables (org_members, audit_logs). Transaction-wrapped with rollback on failure. Async with progress indicator.</ac>
+    <ac id="4" title="Owner/Admin Role Assignment">Creating user assigned owner role in public.tenants_users. User's default_tenant_id set. Redirect to org dashboard with Owner permissions.</ac>
+    <ac id="5" title="Organization Settings Page">Owner/Admin only (RBAC enforced). Edit: name, slug (uniqueness re-check), logo, custom domain, data retention dropdown (30/90/180/365 days). PATCH /api/v1/orgs/{org_id}/settings.</ac>
+    <ac id="6" title="Logo Upload">S3 bucket: tenants/{tenant_id}/logo/{filename}. PNG/JPG/SVG, max 2MB. Server-side resize to 256x256 thumbnail. Pre-signed URL for direct browser-to-S3 upload.</ac>
+    <ac id="7" title="Duplicate Organization Prevention">Reject if slug exists (case-insensitive). Auto-append incrementing number on collision. Error message guidance.</ac>
+    <ac id="8" title="Tenant Context Middleware">FastAPI middleware extracts tenant from JWT default_tenant_id. Sets PostgreSQL search_path. ContextVar (immutable per request). Validates tenant exists and user has membership.</ac>
     <ac id="9" title="Security and Audit">Org creation logged in audit trail. Schema name validated against SQL injection. Parameterized DDL. Rate limit: 3 org creations per user per hour.</ac>
   </acceptanceCriteria>
 
   <artifacts>
     <docs>
-      <doc path="docs/planning/prd.md" title="Product Requirements Document" section="User Account and Access Management" snippet="FR2: Users can create organizations and become the first Owner/Admin. First user creates organization and becomes Owner/Admin. Team invites with role assignment." />
-      <doc path="docs/planning/prd.md" title="Product Requirements Document" section="Administration and Configuration" snippet="FR102: Admins can configure organization-wide settings (name, logo, domain). FR105: Admins can configure data retention policies for their organization." />
-      <doc path="docs/planning/prd.md" title="Product Requirements Document" section="Multi-Tenancy Architecture" snippet="Each customer organization is a separate tenant with complete data isolation. Hard separation at database level. Self-service signup with org creation and team invites." />
-      <doc path="docs/planning/prd.md" title="Product Requirements Document" section="Data Privacy" snippet="Data retention policies configurable per tenant (30/90/180/365 days). Data deletion: complete tenant data wipe within 30 days of account deletion." />
-      <doc path="docs/architecture/architecture.md" title="Architecture" section="ADR-001: Multi-Tenant Schema-Per-Tenant" snippet="PostgreSQL schema-per-tenant instead of shared tables with tenant_id. Alembic migrations must run per-tenant (scripted in deployment). Connection pooling via ContextVar-based routing." />
-      <doc path="docs/architecture/architecture.md" title="Architecture" section="Four-Pillar Multi-Tenancy" snippet="Pillar 1 Data Isolation: PostgreSQL schemas per tenant (tenant_acme = schema_tenant_123). RLS as defense-in-depth. Automated daily audit for cross-schema queries." />
-      <doc path="docs/architecture/architecture.md" title="Architecture" section="Security Threat Model — Exploit 1.2" snippet="RLS Race Condition: tenant context immutable per HTTP request. Validate tenant_id on EVERY write. Chaos engineering to verify no leaks under load." />
-      <doc path="docs/architecture/architecture.md" title="Architecture" section="Technology Stack" snippet="Object Storage: AWS S3 (test artifacts, screenshots, videos). Secrets: Kubernetes Secrets + External Secrets Operator. Email: SendGrid or AWS SES." />
-      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Epic 1 Tech Spec" section="Multi-Tenancy Architecture" snippet="public.tenants registry, public.users for cross-tenant lookup. Tenant schemas contain per-org tables. Defense-in-depth with RLS policies." />
-      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Epic 1 Tech Spec" section="RBAC Permission Matrix" snippet="6 roles with permissions: Owner/Admin (full access including billing, user management, integrations), PM/CSM (view/reports), QA-Manual (execute manual), QA-Automation (generate/execute automated), Dev (view results), Viewer (read-only)." />
-      <doc path="docs/epics/epics.md" title="Epics" section="Story 1.2 Organization Creation and Setup" snippet="As an Owner, create organization and configure settings. ACs: onboarding prompt, Owner role, org settings page, multi-tenant schema. FRs: FR2, FR102, FR105." />
-      <doc path="docs/planning/ux-design-specification.md" title="UX Design Specification" section="Flow 1: 5-Minute Value Onboarding" snippet="Step 1: Welcome + Project Creation. Welcome modal with Create Your First Project CTA. Quick tips progression. Post-org creation flows into project setup." />
-      <doc path="docs/stories/1-1-user-account-creation.md" title="Story 1.1 User Account Creation" section="Architecture Patterns" snippet="Users created in public.users table. Tenant association deferred to Story 1.2. Auth provider enum (email, google). This story establishes conventions for subsequent stories." />
+      <doc path="docs/planning/prd.md" title="Product Requirements Document v3.0" section="User Account &amp; Access Management" snippet="FR2: Users can create organizations and become the first Owner/Admin. FR102: Admins can configure organization-wide settings. FR105: Data retention policies." />
+      <doc path="docs/planning/prd.md" title="PRD" section="Multi-Tenancy Architecture" snippet="Schema-level PostgreSQL isolation. Tenant onboarding: first user creates org and becomes Owner/Admin. Schema provisioning on org creation." />
+      <doc path="docs/planning/prd.md" title="PRD" section="Data Privacy" snippet="Data retention policies configurable per tenant: 30/90/180/365 days. GDPR compliance consideration." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="Multi-Tenancy Architecture" snippet="PostgreSQL schema isolation. public.tenants registry, public.users cross-tenant lookup. Defense-in-depth: schema isolation, RLS, application-level validation, daily audit." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="RBAC Permission Matrix" snippet="6 roles. Owner/Admin: create projects, invite users, manage billing, configure integrations. All roles: view dashboards." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="Authentication Architecture" snippet="JWT tokens (7-day expiry, httpOnly cookies). Redis session storage. Tenant context extracted from JWT." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="ADR-001" snippet="Schema-per-tenant strategy. Alembic per-tenant migrations. ContextVar-based DB connection routing. Schema naming: tenant_{slug}." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Four-Pillar Multi-Tenancy" snippet="Data isolation (schema-level), performance isolation (connection pooling), cost isolation (metering), failure isolation (circuit breakers)." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Security Threat Model" snippet="RLS race condition prevention via ContextVar. Cross-tenant audit scanning. SQL injection prevention via parameterized queries." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Technology Stack" snippet="Backend: Python 3.11+ / FastAPI. Frontend: Vite + React 18, Tailwind + shadcn/ui. Object storage: AWS S3." />
+      <doc path="docs/epics/epics.md" title="Epic &amp; Story Breakdown" section="Story 1.2" snippet="As Owner, create org and configure settings. 4 ACs: onboarding, schema creation, owner role, settings page. FRs: FR2, FR102, FR105." />
+      <doc path="docs/stories/1-1-user-account-creation.md" title="Story 1.1" section="Architecture Patterns" snippet="User records in public.users. Auth provider enum. bcrypt password hashing. Rate limiting with Redis. Email service via SendGrid/SES. Project structure conventions established." />
+      <doc path="docs/planning/ux-design-specification.md" title="UX Design" section="Organization Setup" snippet="Organization creation wizard, logo upload, slug preview, settings page with data retention controls." />
     </docs>
 
     <code>
-      <!-- GREENFIELD: No production code exists yet. Story 1.1 not implemented. -->
-      <!-- Planned artifacts from Story 1.1 (prerequisite): -->
-      <prerequisite path="src/models/user.py" kind="model" reason="User SQLAlchemy model from Story 1.1. This story adds default_tenant_id column." />
-      <prerequisite path="src/api/v1/auth/" kind="api-routes" reason="Auth endpoints from Story 1.1. This story adds first-time-user detection redirect." />
-      <prerequisite path="alembic/versions/" kind="migration" reason="Migration infrastructure from Story 1.1. This story adds tenants + tenants_users migrations." />
-
-      <!-- New artifacts planned for this story: -->
-      <planned path="src/models/tenant.py" kind="model" reason="Tenant and TenantUser SQLAlchemy models." />
-      <planned path="src/services/tenant_provisioning.py" kind="service" reason="Async tenant schema creation and migration service." />
-      <planned path="src/middleware/tenant_context.py" kind="middleware" reason="FastAPI middleware for ContextVar-based tenant routing." />
-      <planned path="src/middleware/rbac.py" kind="middleware" reason="RBAC decorator for role-based endpoint protection." />
-      <planned path="src/api/v1/orgs/" kind="api-routes" reason="Organization CRUD endpoints (create, settings, logo upload)." />
-      <planned path="src/migrations/tenant_base/" kind="migration" reason="Base migration scripts applied to each new tenant schema." />
-      <planned path="src/pages/create-org/" kind="frontend-page" reason="Organization creation form with slug preview and logo upload." />
-      <planned path="src/pages/settings/organization/" kind="frontend-page" reason="Organization settings page (Owner/Admin only)." />
+      <file path="backend/tests/conftest.py" kind="test-config" symbol="test_engine, db_session, client, existing_user, make_user_payload" reason="Pytest fixtures from Story 1.1: session-scoped engine (SQLite in-memory or TEST_DATABASE_URL), per-test transaction-rollback db_session, AsyncClient with get_db override, existing_user factory. Story 1.2 must ADD test_tenant fixture here for tenant schema isolation." />
+      <file path="scripts/init-local-db.sql" kind="seed" symbol="tenant_dev_1, tenant_dev_2" reason="Local dev DB init — creates dev tenant schemas with base tables. Reference for tenant schema structure and naming convention (tenant_{name})." />
+      <file path="compose.yml" kind="config" symbol="podman-compose" reason="Local dev environment with PostgreSQL 15, Redis 7 services. Use for local org creation testing." />
+      <file path=".github/workflows/pr-checks.yml" kind="ci" symbol="pr-checks" reason="CI pipeline — new tests run automatically" />
+      <file path="backend/src/models/user.py" kind="model" symbol="User" reason="Story 1.1 User model (existing) — org creation adds default_tenant_id FK column via Alembic migration" />
+      <file path="backend/src/api/v1/auth/router.py" kind="api" symbol="register, google_callback, verify_email_endpoint" reason="Story 1.1 auth endpoints (existing) — org creation redirects post-signup users to /create-org" />
+      <file path="backend/src/services/notification/notification_service.py" kind="service" symbol="send_verification_email" reason="Story 1.1 email service (existing) — reuse infrastructure for org-related notification emails" />
     </code>
 
     <dependencies>
-      <!-- No dependency manifests exist yet. Planned stack from architecture: -->
-      <planned-backend language="python" version="3.11+">
-        <package name="fastapi" purpose="Async web framework" />
-        <package name="sqlalchemy" version="2.0+" purpose="ORM with async, ContextVar session routing" />
-        <package name="alembic" purpose="Database migrations (public + per-tenant)" />
-        <package name="asyncpg" purpose="Async PostgreSQL driver (schema creation DDL)" />
-        <package name="python-slugify" purpose="URL-safe slug generation from org name" />
-        <package name="pillow" purpose="Server-side image resize for logo thumbnails (256x256)" />
-        <package name="boto3" purpose="AWS S3 SDK for pre-signed URL generation and bucket operations" />
-        <package name="redis" purpose="Rate limiting (org creation 3/user/hour)" />
-        <package name="pydantic" version="2.0+" purpose="Request/response validation schemas" />
-        <package name="pytest" purpose="Test framework" />
-        <package name="pytest-asyncio" purpose="Async test support" />
-        <package name="moto" purpose="Mock AWS S3 for integration tests" />
-      </planned-backend>
-      <planned-frontend language="typescript" runtime="node">
-        <package name="react-dropzone" purpose="Drag-and-drop file upload for logo" />
-        <package name="react-image-crop" purpose="Client-side image crop before upload" />
-        <package name="@tanstack/react-query" purpose="Async provisioning status polling" />
-      </planned-frontend>
+      <ecosystem name="python">
+        <note>Backend stack (Python 3.11+ / FastAPI — backend/pyproject.toml exists, created Story 1.1)</note>
+        <package name="fastapi" version="latest" reason="API framework — org endpoints" />
+        <package name="sqlalchemy" version="2.x" reason="ORM — Tenant, TenantUser models, schema routing" />
+        <package name="alembic" version="latest" reason="Database migrations — tenants table, tenants_users, per-tenant schemas" />
+        <package name="pydantic" version="2.x" reason="Request/response validation for org endpoints" />
+        <package name="redis" version="latest" reason="Rate limiting org creation (3/user/hr)" />
+        <package name="boto3" version="latest" reason="AWS S3 pre-signed URL generation for logo upload" />
+        <package name="pillow" version="latest" reason="Server-side image resize to 256x256 thumbnail" />
+        <package name="python-slugify" version="latest" reason="Slug generation from org name" />
+        <package name="asyncpg" version="latest" reason="Async PostgreSQL — schema creation DDL (existing in conftest.py)" />
+      </ecosystem>
+      <ecosystem name="node">
+        <note>Frontend stack (planned from architecture)</note>
+        <package name="react" version="18.x" reason="UI framework" />
+        <package name="vite" version="latest" reason="Build tool" />
+        <package name="tailwindcss" version="3.x" reason="Styling" />
+        <package name="@shadcn/ui" version="latest" reason="UI components (Form, Input, Select, Dialog, Card)" />
+        <package name="react-dropzone" version="latest" reason="Logo drag-and-drop upload" />
+        <package name="vitest" version="latest" reason="Test runner (Vite-native, replaces Jest)" />
+        <package name="@testing-library/react" version="latest" reason="Component tests" />
+      </ecosystem>
+      <ecosystem name="infrastructure">
+        <package name="postgresql" version="15+" reason="Multi-tenant database — schema-per-tenant" />
+        <package name="redis" version="7+" reason="Rate limiting, session storage" />
+        <package name="aws-s3" version="API" reason="Logo storage with pre-signed URLs" />
+      </ecosystem>
     </dependencies>
   </artifacts>
 
   <constraints>
-    <constraint source="architecture" priority="critical">Schema-per-tenant: Each org gets its own PostgreSQL schema (tenant_{slug}). Schema creation uses parameterized DDL — NEVER string interpolation for schema names. [ADR-001]</constraint>
-    <constraint source="architecture" priority="critical">Tenant context immutable per request: ContextVar set once in middleware, never modified during request lifetime. Prevents RLS race condition (Exploit 1.2 in threat model).</constraint>
-    <constraint source="architecture" priority="critical">Cross-tenant isolation: search_path must ONLY contain the current tenant schema. Never set search_path to multiple tenant schemas. Audit daily for violations.</constraint>
-    <constraint source="architecture" priority="critical">RBAC enforcement: Settings endpoints restricted to Owner/Admin role. Introduce @require_role decorator pattern here for reuse in all subsequent stories.</constraint>
-    <constraint source="prd" priority="high">Data retention: Configurable per tenant (30/90/180/365 days). Default 365 days. Enforce via background job (not in this story, but schema must support it).</constraint>
-    <constraint source="architecture" priority="high">S3 bucket policy: Tenant-scoped paths only (tenants/{tenant_id}/). No cross-tenant access. Pre-signed URLs expire in 15 minutes.</constraint>
-    <constraint source="architecture" priority="high">Alembic per-tenant: Migrations scripted to iterate all tenant schemas. Base tenant migration creates org_members and audit_logs tables.</constraint>
-    <constraint source="story-1.1" priority="high">Builds on Story 1.1 conventions: error handling patterns, API response format ({error: {code, message}}), test organization, directory structure.</constraint>
-    <constraint source="architecture" priority="medium">Slug rules: 3-50 chars, lowercase alphanumeric + hyphens, no leading/trailing hyphens. Schema name converts hyphens to underscores. Max 63 chars total for PostgreSQL identifier limit.</constraint>
-    <constraint source="architecture" priority="medium">Logo upload: Max 2MB. PNG/JPG/SVG only. Pre-signed S3 URL (no backend proxy). Thumbnail generated server-side (256x256).</constraint>
-    <constraint source="architecture" priority="medium">Async provisioning: Schema creation may take 2-5 seconds. Run asynchronously with status polling. User sees progress indicator.</constraint>
+    <constraint source="architecture" priority="critical">Multi-tenancy: Schema-per-tenant PostgreSQL isolation (ADR-001). Schema naming convention: tenant_{slug}. public.tenants for registry, public.tenants_users for membership. ContextVar-based routing.</constraint>
+    <constraint source="architecture" priority="critical">SQL injection prevention: Schema name validated with [a-z0-9_] pattern ONLY (re.fullmatch). All DDL uses psycopg2.sql.Identifier or equivalent parameterized DDL — no raw string interpolation. Implement validate_safe_identifier() in TenantProvisioningService and test with injection payloads ('; DROP TABLE, etc.).</constraint>
+    <constraint source="architecture" priority="critical">Defense-in-depth: Schema isolation (primary) + RLS policies (defense layer) + application-level tenant context validation. Story 1.2 must add RLS_POLICY_DDL constant and test_tenant fixture to backend/tests/conftest.py.</constraint>
+    <constraint source="architecture" priority="high">ContextVar immutability: Tenant context set once per request in middleware, immutable afterward. Prevents RLS race condition identified in architecture threat model.</constraint>
+    <constraint source="architecture" priority="high">S3 bucket policy: Restrict access to tenant-scoped paths (tenants/{tenant_id}/logo/). Pre-signed URLs for direct browser upload (no backend proxy).</constraint>
+    <constraint source="prd" priority="high">Data retention: Configurable per tenant (30/90/180/365 days, default 365). Stored in tenants table settings.</constraint>
+    <constraint source="architecture" priority="high">RBAC: Only Owner/Admin can access org settings endpoints. Use @require_role decorator pattern. 6 roles: Owner/Admin, PM/CSM, QA-Manual, QA-Automation, Dev, Viewer.</constraint>
+    <constraint source="architecture" priority="medium">Slug rules: URL-safe (lowercase alphanumeric + hyphens), no leading/trailing hyphens, max 50 chars (PostgreSQL 63-char identifier limit minus "tenant_" prefix). Auto-generated from name, collision detection with incrementing suffix.</constraint>
+    <constraint source="architecture" priority="medium">Async schema provisioning: User sees progress indicator. Status: pending → provisioning → ready → failed. If failed, org record remains with retry option.</constraint>
+    <constraint source="dev-notes" priority="medium">Audit logging: All org creation and settings modification events logged with actor, action, timestamp, tenant_id.</constraint>
   </constraints>
 
   <interfaces>
-    <interface name="POST /api/v1/orgs" kind="REST endpoint">
-      <signature>POST /api/v1/orgs → { org: { id, name, slug, logo_url, status, created_at } }</signature>
-      <request>{ name: string, slug?: string, custom_domain?: string }</request>
-      <response>201: { org: OrgResponse } | 400: { error } | 409: { error } | 429: { error }</response>
-      <path>src/api/v1/orgs/create.py (to be created)</path>
-    </interface>
-    <interface name="GET /api/v1/orgs/{org_id}/settings" kind="REST endpoint">
-      <signature>GET /api/v1/orgs/{org_id}/settings → { settings: OrgSettings }</signature>
-      <response>200: { settings } | 403: { error } | 404: { error }</response>
-      <path>src/api/v1/orgs/settings.py (to be created)</path>
-      <note>Owner/Admin only — RBAC enforced</note>
-    </interface>
-    <interface name="PATCH /api/v1/orgs/{org_id}/settings" kind="REST endpoint">
-      <signature>PATCH /api/v1/orgs/{org_id}/settings → { settings: OrgSettings }</signature>
-      <request>{ name?, slug?, custom_domain?, data_retention_days? }</request>
-      <response>200: { settings } | 400: { error } | 403: { error } | 409: { error }</response>
-      <path>src/api/v1/orgs/settings.py (to be created)</path>
-      <note>Owner/Admin only — RBAC enforced</note>
-    </interface>
-    <interface name="POST /api/v1/orgs/{org_id}/logo/presigned-url" kind="REST endpoint">
-      <signature>POST /api/v1/orgs/{org_id}/logo/presigned-url → { upload_url, fields, expires_in }</signature>
-      <request>{ filename: string, content_type: string, size: number }</request>
-      <response>200: { upload_url, fields } | 400: { error } | 403: { error }</response>
-      <path>src/api/v1/orgs/logo.py (to be created)</path>
-    </interface>
-    <interface name="Tenant SQLAlchemy Model" kind="ORM model">
-      <signature>class Tenant(Base): id: UUID, name: str, slug: str (unique), logo_url: Optional[str], custom_domain: Optional[str], data_retention_days: int, plan: str, settings: dict, created_by: UUID (FK users.id), created_at: datetime, updated_at: datetime</signature>
-      <path>src/models/tenant.py (to be created)</path>
-    </interface>
-    <interface name="TenantUser SQLAlchemy Model" kind="ORM model">
-      <signature>class TenantUser(Base): tenant_id: UUID (FK tenants.id), user_id: UUID (FK users.id), role: str, joined_at: datetime — composite PK (tenant_id, user_id)</signature>
-      <path>src/models/tenant.py (to be created)</path>
-    </interface>
-    <interface name="TenantProvisioningService" kind="service">
-      <signature>class TenantProvisioningService: async create_schema(slug: str) → bool, async run_base_migrations(schema: str) → bool, async provision_tenant(tenant_id: UUID, slug: str) → ProvisioningStatus</signature>
-      <path>src/services/tenant_provisioning.py (to be created)</path>
-    </interface>
-    <interface name="TenantContextMiddleware" kind="middleware">
-      <signature>class TenantContextMiddleware: sets search_path via ContextVar from JWT default_tenant_id. Validates membership. Returns 403 on unauthorized tenant access.</signature>
-      <path>src/middleware/tenant_context.py (to be created)</path>
-    </interface>
-    <interface name="require_role decorator" kind="RBAC decorator">
-      <signature>@require_role('owner', 'admin') — FastAPI dependency that checks tenants_users.role for current user + tenant. Returns 403 if role not matched.</signature>
-      <path>src/middleware/rbac.py (to be created)</path>
-    </interface>
-    <interface name="User Model (modified)" kind="ORM model">
-      <signature>User model from Story 1.1 extended with: default_tenant_id: Optional[UUID] (FK tenants.id, nullable)</signature>
-      <path>src/models/user.py (from Story 1.1, modified)</path>
-    </interface>
+    <interface name="POST /api/v1/orgs" kind="REST endpoint" signature="POST /api/v1/orgs — Body: { name: string, slug?: string, logo_url?: string, custom_domain?: string } — Returns: { data: { id, name, slug, status } } — Auth: Authenticated user" path="backend/src/api/v1/orgs/" />
+    <interface name="GET /api/v1/orgs/{org_id}/settings" kind="REST endpoint" signature="GET /api/v1/orgs/{org_id}/settings — Returns: { data: { name, slug, logo_url, custom_domain, data_retention_days, plan, settings } } — Auth: Owner/Admin only" path="backend/src/api/v1/orgs/" />
+    <interface name="PATCH /api/v1/orgs/{org_id}/settings" kind="REST endpoint" signature="PATCH /api/v1/orgs/{org_id}/settings — Body: partial update fields — Returns: { data: updated_settings } — Auth: Owner/Admin only" path="backend/src/api/v1/orgs/" />
+    <interface name="POST /api/v1/orgs/{org_id}/logo/presigned-url" kind="REST endpoint" signature="POST — Body: { filename, content_type } — Returns: { upload_url, fields } — Auth: Owner/Admin only" path="backend/src/api/v1/orgs/" />
+    <interface name="TenantProvisioningService" kind="service class" signature="class TenantProvisioningService: provision_tenant(slug) -> status; get_provisioning_status(tenant_id) -> ProvisioningStatus; rollback_provisioning(tenant_id) -> None" path="backend/src/services/tenant_provisioning.py" />
+    <interface name="TenantContextMiddleware" kind="middleware" signature="FastAPI middleware: extracts default_tenant_id from JWT, resolves slug, sets search_path to tenant_{slug} via ContextVar. Returns 403 if no membership." path="backend/src/middleware/tenant_context.py" />
+    <interface name="@require_role" kind="decorator" signature="@require_role('owner') — FastAPI dependency that validates current user has specified role in current tenant. Returns 403 if not." path="backend/src/middleware/rbac.py" />
+    <interface name="Tenant model" kind="SQLAlchemy model" signature="class Tenant(Base): id: UUID, name: str, slug: str unique, logo_url: str?, custom_domain: str?, data_retention_days: int(365), plan: str('free'), settings: JSONB, created_by: UUID FK, created_at, updated_at" path="backend/src/models/tenant.py" />
+    <interface name="TenantUser model" kind="SQLAlchemy model" signature="class TenantUser(Base): tenant_id: UUID FK, user_id: UUID FK, role: str, joined_at: datetime — PK: (tenant_id, user_id)" path="backend/src/models/tenant.py" />
+    <interface name="test_tenant fixture" kind="pytest fixture" signature="@pytest_asyncio.fixture async def test_tenant(db_session) -> AsyncGenerator[dict, None] — Creates isolated test schema with RLS policies, yields {tenant_id, schema_name}, drops schema on cleanup. MUST BE CREATED in Story 1.2 (not yet in conftest.py)" path="backend/tests/conftest.py" />
   </interfaces>
 
   <tests>
-    <standards>Backend: Pytest with pytest-asyncio, async httpx test client. PostgreSQL test database with transaction rollback per test. Tenant provisioning tests need dedicated test schemas cleaned up after runs. S3 tests use moto mock library. Frontend: Vitest + React Testing Library. Coverage target: 80%+ for new code. Security tests critical: cross-tenant access, SQL injection in schema names, RBAC enforcement.</standards>
+    <standards>Backend: Pytest with async test client (httpx), PostgreSQL test database with per-test transaction rollback (asyncio_mode=auto via backend/pyproject.toml). Story 1.1 conftest.py provides test_engine, db_session, client, existing_user fixtures. Story 1.2 must ADD test_tenant fixture (creates/drops tenant schema with RLS per test). Frontend: Vitest + React Testing Library. Coverage target: 80%+ for new code. Tenant provisioning tests need dedicated test schemas (cleaned up after each test run). Security tests for cross-tenant access are critical per architecture threat model. Implement Python validate_safe_identifier() in TenantProvisioningService and test with SQL injection payloads.</standards>
     <locations>
-      <location>tests/unit/ (slug generation, schema name validation, middleware logic)</location>
-      <location>tests/integration/ (org CRUD, provisioning, middleware, settings, logo)</location>
-      <location>tests/security/ (cross-tenant access, SQL injection, RBAC)</location>
-      <location>src/**/__tests__/ or src/**/*.test.tsx (frontend component tests)</location>
+      <location>backend/tests/conftest.py — Pytest fixtures: test_engine, db_session, client, existing_user (Story 1.1); test_tenant, RLS_POLICY_DDL to be added (Story 1.2)</location>
+      <location>backend/tests/unit/ — Unit tests for slug generation, schema validation, ContextVar middleware</location>
+      <location>backend/tests/integration/ — API endpoint tests with DB (org CRUD, provisioning, settings)</location>
+      <location>backend/tests/security/ — SQL injection, cross-tenant access, RBAC enforcement</location>
+      <location>web/src/pages/**/__tests__/ — Frontend Vitest component tests (org creation wizard, settings page)</location>
     </locations>
     <ideas>
-      <idea ac="1">Test first-time user (no org) redirected to /create-org. Test user with existing org NOT redirected. Test form renders all fields. Test skip option navigates correctly.</idea>
-      <idea ac="2">Test org record created with correct fields. Test UUID generated. Test slug stored lowercase. Test settings JSONB default empty. Test created_by FK matches authenticated user.</idea>
-      <idea ac="3">Test schema tenant_{slug} created in PostgreSQL. Test base migrations applied (org_members, audit_logs tables exist). Test rollback on migration failure (schema dropped). Test async provisioning status transitions.</idea>
-      <idea ac="4">Test creating user gets owner role in tenants_users. Test default_tenant_id updated on users table. Test redirect to dashboard after creation. Test Owner permissions active immediately.</idea>
-      <idea ac="5">Test settings page loads for Owner. Test 403 returned for non-Owner. Test PATCH updates name/slug/domain/retention. Test slug change validates uniqueness. Test confirmation dialog on slug change.</idea>
-      <idea ac="6">Test pre-signed URL generated for valid file types. Test 400 for invalid file type (e.g., .exe). Test 400 for oversized file (>2MB). Test logo_url updated after upload. Test thumbnail generation.</idea>
-      <idea ac="7">Test duplicate slug rejected with 409. Test case-insensitive comparison. Test auto-generation appends -1, -2 on collision. Test error message correct.</idea>
-      <idea ac="8">Test middleware sets correct search_path. Test 403 when user has no membership. Test ContextVar immutable (cannot change mid-request). Test search_path reset between requests.</idea>
-      <idea ac="9">Test audit log entry created on org creation. Test schema name rejects SQL injection chars. Test parameterized DDL used. Test rate limit (4th org in 1 hour returns 429).</idea>
+      <idea ac="1">Test first-time user redirect to /create-org. Test form validation (name length, slug format). Test skip option renders for invited users. Test slug auto-generation preview (debounced).</idea>
+      <idea ac="2">Test org record created with correct fields (UUID, name, slug, defaults). Test LOWER(slug) unique index prevents case-insensitive duplicates. Test JSONB settings default. Test created_by FK populated.</idea>
+      <idea ac="3">Test schema created (query pg_catalog.pg_namespace). Test base tables exist in new schema. Test transaction rollback on migration failure (mock failure). Test async provisioning status transitions. Test schema name uses [a-z0-9_] only.</idea>
+      <idea ac="4">Test owner role assigned in tenants_users. Test default_tenant_id updated in users table. Test redirect to org dashboard after creation.</idea>
+      <idea ac="5">Test Owner can GET settings. Test Owner can PATCH settings. Test non-Owner gets 403. Test slug change triggers uniqueness re-check. Test data retention dropdown values.</idea>
+      <idea ac="6">Test pre-signed URL generation. Test file type validation (reject .exe, accept PNG/JPG/SVG). Test 2MB size limit. Test logo_url updated after upload. Test thumbnail generated at 256x256.</idea>
+      <idea ac="7">Test duplicate slug rejected with error message. Test auto-increment suffix (my-org, my-org-1, my-org-2). Test case-insensitive collision detection.</idea>
+      <idea ac="8">Test middleware sets correct search_path. Test ContextVar immutable per request. Test 403 on no membership. Test middleware skips public endpoints. Test concurrent requests get isolated contexts.</idea>
+      <idea ac="9">Test audit log entries for org creation and settings changes. Test schema name rejects SQL injection payloads (['; DROP TABLE]). Test rate limit 3 org creations per user per hour. Test parameterized DDL (no string interpolation).</idea>
     </ideas>
   </tests>
 </story-context>

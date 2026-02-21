@@ -1,0 +1,244 @@
+<story-context id="1-11-project-management-archive-delete-list" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>11</storyId>
+    <title>Project Management &mdash; Archive, Delete, List</title>
+    <status>drafted</status>
+    <generatedAt>2026-02-18</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-11-project-management-archive-delete-list.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Admin</asA>
+    <iWant>archive or delete projects and view project list</iWant>
+    <soThat>I can manage projects over time</soThat>
+    <tasks>
+      <task id="1" title="Database Schema Updates" acs="3,4,5">Verify is_active column exists on {tenant_schema}.projects (already in init-local-db.sql). Verify status column added by Story 1.9 migration. Create index on (is_active, tenant_id) for efficient filtering. Verify CASCADE behavior on project delete to project_members, test_cases, test_executions. Add ON DELETE CASCADE to project_members FK if not set</task>
+      <task id="2" title="Project Service Extensions" acs="1,2,3,4,5">Extend ProjectService with list_projects(), archive_project(), restore_project(), delete_project(). list_projects: filtered by is_active (default true), searchable by name (ILIKE), sortable, paginated, includes member count (JOIN project_members GROUP BY), respects membership filter (Story 1.10 check_project_access). archive: set is_active=false, status='archived'. restore: set is_active=true, status='active'. delete: hard-delete with CASCADE, audit BEFORE deletion</task>
+      <task id="3" title="FastAPI Endpoints" acs="1,2,3,4,5,7,8">Update GET /api/v1/projects with query params: status (active|archived|all), search, sort, page/per_page. Membership filter from Story 1.10. POST /projects/{id}/archive (Owner/Admin, 200). POST /projects/{id}/restore (Owner/Admin, 200). DELETE /projects/{id} (Owner/Admin, 204). RBAC @require_role, rate limiting 10/org/hour for destructive ops, audit logging</task>
+      <task id="4" title="React UI &mdash; Project List Page" acs="1,2,6">Project list page (/projects) with table layout. Columns: name (link), status badge, health indicator (placeholder), description (truncated), team size, created date, actions dropdown. Search input, status filter (Active/Archived/All) persisted in URL, sort controls, pagination (20/page), empty state with New Project CTA (Owner/Admin), health indicator placeholder column</task>
+      <task id="5" title="React UI &mdash; Archive, Restore, Delete" acs="3,4,5,7">Actions dropdown per row: View, Settings, Archive/Restore, Delete (Owner/Admin only). Archive confirmation dialog with data retention reassurance. Restore action (archived projects only). Delete high-friction confirmation: red warning, type exact project name to confirm. Success/error toasts. List auto-refresh after operations</task>
+      <task id="6" title="Testing" acs="all">Unit tests: list filtering, search, sort, pagination logic. Integration tests: GET /projects with filters and membership filtering, POST archive (valid, already archived 400, RBAC 403), POST restore (valid, not archived 400, RBAC), DELETE (valid with cascade verified, 404, RBAC), cascade on delete (project_members, test_cases, test_executions removed), tenant isolation, rate limiting (11th op returns 429). Security tests: SQL injection, RBAC bypass, cross-tenant. Frontend tests: table, search, filter, sort, pagination, dialogs, name confirmation</task>
+      <task id="7" title="Security Review" acs="5,7,8">Verify parameterized queries, tenant isolation on all list/archive/delete ops, RBAC (Owner/Admin only for destructive ops), delete confirmation not bypassable (server validates), audit logged BEFORE hard-delete, rate limiting prevents mass deletion abuse</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1" title="Project List Page">Projects list (/projects) shows all projects user has access to (membership-filtered per Story 1.10). Table: name (link), status badge (Active green, Archived gray), description (truncated), team size, created date, actions dropdown. Searchable by name, sortable by name/created_at/status. Pagination 20/page. Empty state with New Project button (Owner/Admin)</ac>
+    <ac id="2" title="Show Archived Toggle">Default shows active only (is_active=true). Toggle/filter reveals archived projects. Archived visually distinct (gray, badge). Status filter: Active (default), Archived, All. Filter persisted in URL query param (?status=active|archived|all)</ac>
+    <ac id="3" title="Archive Project (Soft-Delete)">Owner/Admin archives via actions dropdown. Confirmation dialog with data retention reassurance. POST /api/v1/projects/{project_id}/archive sets is_active=false, status='archived'. Project hidden from default list, visible via Show Archived. All data retained. Returns 200</ac>
+    <ac id="4" title="Restore Archived Project">Owner/Admin restores archived project via actions dropdown. POST /api/v1/projects/{project_id}/restore sets is_active=true, status='active'. Restored project reappears in active list. All data intact. Returns 200</ac>
+    <ac id="5" title="Delete Project (Hard-Delete)">Owner/Admin permanently deletes via actions dropdown. High-friction confirmation: type exact project name (case-sensitive). DELETE /api/v1/projects/{project_id} cascades to project_members, test_cases, test_executions. Returns 204. Removed from all lists</ac>
+    <ac id="6" title="Project Health Indicator (Placeholder)">Each project shows health indicator column. Epic 1 placeholder: always shows dash or neutral gray dot. Epic 2-4 will populate with real metrics. Column structure created now for forward compatibility</ac>
+    <ac id="7" title="Validation &amp; Error Handling">Cannot archive already-archived (400). Cannot restore active project (400). Cannot delete non-existent (404). Delete name must match exactly (client validation). Consistent error format from Story 1.1. Non-Admin gets 403 on archive/restore/delete</ac>
+    <ac id="8" title="Rate Limiting &amp; Audit">Archive/restore/delete rate-limited 10/org/hour (Redis-backed). Audit: project archived (project_id, name, archived_by), restored (project_id, restored_by), deleted (project_id, name, deleted_by &mdash; logged BEFORE deletion). Includes user_id, IP, user_agent, timestamp</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/planning/prd.md" title="Product Requirements Document v3.0" section="Project Management" snippet="FR14: Users can archive or delete projects. FR15: Users can view list of all projects with status and health indicators." />
+      <doc path="docs/planning/prd.md" title="PRD v3.0" section="Roles &amp; Permissions" snippet="Owner/Admin: Full platform access including project operations. Can create/delete projects, invite/remove users, assign roles. Archive/delete projects: Owner/Admin only." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec &mdash; Epic 1" section="In Scope Stories" snippet="Story 1.11: Project Management (Archive, Delete, List) &mdash; FR14, FR15. Completes the project lifecycle with archive, hard-delete, and comprehensive project list view." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec &mdash; Epic 1" section="RBAC Permission Matrix" snippet="Delete/Archive projects: Owner/Admin only. View project list: all authenticated roles (filtered by membership). Restore: Owner/Admin only." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec &mdash; Epic 1" section="Multi-Tenancy Architecture" snippet="Tenant-specific schemas: tenant_acme.projects. Schema-per-tenant isolation. Defense-in-depth with RLS policies. All project operations scoped to tenant via ContextVar middleware." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Four-Pillar Multi-Tenancy" snippet="Incoming Request &rarr; JWT Extraction (tenant_id + role) &rarr; SET search_path tenant_xyz &rarr; Resource Quota &rarr; Token Meter. Schema-level isolation primary, RLS defense layer." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Security Threat Model" snippet="Parameterized queries ONLY, RLS policies, audit trails, rate limiting. Zero dynamic SQL with user input. Immutable audit records for compliance." />
+      <doc path="docs/epics/epics.md" title="Epics &amp; Stories" section="Story 1.11" snippet="AC source: project list page, archived toggle, archive (soft-delete), restore, delete (hard-delete with CASCADE), health indicator placeholder, validation, rate limiting &amp; audit. FRs: FR14, FR15." />
+      <doc path="docs/stories/1-2-organization-creation-setup.md" title="Story 1.2" section="Architecture Patterns" snippet="RBAC @require_role decorator. ContextVar tenant middleware. Schema-per-tenant isolation pattern reused for all project operations." />
+      <doc path="docs/stories/1-5-login-session-management.md" title="Story 1.5" section="JWT Auth" snippet="JWT auth middleware extracts user_id and tenant_id from claims. Tenant context set via ContextVar for RLS. All authenticated endpoints require valid JWT." />
+      <doc path="docs/stories/1-9-project-creation-configuration.md" title="Story 1.9" section="Dev Notes" snippet="Projects table with is_active BOOLEAN, status VARCHAR(20) default 'active'. Slug generation. JSONB settings. ProjectService with create/get/update. Story 1.11 extends with list/archive/delete." />
+      <doc path="docs/stories/1-10-project-team-assignment.md" title="Story 1.10" section="Dev Notes" snippet="project_members table with FK to projects.id. check_project_access FastAPI dependency. Membership-filtered project list (non-Admin sees only assigned). Rate limiting per project. Story 1.11 extends project list with search/sort/pagination and adds archive/delete with per-org rate limiting." />
+    </docs>
+
+    <code>
+      <!-- Existing code artifacts -->
+      <artifact path="scripts/init-local-db.sql" kind="database-init" symbol="projects table" lines="57-69" reason="EXISTING projects table in tenant schemas: id UUID PK, name VARCHAR(255), description TEXT, organization_id UUID FK, tenant_id UUID, settings JSONB, is_active BOOLEAN DEFAULT true, created_at, updated_at. is_active column used for archive (soft-delete). No status column yet (added by Story 1.9 migration)." />
+      <artifact path="scripts/init-local-db.sql" kind="database-init" symbol="test_cases table" lines="72-86" reason="EXISTING test_cases table with project_id column (no FK constraint to projects). Hard-delete of project must cascade or explicitly delete test_cases. project_id NOT NULL but no ON DELETE CASCADE." />
+      <artifact path="scripts/init-local-db.sql" kind="database-init" symbol="test_executions table" lines="89-105" reason="EXISTING test_executions table with test_case_id column. Cascading project delete must also remove test_executions (via test_cases cascade or explicit). No direct project_id FK." />
+      <artifact path="scripts/init-local-db.sql" kind="database-init" symbol="RLS policies" lines="107-134" reason="EXISTING RLS policy pattern: tenant_isolation USING (tenant_id = current_setting('app.current_tenant')). Applied to projects, test_cases, test_executions tables. Ensures all list/archive/delete operations scoped to tenant." />
+      <artifact path="scripts/dev-seed.ts" kind="seed-script" symbol="seedProjects" lines="137-217" reason="EXISTING seed function creates projects with name, description, organization_id, tenant_id, settings, is_active=true. Also creates test_cases and test_executions per project. Useful for validating cascade delete behavior in dev environment." />
+      <artifact path="tests/conftest.py" kind="pytest-fixtures" symbol="db_pool, test_tenant, tenant_connection, TENANT_TABLES_DDL" lines="1-170" reason="Pytest fixtures. TENANT_TABLES_DDL creates projects, test_cases, test_executions tables in test tenant schema. tenant_connection sets app.current_tenant for RLS. Critical for list/archive/delete integration tests. NOTE: TENANT_TABLES_DDL will need project_members table addition from Story 1.10." />
+      <artifact path="src/test-utils/tenant-isolation.ts" kind="test-utility" symbol="createTestTenant, cleanupTestTenant, setTenantContext" lines="1-302" reason="Tenant isolation for frontend integration tests. Project list and management tests MUST use tenant context." />
+      <artifact path="src/test-utils/tenant-fixtures.ts" kind="test-utility" symbol="useTenantIsolation, withTenantIsolation" lines="1-207" reason="Jest lifecycle hooks for tenant-scoped tests. Use for frontend project list integration tests." />
+
+      <!-- Planned code artifacts (created by predecessor stories) -->
+      <artifact path="src/middleware/auth.py" kind="middleware" symbol="JWTAuthMiddleware" reason="[PLANNED by Story 1.5] JWT auth middleware. All project management endpoints require authentication. Extracts user_id and tenant_id from JWT claims." />
+      <artifact path="src/middleware/tenant_context.py" kind="middleware" symbol="TenantContextMiddleware" reason="[PLANNED by Story 1.2] Sets PostgreSQL search_path to tenant schema based on tenant_id from JWT. All project queries automatically scoped to correct tenant." />
+      <artifact path="src/middleware/rbac.py" kind="middleware" symbol="require_role" reason="[PLANNED by Story 1.2] RBAC decorator. Archive/restore/delete use @require_role(['owner', 'admin']). Project list allows all authenticated roles." />
+      <artifact path="src/services/project_service.py" kind="service" symbol="ProjectService.create_project, get_project, update_project" reason="[PLANNED by Story 1.9] Core project CRUD. Story 1.11 extends this service with list_projects(), archive_project(), restore_project(), delete_project() methods." />
+      <artifact path="src/models/project.py" kind="model" symbol="Project" reason="[PLANNED by Story 1.9] SQLAlchemy model for {tenant_schema}.projects with all columns including slug, app_url, github_repo_url, status, created_by, is_active." />
+      <artifact path="src/api/v1/projects/" kind="api-routes" symbol="POST/GET/PATCH /projects" reason="[PLANNED by Story 1.9] Existing project endpoints. Story 1.11 updates GET /projects with search/sort/pagination/status filter, adds archive/restore/delete routes." />
+      <artifact path="src/services/project_member_service.py" kind="service" symbol="ProjectMemberService.check_access" reason="[PLANNED by Story 1.10] Access check: Owner/Admin bypass or project_members lookup. Used by this story for membership-filtered project list." />
+      <artifact path="src/api/dependencies/project_access.py" kind="dependency" symbol="check_project_access" reason="[PLANNED by Story 1.10] FastAPI dependency: verifies user is Owner/Admin OR in project_members. Reusable for archive/restore/delete endpoints." />
+      <artifact path="src/models/project_member.py" kind="model" symbol="ProjectMember" reason="[PLANNED by Story 1.10] SQLAlchemy model for {tenant_schema}.project_members with project_id FK to projects.id. Needs ON DELETE CASCADE for hard-delete." />
+
+      <!-- Planned code artifacts (to be created in this story) -->
+      <artifact path="src/services/project_service.py" kind="service-extension" symbol="ProjectService.list_projects, archive_project, restore_project, delete_project" reason="[PLANNED] Extend existing ProjectService. list_projects: filtered by is_active, search (ILIKE), sort, paginate, member count JOIN, membership filter. archive/restore: toggle is_active and status. delete: hard-delete with CASCADE, audit BEFORE deletion." />
+      <artifact path="src/api/v1/projects/" kind="api-routes-extension" symbol="GET /projects (extended), POST archive, POST restore, DELETE" reason="[PLANNED] Extend existing router. GET /projects adds status/search/sort/page params. POST /projects/{id}/archive (200). POST /projects/{id}/restore (200). DELETE /projects/{id} (204). RBAC + rate limiting + audit." />
+      <artifact path="src/pages/projects/ProjectList.tsx" kind="react-page" symbol="ProjectListPage" reason="[PLANNED] Project list page (/projects). Table with name, status badge, health placeholder, description, team size, created date, actions. Search, filter, sort, pagination." />
+      <artifact path="src/components/projects/ProjectTable.tsx" kind="react-component" symbol="ProjectTable" reason="[PLANNED] Reusable table component for project list. Columns, sort indicators, pagination controls." />
+      <artifact path="src/components/projects/ArchiveDialog.tsx" kind="react-component" symbol="ArchiveDialog" reason="[PLANNED] Confirmation dialog for archive operation. Shows project name and data retention reassurance." />
+      <artifact path="src/components/projects/DeleteDialog.tsx" kind="react-component" symbol="DeleteDialog" reason="[PLANNED] High-friction delete confirmation. Red warning, type project name to confirm (case-sensitive match). Delete button disabled until match." />
+      <artifact path="src/components/projects/HealthIndicator.tsx" kind="react-component" symbol="HealthIndicator" reason="[PLANNED] Placeholder health indicator column component. Shows dash or gray dot in Epic 1. Forward-compatible structure for Epic 2-4 metrics." />
+    </code>
+
+    <dependencies>
+      <note>No package.json or pyproject.toml in repo yet. Dependencies specified in planning docs.</note>
+      <planned-backend>
+        <dep name="Python" version="3.11+" />
+        <dep name="FastAPI" role="Web framework, async endpoints for list/archive/restore/delete" />
+        <dep name="SQLAlchemy" role="ORM for {tenant_schema}.projects queries (list, update, delete)" />
+        <dep name="Alembic" role="Database migrations for index additions, CASCADE FK updates" />
+        <dep name="redis[hiredis]" role="Rate limiting (10 archive/restore/delete ops per org per hour)" />
+        <dep name="Pydantic" role="Request/response schemas for list, archive, restore, delete endpoints" />
+      </planned-backend>
+      <planned-frontend>
+        <dep name="React" version="18" />
+        <dep name="Vite" role="Build tool" />
+        <dep name="Tailwind CSS" role="Utility-first CSS" />
+        <dep name="shadcn/ui" role="UI components (Table, Button, Dialog, DropdownMenu, Badge, Input, Switch, Toast, Pagination)" />
+        <dep name="axios" role="HTTP client for project list, archive, restore, delete API calls" />
+      </planned-frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" source="architecture.md" severity="critical">All project queries (list, archive, restore, delete) MUST be tenant-scoped via ContextVar middleware setting search_path. RLS policies provide defense-in-depth. NEVER operate on projects across tenant boundaries.</constraint>
+    <constraint id="C2" source="architecture.md" severity="critical">ALL database queries MUST use parameterized statements (SQLAlchemy ORM). Zero dynamic SQL with user input. Prevents SQL injection through search terms, project IDs, or filter parameters.</constraint>
+    <constraint id="C3" source="story-1-11" severity="critical">Hard-delete (DELETE /projects/{id}) MUST cascade to project_members, test_cases, and test_executions. Audit entry MUST be logged BEFORE the DELETE executes so project_id and project_name are available for the audit record.</constraint>
+    <constraint id="C4" source="tech-spec-epic-1.md" severity="high">Only Owner/Admin roles can archive, restore, or delete projects. Enforce via @require_role(['owner', 'admin']). All authenticated roles can view the project list (filtered by membership per Story 1.10).</constraint>
+    <constraint id="C5" source="story-1-11" severity="high">Archive uses existing is_active BOOLEAN column (set to false) AND status VARCHAR column (set to 'archived'). Both fields updated together. Restore reverses both (is_active=true, status='active'). No data is removed on archive.</constraint>
+    <constraint id="C6" source="story-1-11" severity="high">Delete confirmation MUST NOT be bypassable. Client-side name match is UX only. Server should validate the operation is authorized (RBAC) and the project exists. The client sends the delete request only after name match, but server does not re-validate name match (RBAC is sufficient).</constraint>
+    <constraint id="C7" source="story-1-10" severity="high">Project list membership filtering: Owner/Admin sees all projects. Non-Admin sees only projects where they are in project_members. This constraint is inherited from Story 1.10 check_project_access pattern and applied to the list endpoint.</constraint>
+    <constraint id="C8" source="story-1-11" severity="high">test_cases table has project_id but no FK constraint in current DDL (init-local-db.sql). test_executions references test_case_id (no direct project_id FK). Hard-delete must handle cascade explicitly in service or add FK constraints via Alembic migration.</constraint>
+    <constraint id="C9" source="story-1-11" severity="medium">Rate limiting for destructive operations: 10 archive/restore/delete operations per organization per hour. Redis-backed counters. HTTP 429 with Retry-After header on exceeded limit. Org-level rate limit (not per-project like Story 1.10).</constraint>
+    <constraint id="C10" source="architecture.md" severity="medium">All project lifecycle events MUST be logged to audit trail: project archived (project_id, name, archived_by), project restored (project_id, restored_by), project deleted (project_id, name, deleted_by). Include user_id, IP, user_agent, timestamp. Audit records are immutable.</constraint>
+    <constraint id="C11" source="story-1-11" severity="medium">Health indicator column is a placeholder in Epic 1. MUST create the component and column structure now for forward compatibility. Always shows dash or neutral gray dot. Do NOT implement real metrics until Epic 2-4.</constraint>
+    <constraint id="C12" source="story-1-11" severity="low">Status filter persisted in URL query parameter (?status=active|archived|all) for shareable links. Default is 'active'. Pagination and sort parameters also in URL for bookmarkability.</constraint>
+  </constraints>
+
+  <interfaces>
+    <!-- Project List REST Endpoint (extended) -->
+    <interface name="GET /api/v1/projects (extended)" kind="REST endpoint" signature="GET /api/v1/projects?status=active|archived|all&amp;search=name_filter&amp;sort=name|created_at|status&amp;page=1&amp;per_page=20 &rarr; { data: [{ id, name, slug, description, status, is_active, settings, created_by, created_at, updated_at, member_count, health }], pagination: { page, per_page, total, total_pages } }" path="src/api/v1/projects/" />
+
+    <!-- Archive / Restore / Delete Endpoints -->
+    <interface name="POST /api/v1/projects/{project_id}/archive" kind="REST endpoint" signature="POST /api/v1/projects/{project_id}/archive &rarr; 200 { id, name, slug, status: 'archived', is_active: false, updated_at }" path="src/api/v1/projects/" />
+    <interface name="POST /api/v1/projects/{project_id}/restore" kind="REST endpoint" signature="POST /api/v1/projects/{project_id}/restore &rarr; 200 { id, name, slug, status: 'active', is_active: true, updated_at }" path="src/api/v1/projects/" />
+    <interface name="DELETE /api/v1/projects/{project_id}" kind="REST endpoint" signature="DELETE /api/v1/projects/{project_id} &rarr; 204 No Content (cascades to project_members, test_cases, test_executions)" path="src/api/v1/projects/" />
+
+    <!-- Service Methods -->
+    <interface name="ProjectService.list_projects" kind="service method" signature="list_projects(status: str = 'active', search: str | None = None, sort: str = 'created_at', page: int = 1, per_page: int = 20, user_id: UUID, user_role: str) &rarr; PaginatedResult[ProjectWithMemberCount] (membership-filtered, includes member_count from JOIN)" path="src/services/project_service.py" />
+    <interface name="ProjectService.archive_project" kind="service method" signature="archive_project(project_id: UUID) &rarr; Project (sets is_active=false, status='archived', updated_at=NOW(). Raises 400 if already archived)" path="src/services/project_service.py" />
+    <interface name="ProjectService.restore_project" kind="service method" signature="restore_project(project_id: UUID) &rarr; Project (sets is_active=true, status='active', updated_at=NOW(). Raises 400 if not archived)" path="src/services/project_service.py" />
+    <interface name="ProjectService.delete_project" kind="service method" signature="delete_project(project_id: UUID) &rarr; None (hard-delete with CASCADE to project_members, test_cases, test_executions. Logs audit BEFORE deletion)" path="src/services/project_service.py" />
+
+    <!-- Database Schema (existing) -->
+    <interface name="{tenant_schema}.projects (existing)" kind="database-schema" signature="EXISTING: id UUID PK, name VARCHAR(255), description TEXT, organization_id UUID FK, tenant_id UUID, settings JSONB DEFAULT '{}', is_active BOOLEAN DEFAULT true, created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ. Story 1.9 adds: slug VARCHAR(100), app_url VARCHAR(500), github_repo_url VARCHAR(500), status VARCHAR(20) DEFAULT 'active', created_by UUID FK" path="scripts/init-local-db.sql:57-69" />
+    <interface name="{tenant_schema}.test_cases (existing)" kind="database-schema" signature="EXISTING: id UUID PK, tenant_id UUID, project_id UUID NOT NULL (no FK), title, description, priority, status, steps JSONB, tags TEXT[], estimated_duration, timestamps. Needs FK to projects.id with ON DELETE CASCADE or explicit deletion in service" path="scripts/init-local-db.sql:72-86" />
+    <interface name="{tenant_schema}.test_executions (existing)" kind="database-schema" signature="EXISTING: id UUID PK, tenant_id UUID, test_case_id UUID NOT NULL (no FK), status, executed_by, start_time, end_time, duration, environment, browser, notes, error_message, screenshots. Cascaded via test_cases or explicit deletion" path="scripts/init-local-db.sql:89-105" />
+    <interface name="{tenant_schema}.project_members (Story 1.10)" kind="database-schema" signature="PLANNED: id UUID PK, project_id UUID FK&rarr;projects.id, user_id UUID FK&rarr;public.users.id, added_by UUID, created_at. UNIQUE(project_id, user_id). Needs ON DELETE CASCADE on project_id FK for hard-delete" path="(Alembic migration from Story 1.10)" />
+
+    <!-- Cross-story dependencies -->
+    <interface name="TenantContextMiddleware (Story 1.2)" kind="cross-story" signature="Sets search_path to tenant schema from JWT tenant_id. All project list/archive/delete queries automatically scoped." path="src/middleware/tenant_context.py" />
+    <interface name="require_role (Story 1.2)" kind="cross-story" signature="@require_role(['owner', 'admin']) decorator enforces RBAC on archive/restore/delete endpoints. List endpoint allows all roles." path="src/middleware/rbac.py" />
+    <interface name="JWTAuthMiddleware (Story 1.5)" kind="cross-story" signature="Extracts user_id and tenant_id from JWT httpOnly cookie. Required for all project management endpoints." path="src/middleware/auth.py" />
+    <interface name="check_project_access (Story 1.10)" kind="cross-story" signature="FastAPI dependency: Owner/Admin &rarr; True, else checks project_members. Used for archive/restore/delete endpoints and membership-filtered project list." path="src/api/dependencies/project_access.py" />
+    <interface name="ProjectMemberService.check_access (Story 1.10)" kind="cross-story" signature="check_access(project_id, user_id, user_role) &rarr; bool. Owner/Admin implicit access. Used internally by list_projects for membership filtering." path="src/services/project_member_service.py" />
+  </interfaces>
+
+  <tests>
+    <standards>
+      Backend: Pytest with async test client (httpx.AsyncClient), PostgreSQL test database with per-test transaction rollback via conftest.py fixtures. Frontend: Vitest + React Testing Library. Coverage target: 80%+ for new code. CRITICAL: All project tests MUST use tenant context (test_tenant + tenant_connection fixtures). Cascade delete tests are the most critical test category for this story &mdash; must verify all related data (project_members, test_cases, test_executions) removed on hard-delete. Tenant isolation tests MUST verify cross-tenant list/archive/delete prevention via RLS.
+    </standards>
+    <locations>
+      <location>tests/unit/services/test_project_service_list.py</location>
+      <location>tests/unit/services/test_project_service_archive.py</location>
+      <location>tests/integration/projects/test_list_projects.py</location>
+      <location>tests/integration/projects/test_archive_project.py</location>
+      <location>tests/integration/projects/test_restore_project.py</location>
+      <location>tests/integration/projects/test_delete_project.py</location>
+      <location>tests/integration/projects/test_delete_cascade.py</location>
+      <location>tests/integration/projects/test_project_list_tenant_isolation.py</location>
+      <location>tests/integration/projects/test_project_management_rate_limiting.py</location>
+      <location>tests/security/test_project_management_security.py</location>
+      <location>src/__tests__/pages/projects/ProjectList.test.tsx</location>
+      <location>src/__tests__/components/projects/ArchiveDialog.test.tsx</location>
+      <location>src/__tests__/components/projects/DeleteDialog.test.tsx</location>
+    </locations>
+    <ideas>
+      <group ac="1" title="Project List Page">
+        <idea>Verify project list displays all projects user has access to (Owner/Admin sees all, others see assigned only)</idea>
+        <idea>Verify table columns: name (link), status badge, health indicator, description (truncated), team size, created date, actions</idea>
+        <idea>Verify search by project name filters results (ILIKE or client-side)</idea>
+        <idea>Verify sort by name, created date, status works correctly</idea>
+        <idea>Verify pagination: 20 per page, page navigation renders correctly</idea>
+        <idea>Verify empty state message with New Project CTA for Owner/Admin</idea>
+        <idea>Verify empty state without CTA for non-Admin roles</idea>
+      </group>
+      <group ac="2" title="Show Archived Toggle">
+        <idea>Verify default view shows only active projects (is_active=true)</idea>
+        <idea>Verify Show Archived toggle/filter reveals archived projects alongside active</idea>
+        <idea>Verify archived projects visually distinct (gray text, Archived badge)</idea>
+        <idea>Verify status filter dropdown: Active, Archived, All options</idea>
+        <idea>Verify filter persisted in URL query parameter (?status=active|archived|all)</idea>
+        <idea>Verify URL with status param loads correct filter state on page load</idea>
+      </group>
+      <group ac="3" title="Archive Project (Soft-Delete)">
+        <idea>Verify POST /projects/{id}/archive sets is_active=false and status='archived'</idea>
+        <idea>Verify confirmation dialog shows project name and data retention message</idea>
+        <idea>Verify archived project hidden from default list view</idea>
+        <idea>Verify archived project visible via Show Archived toggle</idea>
+        <idea>Verify all project data retained after archive (test cases, executions, members)</idea>
+        <idea>Verify returns 200 with updated project</idea>
+        <idea>Verify non-Admin gets 403</idea>
+      </group>
+      <group ac="4" title="Restore Archived Project">
+        <idea>Verify POST /projects/{id}/restore sets is_active=true and status='active'</idea>
+        <idea>Verify Restore action visible only on archived projects</idea>
+        <idea>Verify restored project reappears in active list</idea>
+        <idea>Verify all data intact after restore</idea>
+        <idea>Verify returns 200 with updated project</idea>
+        <idea>Verify non-Admin gets 403</idea>
+      </group>
+      <group ac="5" title="Delete Project (Hard-Delete)">
+        <idea>Verify DELETE /projects/{id} removes project permanently</idea>
+        <idea>Verify cascade: project_members records for this project are deleted</idea>
+        <idea>Verify cascade: test_cases for this project are deleted</idea>
+        <idea>Verify cascade: test_executions for those test_cases are deleted</idea>
+        <idea>Verify high-friction dialog: type exact project name to enable delete button</idea>
+        <idea>Verify delete button disabled until typed name matches exactly (case-sensitive)</idea>
+        <idea>Verify returns 204 No Content</idea>
+        <idea>Verify deleted project absent from all list views</idea>
+        <idea>Verify non-Admin gets 403</idea>
+        <idea>Verify non-existent project returns 404</idea>
+      </group>
+      <group ac="6" title="Project Health Indicator (Placeholder)">
+        <idea>Verify health indicator column renders in project table</idea>
+        <idea>Verify placeholder value: dash or neutral gray dot for all projects</idea>
+        <idea>Verify HealthIndicator component accepts props for future metric data</idea>
+      </group>
+      <group ac="7" title="Validation &amp; Error Handling">
+        <idea>Verify archiving already-archived project returns 400 "Project is already archived"</idea>
+        <idea>Verify restoring active project returns 400 "Project is not archived"</idea>
+        <idea>Verify deleting non-existent project returns 404</idea>
+        <idea>Verify error responses follow consistent { error: { code, message, details } } format</idea>
+        <idea>Verify RBAC: non-Admin archive/restore/delete all return 403</idea>
+      </group>
+      <group ac="8" title="Rate Limiting &amp; Audit">
+        <idea>Verify 11th archive/restore/delete operation within hour returns 429</idea>
+        <idea>Verify rate limit is per-organization (not per-project or per-user)</idea>
+        <idea>Verify archive operation logged to audit trail (project_id, name, archived_by)</idea>
+        <idea>Verify restore operation logged to audit trail (project_id, restored_by)</idea>
+        <idea>Verify delete operation logged BEFORE deletion (project_id, name, deleted_by)</idea>
+        <idea>Verify audit entries include IP and user_agent</idea>
+      </group>
+      <group title="Tenant Isolation (Critical)">
+        <idea>Verify project list in tenant A does not include projects from tenant B</idea>
+        <idea>Verify archive operation on project in tenant B returns 404 from tenant A context</idea>
+        <idea>Verify delete operation on project in tenant B returns 404 from tenant A context</idea>
+        <idea>Verify RLS prevents direct SQL query of projects across tenant boundaries</idea>
+      </group>
+    </ideas>
+  </tests>
+</story-context>

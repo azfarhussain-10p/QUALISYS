@@ -1,0 +1,203 @@
+<story-context id="1-9-project-creation-configuration" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>9</storyId>
+    <title>Project Creation &amp; Configuration</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-02-17</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-9-project-creation-configuration.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Owner/Admin</asA>
+    <iWant>create test projects and configure their settings</iWant>
+    <soThat>I can organize testing efforts within my organization</soThat>
+    <tasks>
+      <task id="1" title="Database Schema — Project Table Enhancement" acs="2,4">Alembic migration: add slug (varchar 100), app_url (varchar 500), github_repo_url (varchar 500), status (varchar 20, default 'active'), created_by (UUID FK→public.users) to {tenant_schema}.projects. Unique index on slug. Backfill dev seed slugs</task>
+      <task id="2" title="Project Service" acs="2,3,5,6">ProjectService: create_project(), get_project(), update_project(), generate_slug(). Slug generation with collision handling. Tenant-scoped operations via ContextVar</task>
+      <task id="3" title="FastAPI Endpoints" acs="1,2,3,7,8">POST /projects (create, Owner/Admin, 201), GET /projects/{id} (all roles), PATCH /projects/{id} (update, Owner/Admin), GET /projects/{id}/settings. RBAC @require_role, rate limiting, audit</task>
+      <task id="4" title="React UI — Create Project" acs="1,6,7">New Project button (Owner/Admin only), form (name, description, app URL, GitHub URL), client-side validation, duplicate handling, redirect on success</task>
+      <task id="5" title="React UI — Project Settings" acs="3,4">Project settings page: general (name, desc, URLs), advanced collapsible (default environment, browser, tags JSONB), name change confirmation, save button</task>
+      <task id="6" title="Testing" acs="all">Unit (slug generation, validation), integration (create, get, update, RBAC, rate limiting, tenant isolation, RLS), security (SQL injection, XSS, RBAC bypass), frontend tests</task>
+      <task id="7" title="Security Review" acs="2,7,8">Parameterized queries, tenant isolation (ContextVar + RLS), RBAC enforcement, slug safety, URL input sanitization, rate limiting</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1" title="Create Project Form">New Project button on dashboard/list (Owner/Admin only). Form: name (required, 3-100), description (optional, max 2000), app URL (optional, validated), GitHub URL (optional, validated github.com pattern). RBAC enforced</ac>
+    <ac id="2" title="Project Record Creation">POST /api/v1/projects → 201. Record in {tenant_schema}.projects: id UUID, name, slug (auto-generated, unique within tenant), description, app_url, github_repo_url, status 'active', settings JSONB {}, created_by, tenant_id (from context), is_active true, timestamps</ac>
+    <ac id="3" title="Project Settings Page">/projects/{slug}/settings (Owner/Admin). Edit: name (slug regen with confirmation), description, app URL, GitHub URL. PATCH /api/v1/projects/{id}</ac>
+    <ac id="4" title="Project Settings — Advanced">Collapsible section: default environment (dev/staging/prod/custom), default browser (chromium/firefox/webkit), project tags (max 10, max 50 chars each). Stored in settings JSONB. Overridable per test run</ac>
+    <ac id="5" title="Creator Assignment">created_by records creator. Appears in project details. No project-level role — uses org-level RBAC. Team assignment in Story 1.10</ac>
+    <ac id="6" title="Duplicate Project Prevention">Slug collision rejected. Auto-generation: lowercase, hyphens, collapse, strip edges. Collision: append -1, -2 suffix. Error: "A project with this name already exists"</ac>
+    <ac id="7" title="Validation &amp; Error Handling">Server-side: name (required 3-100, trimmed), description (max 2000), URL formats. HTTP 400 with { error: { code, message, details: { field: [errors] } } }. Consistent with Story 1.1 pattern</ac>
+    <ac id="8" title="Rate Limiting &amp; Audit">Create: 10/org/hour. Update: 30/project/hour. Redis-backed. Audit: project created (name, slug, created_by), settings updated (changed fields old/new). user_id, IP, user_agent, timestamp</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/planning/prd.md" title="Product Requirements Document v3.0" section="Project Management" snippet="FR11: Users can create new test projects within their organization. FR12: Users can configure project settings (name, description, app URL, repo link)." />
+      <doc path="docs/planning/prd.md" title="PRD v3.0" section="Roles &amp; Permissions" snippet="Owner/Admin: Full platform access including project operations. Can create/delete projects, invite/remove users, assign roles. Create projects: Owner/Admin only." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="In Scope Stories" snippet="Story 1.9: Project Creation &amp; Configuration — FR11, FR12. Story 1.10: Project Team Assignment — FR13. Story 1.11: Project Management — FR14, FR15." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="RBAC Permission Matrix" snippet="Create projects: Owner/Admin ✅, all other roles ❌. View dashboards: all roles ✅." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="Multi-Tenancy Architecture" snippet="Tenant-specific schemas: tenant_acme.projects, tenant_beta.projects. Schema-per-tenant isolation. Defense-in-depth with RLS policies." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Four-Pillar Multi-Tenancy" snippet="Incoming Request → JWT Extraction (tenant_id + role) → SET search_path tenant_xyz → Resource Quota → Token Meter. Schema-level isolation primary, RLS defense layer." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Security Threat Model" snippet="Parameterized queries ONLY, RLS policies, audit trails, rate limiting. Zero dynamic SQL with user input." />
+      <doc path="docs/epics/epics.md" title="Epics &amp; Stories" section="Story 1.9" snippet="AC1: Create Project form (name, description, app URL, GitHub repo). AC2: Project with unique ID. AC3: Project settings editing. AC4: Creator as project admin. FRs: FR11, FR12." />
+      <doc path="docs/stories/1-2-organization-creation-setup.md" title="Story 1.2" section="Slug &amp; Schema" snippet="Slug generation pattern: lowercase alphanumeric + hyphens, collision handling with incrementing suffix. RBAC decorators @require_role. ContextVar tenant middleware." />
+      <doc path="docs/stories/1-5-login-session-management.md" title="Story 1.5" section="Full Story" snippet="JWT auth middleware extracts user_id and tenant_id from claims. Tenant context set via ContextVar for RLS. All authenticated endpoints require valid JWT." />
+    </docs>
+
+    <code>
+      <!-- Existing code artifacts -->
+      <artifact path="scripts/init-local-db.sql" kind="database-init" symbol="projects table" lines="57-69" reason="EXISTING projects table in tenant schemas: id UUID PK, name VARCHAR(255), description TEXT, organization_id UUID FK, tenant_id UUID, settings JSONB, is_active BOOLEAN, created_at, updated_at. This story adds: slug, app_url, github_repo_url, status, created_by columns." />
+      <artifact path="scripts/dev-seed.ts" kind="seed-script" symbol="seedProjects" lines="137-165" reason="EXISTING seed function creates projects with name, description, organization_id, tenant_id, settings ({ browser: 'chromium', environment: 'staging' }). Shows existing JSONB settings pattern. Needs slug backfill." />
+      <artifact path="src/test-utils/tenant-isolation.ts" kind="test-utility" symbol="createTestTenant, cleanupTestTenant, setTenantContext" lines="1-302" reason="Tenant isolation for integration tests. Project CRUD tests MUST use tenant context. createTestTenant creates schema with projects table." />
+      <artifact path="tests/conftest.py" kind="pytest-fixtures" symbol="db_pool, test_tenant, tenant_connection, TENANT_TABLES_DDL" lines="1-170" reason="Pytest fixtures. TENANT_TABLES_DDL creates projects table in test tenant schema. tenant_connection sets app.current_tenant for RLS. Critical for project CRUD tests." />
+      <artifact path="src/test-utils/tenant-fixtures.ts" kind="test-utility" symbol="useTenantIsolation, withTenantIsolation" lines="1-207" reason="Jest lifecycle hooks for tenant-scoped tests. Use for frontend integration tests that need project data." />
+
+      <!-- Planned code artifacts (created by predecessor stories) -->
+      <artifact path="src/middleware/auth.py" kind="middleware" symbol="JWTAuthMiddleware" reason="[PLANNED by Story 1.5] JWT auth middleware. All project endpoints require authentication. Extracts user_id and tenant_id from JWT claims." />
+      <artifact path="src/middleware/tenant_context.py" kind="middleware" symbol="TenantContextMiddleware" reason="[PLANNED by Story 1.2] Sets PostgreSQL search_path to tenant schema based on tenant_id from JWT. All project queries automatically scoped to correct tenant." />
+      <artifact path="src/middleware/rbac.py" kind="middleware" symbol="require_role" reason="[PLANNED by Story 1.2] RBAC decorator. Project creation/update use @require_role(['owner', 'admin']). Project read allows all authenticated roles." />
+
+      <!-- Planned code artifacts (to be created in this story) -->
+      <artifact path="src/services/project_service.py" kind="service" symbol="ProjectService" reason="[PLANNED] create_project(), get_project(), update_project(), generate_slug(). Core project CRUD with tenant-scoped operations." />
+      <artifact path="src/models/project.py" kind="model" symbol="Project" reason="[PLANNED] SQLAlchemy model for {tenant_schema}.projects with all columns including new slug, app_url, github_repo_url, status, created_by." />
+      <artifact path="src/api/v1/projects/" kind="api-routes" symbol="create, get, update, settings" reason="[PLANNED] POST /projects (201), GET /projects/{id}, PATCH /projects/{id}, GET /projects/{id}/settings. RBAC-protected." />
+      <artifact path="src/pages/projects/create/" kind="react-page" symbol="CreateProjectPage" reason="[PLANNED] New Project form: name, description, app URL, GitHub URL. Owner/Admin only." />
+      <artifact path="src/pages/projects/[slug]/settings/" kind="react-page" symbol="ProjectSettingsPage" reason="[PLANNED] Project settings: general (name, desc, URLs) + advanced (environment, browser, tags JSONB). Owner/Admin only." />
+      <artifact path="src/components/projects/" kind="react-components" symbol="ProjectForm, ProjectSettingsForm, TagInput" reason="[PLANNED] Reusable project components. TagInput for freeform tags (max 10)." />
+    </code>
+
+    <dependencies>
+      <note>No package.json or pyproject.toml in repo yet. Dependencies specified in planning docs.</note>
+      <planned-backend>
+        <dep name="Python" version="3.11+" />
+        <dep name="FastAPI" role="Web framework, async endpoints" />
+        <dep name="SQLAlchemy" role="ORM for {tenant_schema}.projects" />
+        <dep name="Alembic" role="Database migrations for project table column additions (tenant-scoped)" />
+        <dep name="redis[hiredis]" role="Rate limiting (10 creates/org/hour, 30 updates/project/hour)" />
+        <dep name="Pydantic" role="Request/response schemas for project endpoints" />
+      </planned-backend>
+      <planned-frontend>
+        <dep name="React" version="18" />
+        <dep name="Vite" role="Build tool" />
+        <dep name="Tailwind CSS" role="Utility-first CSS" />
+        <dep name="shadcn/ui" role="UI components (Button, Input, Textarea, Select, Collapsible, Dialog, Badge, Toast)" />
+        <dep name="axios" role="HTTP client for project API calls" />
+      </planned-frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" source="architecture.md" severity="critical">All project queries MUST be tenant-scoped via ContextVar middleware setting search_path. RLS policies provide defense-in-depth. NEVER query projects across tenant boundaries.</constraint>
+    <constraint id="C2" source="architecture.md" severity="critical">ALL database queries MUST use parameterized statements (SQLAlchemy ORM). Zero dynamic SQL with user input. Prevents SQL injection through project name, description, or URLs.</constraint>
+    <constraint id="C3" source="tech-spec-epic-1.md" severity="high">Only Owner/Admin roles can create or update projects. Enforce via @require_role(['owner', 'admin']) decorator. All authenticated roles can read (GET) project details.</constraint>
+    <constraint id="C4" source="story-1-9" severity="high">Slug uniqueness enforced within tenant schema. Since each tenant has its own schema, schema-level unique index on slug column is sufficient for per-tenant uniqueness.</constraint>
+    <constraint id="C5" source="story-1-9" severity="high">Existing projects table (init-local-db.sql) already has base columns. Alembic migration MUST add new columns (slug, app_url, github_repo_url, status, created_by) without disrupting existing data. Backfill slugs for seeded projects.</constraint>
+    <constraint id="C6" source="story-1-9" severity="high">URL inputs (app_url, github_repo_url) MUST be sanitized. Reject javascript: URLs, data: URLs, and other non-HTTP(S) schemes. Prevent stored XSS via URL fields.</constraint>
+    <constraint id="C7" source="story-1-9" severity="medium">JSONB settings column stores project defaults: { default_environment, default_browser, tags }. Schema-less but validated server-side. Unknown keys ignored (forward compatibility).</constraint>
+    <constraint id="C8" source="story-1-9" severity="medium">Rate limiting: 10 project creates per org per hour, 30 updates per project per hour. Redis-backed counters. HTTP 429 with Retry-After header on exceeded limit.</constraint>
+    <constraint id="C9" source="story-1-9" severity="medium">Slug generation follows Story 1.2 org slug pattern: lowercase, replace non-alphanumeric with hyphens, collapse consecutive, strip edges, append suffix on collision.</constraint>
+    <constraint id="C10" source="architecture.md" severity="medium">All project lifecycle events MUST be logged to audit trail (project created, settings updated with old/new values). Include user_id, IP, user_agent, timestamp.</constraint>
+  </constraints>
+
+  <interfaces>
+    <!-- Project REST Endpoints -->
+    <interface name="POST /api/v1/projects" kind="REST endpoint" signature="POST /api/v1/projects { name: string, description?: string, app_url?: string, github_repo_url?: string } → 201 { id, name, slug, description, app_url, github_repo_url, status, settings, created_by, created_at }" path="src/api/v1/projects/" />
+    <interface name="GET /api/v1/projects/{project_id}" kind="REST endpoint" signature="GET /api/v1/projects/{project_id} → { id, name, slug, description, app_url, github_repo_url, status, settings, created_by, is_active, created_at, updated_at }" path="src/api/v1/projects/" />
+    <interface name="PATCH /api/v1/projects/{project_id}" kind="REST endpoint" signature="PATCH /api/v1/projects/{project_id} { name?, description?, app_url?, github_repo_url?, settings? } → { ...updated_project }" path="src/api/v1/projects/" />
+    <interface name="GET /api/v1/projects/{project_id}/settings" kind="REST endpoint" signature="GET /api/v1/projects/{project_id}/settings → { default_environment, default_browser, tags, ...general_settings }" path="src/api/v1/projects/" />
+
+    <!-- Service Methods -->
+    <interface name="ProjectService.create_project" kind="service method" signature="create_project(name: str, description: str | None, app_url: str | None, github_repo_url: str | None, created_by: UUID) → Project" path="src/services/project_service.py" />
+    <interface name="ProjectService.get_project" kind="service method" signature="get_project(project_id: UUID | None, slug: str | None) → Project (lookup by ID or slug within tenant)" path="src/services/project_service.py" />
+    <interface name="ProjectService.update_project" kind="service method" signature="update_project(project_id: UUID, updates: dict) → Project (validates, updates, regenerates slug if name changed)" path="src/services/project_service.py" />
+    <interface name="ProjectService.generate_slug" kind="service method" signature="generate_slug(name: str, exclude_id: UUID | None) → str (lowercase, hyphens, collision suffix)" path="src/services/project_service.py" />
+
+    <!-- Database Schema (existing + additions) -->
+    <interface name="{tenant_schema}.projects (existing)" kind="database-schema" signature="EXISTING: id UUID PK, name VARCHAR(255), description TEXT, organization_id UUID FK, tenant_id UUID, settings JSONB DEFAULT '{}', is_active BOOLEAN DEFAULT true, created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ" path="scripts/init-local-db.sql:57-69" />
+    <interface name="{tenant_schema}.projects (additions)" kind="database-schema" signature="ADD: slug VARCHAR(100) UNIQUE, app_url VARCHAR(500), github_repo_url VARCHAR(500), status VARCHAR(20) DEFAULT 'active', created_by UUID (FK→public.users)" path="(Alembic migration)" />
+
+    <!-- Cross-story dependencies -->
+    <interface name="TenantContextMiddleware (Story 1.2)" kind="cross-story" signature="Sets search_path to tenant schema from JWT tenant_id. All project queries automatically scoped." path="src/middleware/tenant_context.py" />
+    <interface name="require_role (Story 1.2)" kind="cross-story" signature="@require_role(['owner', 'admin']) decorator enforces RBAC on project create/update endpoints" path="src/middleware/rbac.py" />
+    <interface name="JWTAuthMiddleware (Story 1.5)" kind="cross-story" signature="Extracts user_id and tenant_id from JWT httpOnly cookie. Required for all project endpoints." path="src/middleware/auth.py" />
+  </interfaces>
+
+  <tests>
+    <standards>
+      Backend: Pytest with async test client (httpx.AsyncClient), PostgreSQL test database with per-test transaction rollback via conftest.py fixtures. Frontend: Vitest + React Testing Library. Coverage target: 80%+ for new code. CRITICAL: All project tests MUST use tenant context (test_tenant + tenant_connection fixtures). Tenant isolation tests MUST verify cross-tenant query prevention via RLS. Dev seed backfill tested separately.
+    </standards>
+    <locations>
+      <location>tests/unit/services/test_project_service.py</location>
+      <location>tests/integration/projects/test_create_project.py</location>
+      <location>tests/integration/projects/test_get_project.py</location>
+      <location>tests/integration/projects/test_update_project.py</location>
+      <location>tests/integration/projects/test_project_tenant_isolation.py</location>
+      <location>tests/security/test_project_security.py</location>
+      <location>src/__tests__/pages/projects/CreateProject.test.tsx</location>
+      <location>src/__tests__/pages/projects/ProjectSettings.test.tsx</location>
+    </locations>
+    <ideas>
+      <group ac="1" title="Create Project Form">
+        <idea>Verify New Project button visible to Owner/Admin, hidden/disabled for other roles</idea>
+        <idea>Verify form renders with all fields (name, description, app URL, GitHub URL)</idea>
+        <idea>Verify client-side validation: name required (3-100 chars), URL format check</idea>
+        <idea>Verify GitHub URL validates github.com pattern</idea>
+      </group>
+      <group ac="2" title="Project Record Creation">
+        <idea>Verify POST /projects creates record with all fields including auto-generated slug</idea>
+        <idea>Verify created_by set from JWT user_id</idea>
+        <idea>Verify tenant_id set from context (not from request body)</idea>
+        <idea>Verify settings defaults to empty JSONB {}</idea>
+        <idea>Verify returns 201 with created project</idea>
+        <idea>Verify project visible in GET after creation</idea>
+      </group>
+      <group ac="3" title="Project Settings Page">
+        <idea>Verify settings page accessible to Owner/Admin, forbidden for other roles</idea>
+        <idea>Verify all fields displayed with current values</idea>
+        <idea>Verify PATCH updates individual fields (partial update)</idea>
+        <idea>Verify name change triggers slug regeneration</idea>
+      </group>
+      <group ac="4" title="Project Settings — Advanced">
+        <idea>Verify default_environment saves and loads from JSONB (dev/staging/prod/custom)</idea>
+        <idea>Verify default_browser saves and loads (chromium/firefox/webkit)</idea>
+        <idea>Verify tags save as array in JSONB (max 10 tags, max 50 chars each)</idea>
+        <idea>Verify 11th tag rejected, tag &gt; 50 chars rejected</idea>
+      </group>
+      <group ac="5" title="Creator Assignment">
+        <idea>Verify created_by matches authenticated user ID</idea>
+        <idea>Verify creator displayed in project details</idea>
+        <idea>Verify creator uses org-level role (no special project-level role)</idea>
+      </group>
+      <group ac="6" title="Duplicate Project Prevention">
+        <idea>Verify duplicate slug within tenant returns error</idea>
+        <idea>Verify slug auto-generation: lowercase, hyphens, collapsed, stripped</idea>
+        <idea>Verify collision suffix: my-project → my-project-1 → my-project-2</idea>
+        <idea>Verify same slug allowed in DIFFERENT tenants (cross-tenant independence)</idea>
+      </group>
+      <group ac="7" title="Validation &amp; Error Handling">
+        <idea>Verify name &lt; 3 chars returns 400</idea>
+        <idea>Verify name &gt; 100 chars returns 400</idea>
+        <idea>Verify invalid app_url format returns 400</idea>
+        <idea>Verify invalid github_repo_url (not github.com) returns 400</idea>
+        <idea>Verify description &gt; 2000 chars returns 400</idea>
+        <idea>Verify error response follows { error: { code, message, details } } format</idea>
+      </group>
+      <group ac="8" title="Rate Limiting &amp; Audit">
+        <idea>Verify 11th project creation within hour returns 429</idea>
+        <idea>Verify 31st settings update within hour returns 429</idea>
+        <idea>Verify project creation logged to audit (name, slug, created_by)</idea>
+        <idea>Verify settings update logged with changed fields (old/new)</idea>
+      </group>
+      <group title="Tenant Isolation (Critical)">
+        <idea>Verify project created in tenant A not visible via GET in tenant B</idea>
+        <idea>Verify RLS prevents direct SQL query across tenant boundaries</idea>
+        <idea>Verify tenant_id cannot be overridden in request body (always from context)</idea>
+      </group>
+    </ideas>
+  </tests>
+</story-context>

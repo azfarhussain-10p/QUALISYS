@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Access Has Been Revoked — {{ app_name }}</title>
+  <style>
+    body { margin: 0; padding: 0; background: #f4f4f7; font-family: Arial, Helvetica, sans-serif; }
+    .wrapper { max-width: 560px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; }
+    .header { background: #1e293b; padding: 32px 40px; text-align: center; }
+    .header h1 { color: #ffffff; font-size: 22px; margin: 0; }
+    .body { padding: 40px; color: #374151; font-size: 15px; line-height: 1.6; }
+    .alert-box { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px;
+                 padding: 16px; color: #991b1b; margin: 16px 0; }
+    .footer { padding: 24px 40px; background: #f9fafb; color: #9ca3af; font-size: 12px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>{{ app_name }}</h1>
+    </div>
+    <div class="body">
+      <p>Hi {{ full_name }},</p>
+      <div class="alert-box">
+        Your access to <strong>{{ org_name }}</strong> on {{ app_name }} has been revoked.
+      </div>
+      <p>You have been removed from <strong>{{ org_name }}</strong>. Your access to all projects in this organization is no longer active.</p>
+      <p>Your {{ app_name }} account remains intact. If you belong to other organizations, you can still access them normally.</p>
+      <p>If you believe this removal was made in error, please reach out to your organization administrator directly.</p>
+      <p>Best regards,<br />The {{ app_name }} Team</p>
+    </div>
+    <div class="footer">
+      &copy; {{ app_name }}. This is an automated message — please do not reply.
+    </div>
+  </div>
+</body>
+</html>

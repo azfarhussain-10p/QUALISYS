@@ -1,0 +1,39 @@
+# QUALISYS API — Python/FastAPI Development Container
+# Replaces: api/Containerfile.dev (Node.js/ts-node-dev) — Sprint Change Proposal 2026-02-20
+# Story: 0-21 Local Development Environment (Podman Compose)
+# AC: 4  - API hot reload (uvicorn --reload)
+# AC: 12 - Health check endpoint
+#
+# Uses python:3.11-slim to match production Dockerfile (backend/Dockerfile).
+# Source code is mounted via compose.yml volume — changes trigger hot reload.
+#
+# Podman Compatibility:
+#   This Containerfile produces OCI-compliant images compatible with Podman.
+#   Docker Desktop is NOT approved for 10Pearls systems — use Podman Desktop
+#   or podman-compose CLI. See sprint-change-proposal-2026-01-24.md.
+#
+#   podman build -t qualisys-api:dev -f Containerfile.dev .
+#   podman-compose up -d api
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# wget for health checks (alpine note: slim includes wget via apt)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        wget \
+        gcc \
+        libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install all dependencies including dev (cached layer)
+COPY requirements.txt requirements-dev.txt ./
+RUN pip install --no-cache-dir -r requirements-dev.txt
+
+# Copy source (overwritten by volume mount in compose.yml)
+COPY . .
+
+EXPOSE 8000
+
+# Hot reload: uvicorn --reload watches src/ and restarts on changes
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "src"]

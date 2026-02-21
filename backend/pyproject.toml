@@ -1,0 +1,5 @@
+[tool.pytest.ini_options]
+# pytest-asyncio 0.23: auto mode manages the event loop lifecycle; the
+# deprecated session-scoped event_loop fixture in conftest.py is removed.
+asyncio_mode = "auto"
+testpaths = ["tests"]

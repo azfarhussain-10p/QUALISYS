@@ -1,0 +1,236 @@
+<story-context id="1-8-profile-notification-preferences" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>8</storyId>
+    <title>Profile &amp; Notification Preferences</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-02-17</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-8-profile-notification-preferences.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>configure my profile information and notification preferences</iWant>
+    <soThat>I receive relevant updates and my profile reflects my identity across the platform</soThat>
+    <tasks>
+      <task id="1" title="Database Schema Updates" acs="4,6">Alembic migration: add timezone (varchar 50, default 'UTC') to public.users; create public.user_notification_preferences table (id UUID PK, user_id UUID FK unique, email_test_completions bool, email_test_failures bool, email_team_changes bool, email_security_alerts bool, email_frequency varchar, digest_time time, digest_day varchar, created_at, updated_at)</task>
+      <task id="2" title="Profile Service" acs="2,3,4,5">ProfileService: get_profile(), update_profile() (name 2-100 chars, IANA timezone), upload_avatar() (S3 presigned URL), remove_avatar() (S3 delete), change_password() (bcrypt verify + AuthService.logout_all)</task>
+      <task id="3" title="Notification Preferences Service" acs="6,7">NotificationPreferencesService: get_preferences() (lazy create defaults), update_preferences() (upsert), should_notify() (check category). Security alerts non-disableable</task>
+      <task id="4" title="FastAPI Endpoints" acs="8,9">GET/PATCH /users/me/profile, POST/DELETE /users/me/avatar, GET/PUT /users/me/notifications, POST /users/me/change-password. Rate limiting, audit logging</task>
+      <task id="5" title="React UI — Profile Settings" acs="1,2,3,4">Settings layout with tabs (Profile/Security/Notifications), name input, email (read-only + auth badge), avatar upload/remove, timezone searchable dropdown, save button</task>
+      <task id="6" title="React UI — Security &amp; Notifications" acs="5,6,7">Change Password section (local users only), 2FA placeholder (Story 1.7), notification toggles (4 categories), frequency dropdown, digest time/day pickers, security alerts non-disableable</task>
+      <task id="7" title="Testing" acs="all">Unit (validation, preferences defaults), integration (profile CRUD, avatar S3, change-password + session invalidation, notification prefs CRUD, rate limiting), security (auth_provider check, JWT required, no PII), frontend tests</task>
+      <task id="8" title="Security Review" acs="5,9">Avatar file type restriction, presigned URL expiry + scoping, password change verification, session invalidation, security notifications non-disableable, no PII in audit logs, rate limiting</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1" title="Profile Settings Page">/settings/profile with tabbed layout (Profile, Security, Notifications). Shows name (editable), email (read-only + auth provider badge), avatar (image or initials), timezone dropdown. Accessible from user avatar menu → Settings</ac>
+    <ac id="2" title="Edit Profile — Name">Update full_name via PATCH /users/me/profile. Validation: required, 2-100 chars, trimmed. Reflected immediately in app header (name fetched from DB, not JWT)</ac>
+    <ac id="3" title="Edit Profile — Avatar">S3 presigned URL upload (PNG/JPG/WebP, max 5MB). Path: users/{user_id}/avatar/{uuid}.{ext}. Resize 128x128 thumbnail. Old avatar deleted on replace. Remove option → initials fallback. Google users default to Google profile pic</ac>
+    <ac id="4" title="Edit Profile — Timezone">Searchable IANA timezone dropdown. Stored in public.users.timezone (varchar, default UTC). Used for digest scheduling, UI date formatting, audit log display</ac>
+    <ac id="5" title="Change Password (from Settings)">Security tab, local users only. Current + new + confirm password. Validates: current correct (bcrypt), new meets policy (12+ chars, complexity), new ≠ current. On success: update hash, AuthService.logout_all(), redirect to login. Rate-limited 3/user/hour</ac>
+    <ac id="6" title="Notification Preferences — Email">Notifications tab: 4 category toggles (test completions, test failures, team changes, security alerts). Frequency: real-time/daily digest/weekly digest. Digest time + day configurable. Security alerts cannot be disabled. Stored in public.user_notification_preferences</ac>
+    <ac id="7" title="Notification Preferences — Save &amp; Apply">PUT /users/me/notifications. Immediate effect for new notifications. Dispatcher reads preferences before sending. Security notifications always sent regardless of preference</ac>
+    <ac id="8" title="API Endpoints &amp; Validation">7 endpoints: GET /users/me, PATCH /users/me/profile, POST/DELETE /users/me/avatar, GET/PUT /users/me/notifications, POST /users/me/change-password. All require JWT. Structured JSON errors</ac>
+    <ac id="9" title="Audit Trail">Log: name updated (old/new), avatar uploaded/removed, timezone changed, password changed (no values), notification preferences updated. With user_id, IP, user_agent, timestamp</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/planning/prd.md" title="Product Requirements Document v3.0" section="User Account &amp; Access Management" snippet="FR10: Users can configure their profile information and notification preferences." />
+      <doc path="docs/planning/prd.md" title="PRD v3.0" section="Administration &amp; Configuration" snippet="FR109: Users can configure notification preferences (email, Slack, frequency). FR110: Users can manage their connected integrations and API keys." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="In Scope Stories" snippet="Story 1.8: Profile &amp; Notification Preferences — FR10. User Account &amp; Access Management domain." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Technology Stack" snippet="Object Storage: AWS S3 (test artifacts, screenshots, videos). Used for avatar uploads with presigned URL pattern." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Security Threat Model" snippet="Audit trails for all administrative actions, rate limiting on endpoints, parameterized queries only." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Email Services" snippet="SendGrid or AWS SES for transactional emails. Notification dispatcher reads user preferences before sending." />
+      <doc path="docs/epics/epics.md" title="Epics &amp; Stories" section="Story 1.8" snippet="AC1: Profile page (name, email, avatar). AC2: Notification preferences (email on/off, Slack on/off, frequency). AC3: Preferences saved per user. AC4: Email notifications respect preferences. FRs: FR10." />
+      <doc path="docs/epics/epics.md" title="Epics &amp; Stories" section="Story 5.15" snippet="User Notification Preferences Management — extends this story with Slack preferences, severity filters, per-channel routing, advanced scheduling. FRs: FR109." />
+      <doc path="docs/planning/ux-design-specification.md" title="UX Design" section="Common Elements" snippet="Top nav: Projects dropdown, Search, Notifications bell, User avatar menu. Avatar (user images) component. Bottom nav mobile: Home, Tests, Agents, Notifications, Profile." />
+      <doc path="docs/stories/1-1-user-account-creation.md" title="Story 1.1" section="Full Story" snippet="Establishes public.users table: id, email, full_name, password_hash, email_verified, auth_provider, google_id, avatar_url, created_at, updated_at. Password policy: min 12 chars, complexity. Bcrypt cost 12." />
+      <doc path="docs/stories/1-2-organization-creation-setup.md" title="Story 1.2" section="AC6: Logo Upload" snippet="S3 presigned URL pattern: upload to tenants/{tenant_id}/logo/{filename}. Accepted: PNG/JPG/SVG, max 2MB. Resize 256x256 thumbnail. Pre-signed URL for direct browser-to-S3 upload (no backend proxy)." />
+      <doc path="docs/stories/1-5-login-session-management.md" title="Story 1.5" section="Full Story" snippet="AuthService.logout_all() invalidates ALL refresh tokens via user_sessions:{user_id} Redis set. JWT auth middleware extracts user from httpOnly cookie. RS256 validation." />
+      <doc path="docs/stories/1-7-two-factor-authentication-totp.md" title="Story 1.7" section="Full Story" snippet="Security settings page at /settings/security with 2FA section. Password confirmation pattern for disable/regenerate. Same tabbed settings layout this story establishes." />
+    </docs>
+
+    <code>
+      <!-- Existing code artifacts -->
+      <artifact path="src/test-utils/tenant-isolation.ts" kind="test-utility" symbol="createTestTenant, cleanupTestTenant, setTenantContext" lines="1-302" reason="Tenant isolation for integration tests. Profile operations are on public schema but settings page tests may need tenant context for full auth flow." />
+      <artifact path="tests/conftest.py" kind="pytest-fixtures" symbol="db_pool, test_tenant, tenant_connection" lines="1-170" reason="Pytest fixtures for async DB tests. Use db_pool for public schema operations (public.users, public.user_notification_preferences)." />
+      <artifact path="scripts/init-local-db.sql" kind="database-init" symbol="tenant_dev_1, tenant_dev_2, users table" lines="1-164" reason="Local dev DB with tenant schemas and users table. Timezone column and notification_preferences table will be added via Alembic migration." />
+      <artifact path="scripts/dev-seed.ts" kind="seed-script" symbol="seedUsers, DEFAULT_PASSWORD_HASH" lines="1-284" reason="Dev seed with bcrypt password hash and user records. Profile tests can use seeded users. Change-password tests need known password hash." />
+
+      <!-- Planned code artifacts (created by predecessor stories) -->
+      <artifact path="src/services/auth_service.py" kind="service" symbol="AuthService.logout_all()" reason="[PLANNED by Story 1.5] Called after password change to invalidate all sessions. Uses user_sessions:{user_id} Redis set." />
+      <artifact path="src/services/token_service.py" kind="service" symbol="TokenService" reason="[PLANNED by Story 1.5] JWT creation/validation. Profile endpoints use JWT auth — token contains user_id for /users/me resolution." />
+      <artifact path="src/middleware/auth.py" kind="middleware" symbol="JWTAuthMiddleware" reason="[PLANNED by Story 1.5] All /users/me endpoints require JWT authentication. Middleware extracts user_id from JWT claims." />
+      <artifact path="src/api/v1/auth/" kind="api-routes" symbol="login, refresh, logout, mfa/*" reason="[PLANNED by Stories 1.5/1.7] Existing auth routes. This story adds /api/v1/users/* routes as a separate router." />
+      <artifact path="src/pages/auth/login/" kind="react-page" symbol="LoginPage" reason="[PLANNED by Story 1.5] Login page. Password change redirects here after success." />
+
+      <!-- Planned code artifacts (to be created in this story) -->
+      <artifact path="src/services/profile_service.py" kind="service" symbol="ProfileService" reason="[PLANNED] get_profile(), update_profile(), upload_avatar(), remove_avatar(), change_password(). Core profile management." />
+      <artifact path="src/services/notification_preferences_service.py" kind="service" symbol="NotificationPreferencesService" reason="[PLANNED] get_preferences(), update_preferences(), should_notify(). Notification preference management with lazy default creation." />
+      <artifact path="src/api/v1/users/" kind="api-routes" symbol="me, profile, avatar, notifications, change-password" reason="[PLANNED] 7 user endpoints: GET me, PATCH profile, POST/DELETE avatar, GET/PUT notifications, POST change-password." />
+      <artifact path="src/models/user_notification_preferences.py" kind="model" symbol="UserNotificationPreferences" reason="[PLANNED] SQLAlchemy model for public.user_notification_preferences table." />
+      <artifact path="src/pages/settings/" kind="react-pages" symbol="SettingsLayout, ProfileTab, SecurityTab, NotificationsTab" reason="[PLANNED] Tabbed settings layout at /settings/*. Profile tab (name, avatar, timezone), Security tab (password change + 2FA placeholder), Notifications tab (email prefs)." />
+      <artifact path="src/layouts/SettingsLayout.tsx" kind="react-layout" symbol="SettingsLayout" reason="[PLANNED] Tab navigation wrapper for settings pages. Reused by Story 1.7 for security section." />
+      <artifact path="src/components/settings/" kind="react-components" symbol="AvatarUpload, TimezoneSelector, NotificationToggle, PasswordChangeForm" reason="[PLANNED] Reusable settings components. AvatarUpload handles file picker + presigned URL upload + progress. TimezoneSelector with search." />
+    </code>
+
+    <dependencies>
+      <note>No package.json or pyproject.toml in repo yet. Dependencies specified in planning docs.</note>
+      <planned-backend>
+        <dep name="Python" version="3.11+" />
+        <dep name="FastAPI" role="Web framework, async endpoints" />
+        <dep name="SQLAlchemy" role="ORM for public.users and public.user_notification_preferences" />
+        <dep name="Alembic" role="Database migrations for timezone column and notification preferences table" />
+        <dep name="bcrypt" role="Password verification and hashing for change-password" />
+        <dep name="boto3" role="AWS S3 presigned URL generation and avatar management" />
+        <dep name="Pillow" role="Image resizing for avatar thumbnails (128x128)" />
+        <dep name="redis[hiredis]" role="Session invalidation (AuthService.logout_all), rate limiting" />
+        <dep name="Pydantic" role="Request/response schemas for profile and notification endpoints" />
+        <dep name="pytz or zoneinfo" role="IANA timezone validation and digest scheduling" />
+      </planned-backend>
+      <planned-frontend>
+        <dep name="React" version="18" />
+        <dep name="Vite" role="Build tool" />
+        <dep name="Tailwind CSS" role="Utility-first CSS" />
+        <dep name="shadcn/ui" role="UI components (Tabs, Input, Button, Switch, Select, Avatar, Dialog, Toast)" />
+        <dep name="axios" role="HTTP client for profile and notification API calls" />
+        <dep name="date-fns-tz or Intl API" role="Timezone display formatting in UI" />
+      </planned-frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" source="story-1-8" severity="high">Avatar uploads MUST be restricted to image types (PNG, JPG, WebP) with max 5MB. No executable file uploads. Content-type validation both client-side and in presigned URL conditions.</constraint>
+    <constraint id="C2" source="story-1-2" severity="high">S3 presigned URLs MUST expire within 5 minutes and be scoped to the user's avatar path (users/{user_id}/avatar/*). Prevents URL reuse or path traversal.</constraint>
+    <constraint id="C3" source="story-1-8" severity="high">Password change MUST require current password verification (bcrypt compare) and MUST invalidate ALL sessions via AuthService.logout_all(). Redirect to login after success.</constraint>
+    <constraint id="C4" source="story-1-8" severity="high">Security notifications (login from new device, password change) MUST always be sent regardless of user preference. email_security_alerts cannot be set to false via API — server enforces.</constraint>
+    <constraint id="C5" source="story-1-1" severity="high">Password policy for change-password: min 12 chars, uppercase, lowercase, number, special character. New password cannot equal current password. Reuse validation from Story 1.1.</constraint>
+    <constraint id="C6" source="story-1-8" severity="medium">Timezone stored as IANA timezone string (e.g., "America/New_York"). MUST validate against IANA database — reject invalid timezone strings. Default: "UTC".</constraint>
+    <constraint id="C7" source="story-1-8" severity="medium">Change-password section MUST be hidden for Google-only users (auth_provider='google' with no password_hash). Prevent confusion — they cannot set a local password from here.</constraint>
+    <constraint id="C8" source="story-1-8" severity="medium">Profile name changes reflected immediately across platform. JWT does NOT store full_name — name is fetched from DB. No cache invalidation needed for name changes.</constraint>
+    <constraint id="C9" source="story-1-8" severity="medium">Notification preferences created lazily on first access (get_preferences creates default row if none exists). Avoids migration backfill for existing users.</constraint>
+    <constraint id="C10" source="architecture.md" severity="medium">All profile changes MUST be logged to audit trail with user_id, IP, user_agent, timestamp. Password values NEVER logged — only "password changed" event.</constraint>
+    <constraint id="C11" source="story-1-8" severity="medium">Rate limiting: change-password 3/user/hour, profile updates 30/user/hour. Redis-backed counters. 429 with Retry-After on exceeded limit.</constraint>
+  </constraints>
+
+  <interfaces>
+    <!-- Profile REST Endpoints (all require JWT) -->
+    <interface name="GET /api/v1/users/me" kind="REST endpoint" signature="GET /api/v1/users/me → { id, email, full_name, avatar_url, timezone, auth_provider, email_verified, created_at }" path="src/api/v1/users/" />
+    <interface name="PATCH /api/v1/users/me/profile" kind="REST endpoint" signature="PATCH /api/v1/users/me/profile { full_name?: string, timezone?: string } → { id, email, full_name, avatar_url, timezone }" path="src/api/v1/users/" />
+    <interface name="POST /api/v1/users/me/avatar" kind="REST endpoint" signature="POST /api/v1/users/me/avatar { content_type: string, file_size: int } → { upload_url: string, avatar_key: string }" path="src/api/v1/users/" />
+    <interface name="DELETE /api/v1/users/me/avatar" kind="REST endpoint" signature="DELETE /api/v1/users/me/avatar → { success: bool }" path="src/api/v1/users/" />
+    <interface name="POST /api/v1/users/me/change-password" kind="REST endpoint" signature="POST /api/v1/users/me/change-password { current_password, new_password } → { message: 'Password changed. Please log in.' }" path="src/api/v1/users/" />
+
+    <!-- Notification Preferences REST Endpoints -->
+    <interface name="GET /api/v1/users/me/notifications" kind="REST endpoint" signature="GET /api/v1/users/me/notifications → { email_test_completions, email_test_failures, email_team_changes, email_security_alerts, email_frequency, digest_time, digest_day }" path="src/api/v1/users/" />
+    <interface name="PUT /api/v1/users/me/notifications" kind="REST endpoint" signature="PUT /api/v1/users/me/notifications { email_test_completions?, email_test_failures?, email_team_changes?, email_frequency?, digest_time?, digest_day? } → { ...saved_preferences }" path="src/api/v1/users/" />
+
+    <!-- Service Methods -->
+    <interface name="ProfileService.get_profile" kind="service method" signature="get_profile(user_id: UUID) → UserProfile" path="src/services/profile_service.py" />
+    <interface name="ProfileService.update_profile" kind="service method" signature="update_profile(user_id: UUID, name: str | None, timezone: str | None) → UserProfile" path="src/services/profile_service.py" />
+    <interface name="ProfileService.upload_avatar" kind="service method" signature="upload_avatar(user_id: UUID, content_type: str, file_size: int) → PresignedUploadURL" path="src/services/profile_service.py" />
+    <interface name="ProfileService.remove_avatar" kind="service method" signature="remove_avatar(user_id: UUID) → None (deletes from S3, nulls avatar_url)" path="src/services/profile_service.py" />
+    <interface name="ProfileService.change_password" kind="service method" signature="change_password(user_id: UUID, current_password: str, new_password: str) → None (updates hash, calls logout_all)" path="src/services/profile_service.py" />
+    <interface name="NotificationPreferencesService.get_preferences" kind="service method" signature="get_preferences(user_id: UUID) → NotificationPreferences (creates defaults if none exist)" path="src/services/notification_preferences_service.py" />
+    <interface name="NotificationPreferencesService.update_preferences" kind="service method" signature="update_preferences(user_id: UUID, prefs: UpdatePreferencesRequest) → NotificationPreferences" path="src/services/notification_preferences_service.py" />
+    <interface name="NotificationPreferencesService.should_notify" kind="service method" signature="should_notify(user_id: UUID, category: str) → bool (used by notification dispatcher)" path="src/services/notification_preferences_service.py" />
+
+    <!-- Database Schema -->
+    <interface name="public.users.timezone column" kind="database-schema" signature="ALTER TABLE public.users ADD COLUMN timezone VARCHAR(50) NOT NULL DEFAULT 'UTC'" path="(Alembic migration)" />
+    <interface name="public.user_notification_preferences" kind="database-schema" signature="CREATE TABLE public.user_notification_preferences (id UUID PK, user_id UUID FK UNIQUE→public.users, email_test_completions BOOL DEFAULT TRUE, email_test_failures BOOL DEFAULT TRUE, email_team_changes BOOL DEFAULT TRUE, email_security_alerts BOOL DEFAULT TRUE, email_frequency VARCHAR(20) DEFAULT 'realtime', digest_time TIME DEFAULT '09:00', digest_day VARCHAR(10) DEFAULT 'monday', created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ)" path="(Alembic migration)" />
+
+    <!-- Cross-story dependency -->
+    <interface name="AuthService.logout_all (Story 1.5)" kind="cross-story" signature="AuthService.logout_all(user_id: UUID) → None (invalidates all refresh tokens in Redis)" path="src/services/auth_service.py" />
+  </interfaces>
+
+  <tests>
+    <standards>
+      Backend: Pytest with async test client (httpx.AsyncClient), PostgreSQL test database with per-test transaction rollback via conftest.py fixtures. Frontend: Vitest + React Testing Library. Coverage target: 80%+ for new code. S3 operations mocked in tests (verify presigned URL generation parameters and delete calls). Redis required for session invalidation tests (password change → logout_all). No email sending in this story (notification preferences are saved but email dispatch is in future stories).
+    </standards>
+    <locations>
+      <location>tests/unit/services/test_profile_service.py</location>
+      <location>tests/unit/services/test_notification_preferences_service.py</location>
+      <location>tests/integration/users/test_profile.py</location>
+      <location>tests/integration/users/test_avatar.py</location>
+      <location>tests/integration/users/test_change_password.py</location>
+      <location>tests/integration/users/test_notification_preferences.py</location>
+      <location>tests/security/test_profile_security.py</location>
+      <location>src/__tests__/pages/settings/ProfileTab.test.tsx</location>
+      <location>src/__tests__/pages/settings/SecurityTab.test.tsx</location>
+      <location>src/__tests__/pages/settings/NotificationsTab.test.tsx</location>
+      <location>src/__tests__/components/settings/AvatarUpload.test.tsx</location>
+    </locations>
+    <ideas>
+      <group ac="1" title="Profile Settings Page">
+        <idea>Verify settings page renders with 3 tabs (Profile, Security, Notifications)</idea>
+        <idea>Verify Profile tab shows current name, email (read-only), avatar, timezone</idea>
+        <idea>Verify email shows auth provider badge (Email or Google)</idea>
+        <idea>Verify Settings link accessible from user avatar menu in header</idea>
+      </group>
+      <group ac="2" title="Edit Profile — Name">
+        <idea>Verify name update succeeds with valid name (2-100 chars)</idea>
+        <idea>Verify name validation rejects empty, 1 char, 101+ chars</idea>
+        <idea>Verify leading/trailing whitespace trimmed</idea>
+        <idea>Verify name change reflected in GET /users/me response</idea>
+        <idea>Verify success toast shown on save</idea>
+      </group>
+      <group ac="3" title="Edit Profile — Avatar">
+        <idea>Verify presigned URL generated for valid image type (PNG/JPG/WebP)</idea>
+        <idea>Verify presigned URL rejected for non-image types (PDF, EXE, etc.)</idea>
+        <idea>Verify file size &gt; 5MB rejected</idea>
+        <idea>Verify avatar_url updated in DB after successful upload</idea>
+        <idea>Verify old avatar deleted from S3 when new one uploaded</idea>
+        <idea>Verify remove avatar sets avatar_url to null and deletes from S3</idea>
+        <idea>Verify initials fallback displayed when no avatar set</idea>
+        <idea>Verify Google OAuth user's default avatar is Google profile picture</idea>
+      </group>
+      <group ac="4" title="Edit Profile — Timezone">
+        <idea>Verify valid IANA timezone accepted (America/New_York, Europe/London, Asia/Karachi, UTC)</idea>
+        <idea>Verify invalid timezone string rejected (400 error)</idea>
+        <idea>Verify default timezone is UTC for new users</idea>
+        <idea>Verify timezone searchable dropdown filters correctly</idea>
+      </group>
+      <group ac="5" title="Change Password">
+        <idea>Verify password change succeeds with correct current password and valid new password</idea>
+        <idea>Verify wrong current password returns 403</idea>
+        <idea>Verify weak new password (fails policy) returns 400</idea>
+        <idea>Verify new password same as current returns 400</idea>
+        <idea>Verify all sessions invalidated after password change (Redis tokens deleted)</idea>
+        <idea>Verify redirect to login page after success</idea>
+        <idea>Verify change-password section hidden for Google-only users (auth_provider='google')</idea>
+        <idea>Verify rate limiting: 4th attempt within 1 hour returns 429</idea>
+      </group>
+      <group ac="6" title="Notification Preferences — Email">
+        <idea>Verify default preferences created on first GET (all enabled, realtime frequency)</idea>
+        <idea>Verify individual category toggles save correctly</idea>
+        <idea>Verify frequency change (realtime → daily → weekly) persists</idea>
+        <idea>Verify digest_time and digest_day saved for daily/weekly frequency</idea>
+        <idea>Verify email_security_alerts cannot be set to false (server enforces true)</idea>
+        <idea>Verify security alerts toggle shown disabled in UI with tooltip</idea>
+      </group>
+      <group ac="7" title="Notification Preferences — Save &amp; Apply">
+        <idea>Verify PUT /users/me/notifications saves and returns updated preferences</idea>
+        <idea>Verify should_notify() returns correct result for each category based on user preferences</idea>
+        <idea>Verify should_notify() always returns true for security category regardless of preference</idea>
+      </group>
+      <group ac="8" title="API Endpoints &amp; Validation">
+        <idea>Verify all 7 endpoints return 401 without JWT</idea>
+        <idea>Verify all endpoints return structured JSON errors</idea>
+        <idea>Verify GET /users/me excludes password_hash from response</idea>
+        <idea>Verify PATCH /profile with no changes returns current profile (no-op)</idea>
+      </group>
+      <group ac="9" title="Audit Trail">
+        <idea>Verify name change logged with old and new values</idea>
+        <idea>Verify avatar upload/remove logged</idea>
+        <idea>Verify timezone change logged</idea>
+        <idea>Verify password change logged (no password values in log)</idea>
+        <idea>Verify notification preference change logged with changed categories</idea>
+        <idea>Verify audit entries include IP and user_agent</idea>
+      </group>
+    </ideas>
+  </tests>
+</story-context>

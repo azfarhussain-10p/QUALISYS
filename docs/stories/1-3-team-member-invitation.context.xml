@@ -1,0 +1,217 @@
+<story-context id="bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>3</storyId>
+    <title>Team Member Invitation</title>
+    <status>drafted</status>
+    <generatedAt>2026-02-17</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-3-team-member-invitation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Owner/Admin</asA>
+    <iWant>invite team members to my organization via email with role assignment</iWant>
+    <soThat>my team can access QUALISYS projects and collaborate with appropriate permissions</soThat>
+    <tasks>
+      <task id="1" title="Database Schema — Invitations" acs="2,7">
+        <subtask>1.1 Alembic migration for public.invitations table</subtask>
+        <subtask>1.2 Partial unique index (tenant_id, LOWER(email)) WHERE status='pending'</subtask>
+        <subtask>1.3 Index on token for accept lookup</subtask>
+        <subtask>1.4 Index on (tenant_id, status) for listing</subtask>
+        <subtask>1.5 SQLAlchemy model Invitation</subtask>
+        <subtask>1.6 Migration rollback script</subtask>
+      </task>
+      <task id="2" title="Invitation Token Service" acs="2,7,9">
+        <subtask>2.1 InvitationService class (create, validate, accept, revoke, resend)</subtask>
+        <subtask>2.2 Cryptographic token generation (secrets.token_urlsafe(32))</subtask>
+        <subtask>2.3 Token validation (exists, not expired, pending, email match)</subtask>
+        <subtask>2.4 Lazy expiry update</subtask>
+        <subtask>2.5 Membership duplicate check</subtask>
+      </task>
+      <task id="3" title="FastAPI Invitation Endpoints" acs="1,2,4,5,6,8,9">
+        <subtask>3.1 POST /api/v1/orgs/{org_id}/invitations (bulk create)</subtask>
+        <subtask>3.2 Bulk validation (max 20, dedupe, role validation, membership check)</subtask>
+        <subtask>3.3 GET /api/v1/orgs/{org_id}/invitations (list pending/expired)</subtask>
+        <subtask>3.4 DELETE /api/v1/orgs/{org_id}/invitations/{invite_id} (revoke)</subtask>
+        <subtask>3.5 POST /api/v1/orgs/{org_id}/invitations/{invite_id}/resend</subtask>
+        <subtask>3.6 GET /api/v1/invitations/accept?token={token} (public, validate)</subtask>
+        <subtask>3.7 POST /api/v1/invitations/accept (accept with optional registration)</subtask>
+        <subtask>3.8 Rate limiting (50/org/hr, 3/email/org/24h, 10 failed/IP/hr)</subtask>
+        <subtask>3.9 Audit logging for all invitation actions</subtask>
+      </task>
+      <task id="4" title="Invitation Email Integration" acs="3">
+        <subtask>4.1 Invitation email HTML template (branded, CTA button)</subtask>
+        <subtask>4.2 Async email via SendGrid/AWS SES (reuse from Story 1.1)</subtask>
+        <subtask>4.3 Retry logic (3 attempts, exponential backoff)</subtask>
+        <subtask>4.4 Email delivery status logging</subtask>
+      </task>
+      <task id="5" title="React Invitation UI — Admin Side" acs="1,6">
+        <subtask>5.1 Team Members tab on org settings page</subtask>
+        <subtask>5.2 Active members list component</subtask>
+        <subtask>5.3 Invite Member dialog (email + role dropdown)</subtask>
+        <subtask>5.4 Bulk invite textarea</subtask>
+        <subtask>5.5 Pending invitations list with actions</subtask>
+        <subtask>5.6 Resend/Revoke with confirmation dialogs</subtask>
+        <subtask>5.7 RBAC: hide admin actions for non-Owner roles</subtask>
+      </task>
+      <task id="6" title="React Invitation UI — Accept Side" acs="4,5">
+        <subtask>6.1 /invite/accept route</subtask>
+        <subtask>6.2 Token validation on page load</subtask>
+        <subtask>6.3 Existing user: join confirmation</subtask>
+        <subtask>6.4 New user: registration form (reuse Story 1.1 validation)</subtask>
+        <subtask>6.5 Google OAuth alternative for new users</subtask>
+        <subtask>6.6 Error states (expired, revoked, invalid, already accepted)</subtask>
+        <subtask>6.7 Success redirect to org dashboard</subtask>
+      </task>
+      <task id="7" title="Testing" acs="all">
+        <subtask>7.1 Unit tests: token generation, validation, expiry, email/role validation</subtask>
+        <subtask>7.2 Integration: create invitations (single, bulk, duplicate, existing member, rate limit)</subtask>
+        <subtask>7.3 Integration: accept (valid, expired, revoked, invalid token)</subtask>
+        <subtask>7.4 Integration: accept flows (existing user, new user registration, Google OAuth)</subtask>
+        <subtask>7.5 Integration: invitation lifecycle (create, accept, membership created)</subtask>
+        <subtask>7.6 Integration: resend (new token), revoke (token invalidated)</subtask>
+        <subtask>7.7 RBAC tests: non-Owner cannot create/revoke</subtask>
+        <subtask>7.8 Security: brute-force prevention, SQL injection, cross-tenant isolation</subtask>
+        <subtask>7.9 Frontend: invite form, bulk parsing, accept page flows</subtask>
+      </task>
+      <task id="8" title="Security Review" acs="9">
+        <subtask>8.1 Verify cryptographic token randomness (32 bytes min)</subtask>
+        <subtask>8.2 Verify single-use token invalidation</subtask>
+        <subtask>8.3 Verify email match on accept</subtask>
+        <subtask>8.4 Verify RBAC on admin endpoints</subtask>
+        <subtask>8.5 Verify audit logging</subtask>
+        <subtask>8.6 Verify no information leakage on invalid tokens</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1" title="Invite Form UI">Org settings Team Members tab with Invite Member button (Owner/Admin RBAC). Email + role dropdown. Bulk invite (max 20). Client-side validation.</ac>
+    <ac id="2" title="Invitation Record Creation">public.invitations table with UUID, tenant_id, email, role, token, status, expires_at. Unique constraint on (tenant_id, email) for pending. Reject existing members.</ac>
+    <ac id="3" title="Invitation Email Delivery">Branded email via SendGrid/SES with inviter name, org name, role, CTA button, 7-day expiry notice. Async, retry 3x exponential backoff.</ac>
+    <ac id="4" title="Accept — Existing User">Validate token, show confirmation, create tenants_users record, update invitation status, redirect to dashboard.</ac>
+    <ac id="5" title="Accept — New User">Validate token, registration form (pre-filled email), create user + tenants_users, mark email verified, redirect to dashboard.</ac>
+    <ac id="6" title="Invitation Status Tracking">Pending list with email, role, dates, status. Resend expired (new token). Revoke pending. Accepted moves to active members.</ac>
+    <ac id="7" title="Invitation Expiry">7-day expiry, server-side validation, friendly error page, lazy status update, expired don't block new invites.</ac>
+    <ac id="8" title="Rate Limiting">50 invites/org/hr, 3 invites/email/org/24h, 10 failed accepts/IP/hr. Redis-backed, HTTP 429.</ac>
+    <ac id="9" title="Security and Audit">Cryptographic tokens (32 bytes), single-use, audit trail, RBAC enforced, email match validation, no info leakage.</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/planning/prd.md" title="Product Requirements Document v3.0" section="User Account &amp; Access Management" snippet="FR6: Admins can invite team members to organization via email with role assignment. FR7: Invited users can accept invitations and join organization." />
+      <doc path="docs/planning/prd.md" title="PRD" section="Multi-Tenancy Architecture" snippet="Team invites: Admin invites team members via email with role assignment. Self-service signup with onboarding wizard." />
+      <doc path="docs/planning/prd.md" title="PRD" section="Permissions &amp; Roles (RBAC)" snippet="6 persona roles: Owner/Admin, PM/CSM, QA-Manual, QA-Automation, Dev, Viewer. Role assignment at org and project level." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="RBAC Permission Matrix" snippet="6 roles with permission matrix. Owner/Admin has full org control including inviting users and managing billing." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="Authentication Architecture" snippet="JWT tokens (7-day expiry, httpOnly cookies), refresh token rotation, Redis session storage, MFA challenge at login." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="Multi-Tenancy Architecture" snippet="PostgreSQL schema isolation. public.tenants registry, public.users cross-tenant lookup, tenant-specific schemas for org data." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Third-Party Services" snippet="Email: SendGrid or AWS SES for transactional emails (verification, invitations, notifications)." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Security Threat Model" snippet="SQL injection prevention via parameterized queries. Token security: cryptographic randomness, single-use, time-limited." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Four-Pillar Multi-Tenancy" snippet="Schema-level isolation. public schema for cross-tenant data (users, tenants, invitations). ContextVar tenant routing." />
+      <doc path="docs/epics/epics.md" title="Epic &amp; Story Breakdown" section="Story 1.3: Team Member Invitation" snippet="As Admin, invite team members via email with role. 4 ACs: invite form, email link, accept flow, status tracking. FRs: FR6, FR7." />
+      <doc path="docs/stories/1-1-user-account-creation.md" title="Story 1.1" section="Architecture Patterns" snippet="Email service via SendGrid/SES. User records in public.users. Auth provider enum (email, google). Rate limiting with Redis INCR+EXPIRE." />
+      <doc path="docs/stories/1-2-organization-creation-setup.md" title="Story 1.2" section="Architecture Patterns" snippet="Tenant context middleware (ContextVar). RBAC @require_role decorator. public.tenants and public.tenants_users tables. Schema provisioning." />
+      <doc path="docs/planning/ux-design-specification.md" title="UX Design Specification" section="Team Management" snippet="Team member invitation flow, role assignment UI, pending invitations list, accept invitation page." />
+    </docs>
+
+    <code>
+      <file path="src/test-utils/index.ts" kind="test-utility" symbol="createTestTenant, cleanupTestTenant, setTenantContext, useTenantIsolation, withTenantIsolation" reason="Multi-tenant test isolation utilities — use for integration tests that create invitation records in tenant context" />
+      <file path="src/test-utils/tenant-isolation.ts" kind="test-utility" symbol="TestTenant, assertSafeIdentifier, createTestTenant, cleanupTestTenant, setTenantContext" reason="Tenant schema creation/cleanup for tests. Provides isolated test tenant with RLS policies. Reuse for invitation integration tests." />
+      <file path="src/test-utils/tenant-fixtures.ts" kind="test-fixture" symbol="useTenantIsolation, withTenantIsolation, TenantTestContext" reason="Jest integration fixtures for tenant-scoped test suites. Use for invitation RBAC and lifecycle tests." />
+      <file path="jest.config.js" kind="config" symbol="jest" reason="Jest test configuration — follow existing patterns for new invitation test files" />
+      <file path="e2e/playwright.config.ts" kind="config" symbol="playwright" reason="E2E test config — invitation accept flow may need E2E coverage" />
+      <file path="compose.yml" kind="config" symbol="podman-compose" reason="Local development environment — PostgreSQL, Redis services needed for invitation dev/test" />
+      <file path=".github/workflows/pr-checks.yml" kind="ci" symbol="pr-checks" reason="CI pipeline — invitation tests will run as part of existing test suite" />
+      <planned path="src/models/user.py" kind="model" symbol="User" reason="Story 1.1 creates User model in public schema — invitations FK to users.id (invited_by)" />
+      <planned path="src/models/tenant.py" kind="model" symbol="Tenant, TenantUser" reason="Story 1.2 creates Tenant and TenantUser models — invitations FK to tenants.id, accept creates TenantUser record" />
+      <planned path="src/middleware/tenant_context.py" kind="middleware" symbol="TenantContextMiddleware" reason="Story 1.2 creates tenant context middleware — admin-side invitation endpoints use this for org scoping" />
+      <planned path="src/middleware/rbac.py" kind="middleware" symbol="@require_role" reason="Story 1.2 creates RBAC decorator — use for Owner/Admin enforcement on invitation management endpoints" />
+      <planned path="src/api/v1/auth/" kind="api" symbol="register, google, verify-email" reason="Story 1.1 creates auth endpoints — invitation accept for new users reuses registration logic" />
+      <planned path="src/templates/email/" kind="template" symbol="email templates" reason="Story 1.1 creates email verification template — invitation email template follows same patterns" />
+      <planned path="src/services/tenant_provisioning.py" kind="service" symbol="TenantProvisioningService" reason="Story 1.2 creates tenant provisioning — invitation accept must verify tenant is in 'ready' state" />
+      <planned path="src/pages/settings/organization/" kind="frontend" symbol="org settings pages" reason="Story 1.2 creates org settings page — add Team Members tab alongside existing settings" />
+    </code>
+
+    <dependencies>
+      <ecosystem name="python">
+        <note>Backend stack (planned from architecture — no pyproject.toml/requirements.txt yet)</note>
+        <package name="fastapi" version="latest" reason="API framework" />
+        <package name="sqlalchemy" version="2.x" reason="ORM, models, tenant schema routing" />
+        <package name="alembic" version="latest" reason="Database migrations" />
+        <package name="passlib[bcrypt]" version="latest" reason="Password hashing (Story 1.1 pattern)" />
+        <package name="python-jose" version="latest" reason="JWT tokens for sessions" />
+        <package name="pydantic" version="2.x" reason="Request/response validation" />
+        <package name="httpx" version="latest" reason="Async HTTP client (for OAuth, email API)" />
+        <package name="redis" version="latest" reason="Rate limiting, session storage" />
+        <package name="sendgrid" version="latest" reason="Transactional email delivery (or boto3 for SES)" />
+        <package name="pillow" version="latest" reason="Image processing (Story 1.2 logo — not directly used here)" />
+      </ecosystem>
+      <ecosystem name="node">
+        <note>Frontend stack + test utilities (planned from architecture)</note>
+        <package name="react" version="18.x" reason="UI framework" />
+        <package name="vite" version="latest" reason="Build tool" />
+        <package name="tailwindcss" version="3.x" reason="Styling" />
+        <package name="@shadcn/ui" version="latest" reason="UI component library (Dialog, Select, Table)" />
+        <package name="jest" version="latest" reason="Test runner (existing jest.config.js)" />
+        <package name="@testing-library/react" version="latest" reason="React component tests" />
+        <package name="pg" version="latest" reason="PostgreSQL client (test-utils use pg.Pool)" />
+      </ecosystem>
+      <ecosystem name="infrastructure">
+        <package name="postgresql" version="15+" reason="Multi-tenant database with schema isolation" />
+        <package name="redis" version="7+" reason="Rate limiting, session storage" />
+        <package name="sendgrid" version="API v3" reason="Transactional email (invitation emails)" />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture" priority="critical">Multi-tenant isolation: Invitation records in public schema (cross-tenant lookup). Membership records in public.tenants_users. Never store invitation data in tenant-specific schemas.</constraint>
+    <constraint source="architecture" priority="critical">SQL injection prevention: All queries parameterized via SQLAlchemy ORM. Schema names validated with [a-z0-9_] pattern. No dynamic SQL string concatenation.</constraint>
+    <constraint source="architecture" priority="critical">Token security: Cryptographically random tokens (secrets.token_urlsafe(32)), single-use, time-limited (7 days), stored in DB for revocation support. NOT JWT — no claims needed.</constraint>
+    <constraint source="architecture" priority="high">RBAC enforcement: Only Owner/Admin can create, revoke, and resend invitations. Use @require_role('owner') decorator from Story 1.2. Accept endpoint is public (token-authenticated).</constraint>
+    <constraint source="architecture" priority="high">Email service: Use SendGrid or AWS SES (same as Story 1.1 verification emails). Async sending, retry with exponential backoff, delivery status logging.</constraint>
+    <constraint source="architecture" priority="high">Rate limiting: Redis-backed sliding window. Key patterns: rate:invite:{org_id} (50/hr), rate:invite:{org_id}:{email} (3/24h), rate:invite-accept:{ip} (10/hr).</constraint>
+    <constraint source="prd" priority="medium">Password policy for new user registration via invite: min 12 chars, uppercase, lowercase, digit, special char (reuse Story 1.1 validation).</constraint>
+    <constraint source="architecture" priority="medium">Audit logging: All invitation lifecycle events (create, accept, revoke, expire) logged with actor, action, timestamp, tenant_id.</constraint>
+    <constraint source="architecture" priority="medium">No information leakage: Invalid/expired/revoked tokens return generic error. Do not reveal whether token was for a different email.</constraint>
+    <constraint source="dev-notes" priority="medium">Invited users' emails marked as verified on accept (trusted admin invitation bypasses email verification).</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="POST /api/v1/orgs/{org_id}/invitations" kind="REST endpoint" signature="POST /api/v1/orgs/{org_id}/invitations — Body: { invitations: [{ email: string, role: string }] } — Returns: { data: [{ id, email, role, status, expires_at }], errors: [{ email, reason }] } — Auth: Owner/Admin only" path="src/api/v1/invitations/" />
+    <interface name="GET /api/v1/orgs/{org_id}/invitations" kind="REST endpoint" signature="GET /api/v1/orgs/{org_id}/invitations?status=pending|expired — Returns: { data: [{ id, email, role, status, sent_at, expires_at }] } — Auth: Owner/Admin only" path="src/api/v1/invitations/" />
+    <interface name="DELETE /api/v1/orgs/{org_id}/invitations/{invite_id}" kind="REST endpoint" signature="DELETE /api/v1/orgs/{org_id}/invitations/{invite_id} — Returns: 204 No Content — Auth: Owner/Admin only" path="src/api/v1/invitations/" />
+    <interface name="POST /api/v1/orgs/{org_id}/invitations/{invite_id}/resend" kind="REST endpoint" signature="POST — Generates new token, resets expiry, resends email — Returns: { data: { id, email, token, expires_at } } — Auth: Owner/Admin only" path="src/api/v1/invitations/" />
+    <interface name="GET /api/v1/invitations/accept" kind="REST endpoint" signature="GET /api/v1/invitations/accept?token={token} — Public — Returns: { data: { org_name, role, email, user_exists: boolean } } or 400/410 error" path="src/api/v1/invitations/" />
+    <interface name="POST /api/v1/invitations/accept" kind="REST endpoint" signature="POST /api/v1/invitations/accept — Body: { token, full_name?, password? } — Public — Returns: { data: { user_id, org_id, role } } + sets session cookie" path="src/api/v1/invitations/" />
+    <interface name="InvitationService" kind="service class" signature="class InvitationService: create_invitation(tenant_id, email, role, invited_by) -> Invitation; validate_token(token) -> Invitation|None; accept_invitation(token, user_id) -> TenantUser; revoke_invitation(invite_id) -> None; resend_invitation(invite_id) -> Invitation" path="src/services/invitation_service.py" />
+    <interface name="Invitation model" kind="SQLAlchemy model" signature="class Invitation(Base): id: UUID, tenant_id: UUID FK, email: str, role: str, invited_by: UUID FK, token: str unique, status: str, expires_at: datetime, accepted_at: datetime?, created_at: datetime" path="src/models/invitation.py" />
+    <interface name="@require_role" kind="decorator" signature="@require_role('owner') — FastAPI dependency that validates current user has specified role in current tenant. Returns 403 if not." path="src/middleware/rbac.py" />
+    <interface name="TenantContextMiddleware" kind="middleware" signature="FastAPI middleware: extracts tenant from JWT, sets search_path, stores in ContextVar. Validates membership." path="src/middleware/tenant_context.py" />
+    <interface name="createTestTenant" kind="test utility" signature="createTestTenant(pool: Pool): Promise&lt;TestTenant&gt; — Creates isolated tenant schema for tests with RLS policies" path="src/test-utils/tenant-isolation.ts" />
+  </interfaces>
+
+  <tests>
+    <standards>Backend: Pytest with async test client (httpx), PostgreSQL test database with per-test transaction rollback. Frontend: Vitest + React Testing Library. Coverage target: 80%+ for new code. Email sending mocked in tests (verify template rendering and delivery calls). Token tests must verify cryptographic randomness. Multi-tenant isolation tests required: verify invitation for Org A cannot be accepted to join Org B. Security tests explicitly required per architecture threat model.</standards>
+    <locations>
+      <location>tests/unit/ — Unit tests for token service, validation, models</location>
+      <location>tests/integration/ — API endpoint integration tests with DB</location>
+      <location>tests/security/ — SQL injection, brute-force, cross-tenant tests</location>
+      <location>src/test-utils/ — Existing tenant isolation utilities (reuse)</location>
+      <location>e2e/ — Playwright E2E tests for invitation accept flow</location>
+      <location>src/pages/**/__tests__/ — Frontend component tests</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Test invite form renders with email + role dropdown. Test bulk email parsing (comma, newline). Test client-side validation rejects invalid emails. Test RBAC hides invite button for non-Owner roles.</idea>
+      <idea ac="2">Test invitation record created with correct fields. Test unique constraint prevents duplicate pending invites to same email. Test rejection when user is already a member. Test token is unique and URL-safe.</idea>
+      <idea ac="3">Test email sent asynchronously (mock SendGrid/SES). Test email contains org name, inviter name, role, CTA link. Test retry on delivery failure (mock 3 failures then success). Test mobile-responsive template rendering.</idea>
+      <idea ac="4">Test existing user: validate token → confirm → membership created → invitation status=accepted. Test redirect to org dashboard after accept. Test user_id correctly linked in tenants_users.</idea>
+      <idea ac="5">Test new user: validate token → register → user created + verified → membership created. Test pre-filled email is read-only. Test password policy enforcement. Test Google OAuth alternative path.</idea>
+      <idea ac="6">Test pending list shows correct invitations. Test resend: old token invalid, new token works, expiry reset. Test revoke: token invalidated, cannot accept. Test accepted invite moves to active members list.</idea>
+      <idea ac="7">Test invitation expires after 7 days. Test expired token returns friendly error. Test expired invite allows new invite to same email. Test lazy expiry status update.</idea>
+      <idea ac="8">Test 50 invite/org/hr rate limit triggers 429. Test 3 invite/email/org/24h limit. Test 10 failed accept/IP/hr limit. Test Retry-After header present.</idea>
+      <idea ac="9">Test token is 32+ bytes entropy. Test token single-use (second accept fails). Test email mismatch rejection (accept with wrong user). Test audit trail entries for create/accept/revoke. Test generic error for invalid token (no info leakage).</idea>
+    </ideas>
+  </tests>
+</story-context>

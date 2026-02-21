@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Role Has Been Updated — {{ app_name }}</title>
+  <style>
+    body { margin: 0; padding: 0; background: #f4f4f7; font-family: Arial, Helvetica, sans-serif; }
+    .wrapper { max-width: 560px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; }
+    .header { background: #1e293b; padding: 32px 40px; text-align: center; }
+    .header h1 { color: #ffffff; font-size: 22px; margin: 0; }
+    .body { padding: 40px; color: #374151; font-size: 15px; line-height: 1.6; }
+    .role-badge { display: inline-block; background: #dbeafe; color: #1d4ed8; font-weight: 700;
+                  padding: 6px 16px; border-radius: 999px; font-size: 14px; margin: 16px 0; }
+    .footer { padding: 24px 40px; background: #f9fafb; color: #9ca3af; font-size: 12px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>{{ app_name }}</h1>
+    </div>
+    <div class="body">
+      <p>Hi {{ full_name }},</p>
+      <p>Your role in <strong>{{ org_name }}</strong> has been updated.</p>
+      <table style="border-collapse:collapse; margin: 16px 0; font-size: 14px;">
+        <tr>
+          <td style="padding: 4px 12px 4px 0; color: #6b7280;">Previous role</td>
+          <td><span style="display:inline-block; background:#f3f4f6; color:#374151; font-weight:600; padding:4px 12px; border-radius:999px;">{{ old_role }}</span></td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 12px 4px 0; color: #6b7280;">New role</td>
+          <td><span class="role-badge" style="margin:0;">{{ new_role }}</span></td>
+        </tr>
+      </table>
+      <p>This change is effective immediately. Your access permissions have been updated accordingly.</p>
+      <p>If you did not expect this change or believe it is an error, please contact your organization administrator.</p>
+      <p>Best regards,<br />The {{ app_name }} Team</p>
+    </div>
+    <div class="footer">
+      &copy; {{ app_name }}. This is an automated message — please do not reply.
+    </div>
+  </div>
+</body>
+</html>

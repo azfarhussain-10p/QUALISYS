@@ -1,0 +1,632 @@
+<story-context id="1-13-data-export-org-deletion" v="2.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>13</storyId>
+    <title>Data Export &amp; Org Deletion</title>
+    <status>drafted</status>
+    <generatedAt>2026-02-20</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-13-data-export-org-deletion.md</sourceStoryPath>
+    <contextVersion>v2 — regenerated after tech-spec-epic-1.md completion (2026-02-20). v1 predated completed tech spec and contained endpoint path and schema discrepancies. See notes below.</contextVersion>
+    <techSpecStatus>COMPLETE — docs/tech-specs/tech-spec-epic-1.md validated 11/11 (2026-02-20). Sections 4.1, 4.2, 4.3, 5.5, 8, 9, 10, 11 are now authoritative.</techSpecStatus>
+  </metadata>
+
+  <!-- ===================================================================
+       CRITICAL DISCREPANCY NOTES (v1 → v2)
+       Developers must use these corrected values.
+       =================================================================== -->
+  <discrepancyNotes>
+    <note id="D1" severity="high">
+      ENDPOINT PATHS: Story file uses /api/v1/orgs/ prefix. Tech spec §4.3 (authoritative) specifies
+      /api/v1/organizations/ prefix for all org endpoints. Use /organizations/ in implementation.
+    </note>
+    <note id="D2" severity="high">
+      DELETION ENDPOINT: Story file specifies POST /orgs/{org_id}/delete.
+      Tech spec §4.3 (authoritative) specifies DELETE /api/v1/organizations/{org_id}.
+      Request body: { org_name_confirm: string, totp_code: string } — note field name is
+      org_name_confirm (not org_name_confirmation as in story file).
+    </note>
+    <note id="D3" severity="medium">
+      DELETION_AUDIT SCHEMA: Story file specifies { org_slug, deleted_by UUID, member_count, details JSONB }.
+      Tech spec §4.2 DDL (authoritative) specifies:
+        { tenant_id, org_name, deleted_by_email VARCHAR(255), member_emails TEXT[], project_count INTEGER,
+          deleted_at TIMESTAMPTZ, notes TEXT }.
+      Key differences: deleted_by is email not UUID; member_emails TEXT[] replaces member_count;
+      project_count replaces details JSONB; deleted_at replaces created_at; org_slug not present.
+    </note>
+    <note id="D4" severity="medium">
+      DELETION SEQUENCE — PUBLIC REGISTRY CLEANUP: Story file references deleting public.tenants_users.
+      Tech spec §5.5 (authoritative) specifies deleting public.user_email_index rows
+      (DELETE FROM public.user_email_index WHERE tenant_id=...), NOT tenants_users.
+      Review what public tables actually exist before coding the deletion sequence.
+    </note>
+    <note id="D5" severity="low">
+      EXPORT ENDPOINT RESPONSE: Story file specifies { job_id, status, estimated_duration }.
+      Tech spec §4.3 specifies { job_id, status: "pending" }. No estimated_duration in spec.
+    </note>
+    <note id="D6" severity="low">
+      ADMIN ENDPOINT: Tech spec §4.3 includes GET /api/v1/admin/export-jobs (Admin role — lists
+      export jobs across the org). Not in story file tasks. Implement as part of Task 4.
+    </note>
+  </discrepancyNotes>
+
+  <story>
+    <asA>Owner</asA>
+    <iWant>export org data or permanently delete the organization</iWant>
+    <soThat>I can migrate data or close my account with full GDPR compliance</soThat>
+    <tasks>
+      <task id="1" title="Database Schema" acs="2,4,8">
+        Alembic migration: create public.export_jobs table:
+          id UUID PK DEFAULT gen_random_uuid(),
+          tenant_id UUID NOT NULL REFERENCES public.tenants(id),
+          status VARCHAR(20) NOT NULL DEFAULT 'pending', -- pending|processing|ready|failed|expired
+          s3_key TEXT,
+          download_url TEXT,
+          requested_by UUID NOT NULL,
+          requested_by_email VARCHAR(255) NOT NULL,
+          expires_at TIMESTAMPTZ,
+          error_message TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW().
+        Create public.deletion_audit table (per tech spec §4.2):
+          id UUID PK DEFAULT gen_random_uuid(),
+          tenant_id UUID NOT NULL,
+          org_name VARCHAR(255) NOT NULL,
+          deleted_by_email VARCHAR(255) NOT NULL,
+          member_emails TEXT[],
+          project_count INTEGER,
+          deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          notes TEXT.
+        Both tables in public schema — survive DROP SCHEMA CASCADE.
+        Migration rollback script required.
+      </task>
+      <task id="2" title="Export Service (ExportService)" acs="1,2,5">
+        Location: backend/services/admin/export_service.py (per tech spec §4.1).
+        Methods: request_export(), get_export_status(), generate_export(), get_download_url().
+        Background job via arq (^0.25.0): query all tenant schema tables (organizations, projects,
+        project_members, test_cases, test_executions, audit_logs) and public schema data
+        (tenants, user_email_index filtered by tenant_id).
+        Serialize each table to JSON file. Bundle ZIP: {org_slug}-export-{timestamp}.zip.
+        S3 path: exports/{tenant_id}/{job_id}/{timestamp}.zip. 30-day S3 lifecycle expiry.
+        Presigned download URL: 30-day expiry (per tech spec §4.1 ExportService description).
+        Completion email to requesting Owner via NotificationService.
+        Rate limit: 1 export/org/24h via Redis counter.
+        Track in public.export_jobs with status updates.
+      </task>
+      <task id="3" title="Deletion Service (OrgService)" acs="3,4,6">
+        Location: backend/services/org/org_service.py — add delete_org_background() method
+        (per tech spec §4.1 OrgService responsibilities).
+        OrgDeletionService (or within OrgService): request_deletion(), execute_deletion(), get_deletion_status().
+        Deletion sequence per tech spec §5.5 (authoritative order):
+          1. SELECT all member emails for notification (BEFORE any delete)
+          2. INSERT public.deletion_audit (org metadata snapshot with member_emails, project_count)
+          3. Revoke all active sessions (Redis SCAN + DEL — AuthService.logout_all or Redis pattern)
+          4. Send departure emails to all members (NotificationService)
+          5. DROP SCHEMA tenant_{id} CASCADE
+          6. DELETE FROM public.tenants WHERE id = {tenant_id}
+          7. DELETE FROM public.user_email_index WHERE tenant_id = {tenant_id}
+        Validate org_name_confirm against org.name BEFORE queuing job.
+        Verify TOTP via MFAService.verify_totp() BEFORE queuing job.
+        Return 202 immediately after verification passes and job is queued.
+        Idempotent job design: failed job re-runnable by ops.
+      </task>
+      <task id="4" title="FastAPI Endpoints" acs="1,2,3,5,7,8">
+        Per tech spec §4.3 Organization Endpoints (authoritative paths):
+          POST   /api/v1/organizations/{org_id}/export        → 202 { job_id, status: "pending" }. Owner only.
+          DELETE /api/v1/organizations/{org_id}               → 202. Owner only. Body: { org_name_confirm, totp_code }
+        Per tech spec §4.3 Admin Endpoints:
+          GET    /api/v1/admin/export-jobs                    → { jobs[] }. Admin role.
+        Additional (story-scoped, not in tech spec §4.3 — implement as needed):
+          GET    /api/v1/organizations/{org_id}/export/{job_id}          → status
+          GET    /api/v1/organizations/{org_id}/export/{job_id}/download → presigned URL redirect
+          GET    /api/v1/organizations/{org_id}/exports                  → history (up to 5)
+          GET    /api/v1/organizations/{org_id}/deletion-status          → deletion progress
+        RBAC: @require_role(['owner']) on export + deletion endpoints. @require_role(['admin']) on admin/export-jobs.
+        Rate limiting: 1 export/org/24h.
+        Audit all operations via AuditService (non-blocking BackgroundTask per tech spec §4.1 AuditService).
+      </task>
+      <task id="5" title="React UI — Data Export" acs="1,2,5">
+        Location: src/pages/settings/organization/DataExport.tsx.
+        Owner-only section on org settings page.
+        Record count preview per table before export trigger.
+        Export All Data button with confirmation dialog.
+        Export progress indicator (polling GET /organizations/{id}/export/{job_id}).
+        Export history list with download links (up to 5 entries).
+        Success toast + "Check your email for download link" message.
+      </task>
+      <task id="6" title="React UI — Delete Organization" acs="3,4,6">
+        Location: src/pages/settings/organization/DeleteOrganization.tsx.
+        Danger Zone section (red border, Owner only — not Admin).
+        Delete Organization button.
+        Multi-step shadcn/ui AlertDialog: warning → type org name (case-sensitive) → TOTP/password.
+        Delete button disabled until all confirmations passed.
+        On 202: redirect to /no-organization or org selector with "Organization deleted" banner.
+        Post-deletion: single-org users see create/join org prompt; multi-org users auto-switch.
+      </task>
+      <task id="7" title="Testing" acs="all">
+        Unit: ExportService serialization (JSON per table), ZIP generation, S3 upload mock (boto3.mock),
+        presigned URL generation, deletion sequence ordering, partial failure handling,
+        deletion_audit INSERT before schema drop.
+        Integration: POST /organizations/{id}/export — 202, rate limiting (1/24h), RBAC (Admin→403, Owner→202).
+        Status polling, download URL redirect.
+        DELETE /organizations/{id} — valid (org name match + TOTP), wrong name→400, wrong TOTP→403,
+        Admin→403 (Owner-only), non-existent→404.
+        Deletion cascade: verify tenant schema dropped (pg_namespace query), user_email_index removed,
+        tenants row removed, deletion_audit preserved.
+        User impact: multi-org user retains access to remaining org; single-org user sees no-org state.
+        Session invalidation: all org members' Redis sessions cleared on deletion.
+        Tenant isolation: deletion of org A does not affect org B schema or users.
+        Deletion_audit preservation: record exists in public schema after DROP SCHEMA CASCADE.
+        Security: schema name from lookup not user input, RBAC bypass attempts, cross-tenant export blocked.
+        Frontend: Vitest + React Testing Library, export flow, delete multi-step confirmation.
+        Use conftest.py fixtures: test_tenant, tenant_connection, createTestTenant().
+      </task>
+      <task id="8" title="Security Review" acs="3,4,7,8">
+        Verify DROP SCHEMA uses schema_name looked up from public.tenants (never from user input).
+        Verify org_name_confirm match is EXACT case-sensitive string comparison.
+        Verify TOTP/password verification cannot be bypassed (no debug skip).
+        Verify RBAC: Owner only (not Admin) on all export and delete endpoints.
+        Verify presigned S3 URLs expire (30-day download URL for export, 30-day object lifecycle).
+        Verify export ZIP contains ONLY requesting org tenant schema data (no cross-tenant).
+        Verify all org member sessions invalidated (Redis SCAN + DEL pattern).
+        Verify deletion_audit written to public schema (survives DROP SCHEMA CASCADE).
+        Verify no PII or database internals in error responses.
+        Semgrep SAST: no HIGH findings before PR merge.
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1" title="Export Data Button &amp; Settings">
+      Owner-only Data Export section on org settings page. Export All Data button triggers full org export.
+      Covers all tenant schema tables: organizations, projects, project_members, test_cases, test_executions, audit_logs.
+      Public schema data for this org: tenants row, user_email_index entries, user profiles.
+      Format: one JSON file per table bundled in ZIP archive.
+      Record count preview (per table) shown before triggering export.
+    </ac>
+    <ac id="2" title="Background Export Job">
+      POST /api/v1/organizations/{org_id}/export → 202 { job_id, status: "pending" }. Owner only.
+      Async export: query all tables, serialize JSON, generate ZIP, upload to S3
+      (path: exports/{tenant_id}/{job_id}/{timestamp}.zip).
+      S3 object 30-day auto-expiry lifecycle rule applied.
+      Status queryable: GET returns { status: processing|ready|failed, progress_percent, download_url?, error? }.
+      Completion email sent to requesting Owner with presigned S3 download link.
+      Rate limited: 1 export/org/24h → 429 with Retry-After on exceeded.
+    </ac>
+    <ac id="3" title="Delete Organization — Multi-Step Confirmation">
+      Delete Organization button visible only for Owner (Danger Zone, not Admin).
+      Multi-step confirmation:
+        Step 1: Warning dialog — "Permanently delete {org_name}? ALL data deleted. CANNOT be undone."
+        Step 2: Type exact org name case-sensitive → wrong name → 400 "Organization name does not match"
+        Step 3: TOTP code (if 2FA enabled) or password re-entry (if not) → invalid → 403
+      DELETE /api/v1/organizations/{org_id} with { org_name_confirm, totp_code } → 202 on all passed.
+    </ac>
+    <ac id="4" title="Background Deletion Job">
+      On confirmed deletion → background job via arq. Ordered sequence per tech spec §5.5:
+        1. SELECT member emails (BEFORE any delete)
+        2. INSERT public.deletion_audit (org snapshot: org_name, deleted_by_email, member_emails[], project_count)
+        3. Revoke all org member Redis sessions (SCAN + DEL)
+        4. Send departure email to all active members
+        5. DROP SCHEMA tenant_{id} CASCADE
+        6. DELETE FROM public.tenants WHERE id = {tenant_id}
+        7. DELETE FROM public.user_email_index WHERE tenant_id = {tenant_id}
+      Returns 202 { job_id, status: "processing" } immediately after verification passes.
+      Status queryable until "completed" or "failed".
+    </ac>
+    <ac id="5" title="Export Download History">
+      Export history page (/settings/exports): date requested, status, file size, download link.
+      Download via presigned S3 URL (regenerable while S3 object exists — 30 days).
+      Up to 5 past exports shown (older auto-cleaned by S3 lifecycle).
+      Download requires Owner authentication.
+    </ac>
+    <ac id="6" title="User Impact on Org Deletion">
+      Single-org users: account preserved in public.users, no active org
+        → show No Organization state on next login, prompt to create/join org.
+      Multi-org users: default_tenant_id updated to another org they belong to → seamless continuation.
+      No user accounts deleted — only org membership (user_email_index entries) removed.
+      User credentials (email, password_hash, TOTP secret, avatar, name) preserved for re-use.
+    </ac>
+    <ac id="7" title="Validation &amp; Error Handling">
+      Export in progress → 409 "Export already in progress".
+      Rate limit exceeded → 429 with Retry-After header.
+      Wrong org name confirm → 400 "Organization name does not match".
+      Invalid TOTP/password → 403 "Verification failed".
+      Non-existent org → 404.
+      Non-Owner (Admin) → 403 on all export/delete endpoints.
+      Error format: { error: { code, message, details } } per Story 1.1 standard.
+    </ac>
+    <ac id="8" title="Rate Limiting &amp; Audit">
+      Export: 1 per org per 24 hours.
+      Audit events (AuditService + public.deletion_audit for deletion events):
+        org.export_requested (actor, timestamp)
+        org.export_completed (file_size, s3_path)
+        org.export_failed (error)
+        org.deletion_requested (actor, org_name, member_count) → written to public.deletion_audit FIRST
+        org.deleted (org_name, slug, data_purged)
+      Deletion events in public.deletion_audit survive DROP SCHEMA CASCADE.
+    </ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1 (COMPLETE — v2 authoritative)" section="§4.1 ExportService" snippet="ExportService | backend/services/admin/export_service.py | Background org data export (all tenant tables → JSON → ZIP), S3 upload with presigned download URL (30-day expiry), email notification on completion, export_jobs table tracking." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="§4.2 public.export_jobs DDL" snippet="CREATE TABLE public.export_jobs (id UUID PK, tenant_id UUID FK tenants, status VARCHAR(20) DEFAULT 'pending', s3_key TEXT, download_url TEXT, requested_by UUID, requested_by_email VARCHAR(255), expires_at TIMESTAMPTZ, error_message TEXT, created_at TIMESTAMPTZ)." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="§4.2 public.deletion_audit DDL" snippet="CREATE TABLE public.deletion_audit (id UUID PK, tenant_id UUID NOT NULL, org_name VARCHAR(255), deleted_by_email VARCHAR(255), member_emails TEXT[], project_count INTEGER, deleted_at TIMESTAMPTZ DEFAULT NOW(), notes TEXT)." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="§4.3 Organization Endpoints" snippet="POST /api/v1/organizations/{org_id}/export → Owner → 202 { job_id, status: 'pending' }. DELETE /api/v1/organizations/{org_id} → Owner → { org_name_confirm, totp_code } → 202." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="§4.3 Admin Endpoints" snippet="GET /api/v1/admin/export-jobs → Admin → { jobs[] }. Lists export jobs for org admins." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="§5.5 Organization Deletion Workflow" snippet="Owner → DELETE /organizations/{org_id} → verify org_name_confirm + TOTP → BackgroundTask: 1) SELECT member emails, 2) INSERT public.deletion_audit, 3) Revoke all Redis sessions, 4) Send departure emails, 5) DROP SCHEMA tenant_{id} CASCADE, 6) DELETE public.tenants, 7) DELETE public.user_email_index WHERE tenant_id=..." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="§8 ACs 1.13-AC1 through 1.13-AC8" snippet="75 ACs across 13 stories. Story 1.13 ACs now codified in tech spec — these are the binding acceptance criteria for DEV agent." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="§9 Traceability 1.13" snippet="1.13-AC1 (export job) → FR106 → §4.1 ExportService → ExportService.queue_export() → Integration: job_id returned, background job queued. 1.13-AC5 (multi-step confirm) → FR107 → §5.5, §4.3 → AuthService + OrgService → Integration: wrong org name → 400, wrong TOTP → 401. 1.13-AC6 (schema drop) → FR107 → OrgService.delete_org_background() → Integration: schema no longer exists after job. 1.13-AC8 (user preservation) → FR107 → §4.2 users table → Unit: user in another org still active." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="§6.2 Security" snippet="GDPR: Data export (FR106), right-to-erasure via org deletion (FR107), configurable retention (FR105). S3 presigned download URLs. Rate limiting: invites 30 ops/org/hr; Projects 10 creates/org/hr." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="§10 Risks R6" snippet="R6: Org deletion job failure mid-run — partial data left. Mitigation: Idempotent job design, deletion_audit written first, schema drop last; failed job re-runnable by ops." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="§11 Test Strategy" snippet="Integration: deletion cascade test — schema no longer exists after job. Tenant isolation: deletion of org A does not affect org B schema or users." />
+      <doc path="docs/planning/prd.md" title="PRD v3.0" section="Administration &amp; Configuration" snippet="FR106: Admins can export all organization data for backup or migration. FR107: Admins can delete organization and all associated data. FR105: Data retention policies (data_retention_days on tenants)." />
+      <doc path="docs/planning/prd.md" title="PRD v3.0" section="Data Privacy" snippet="GDPR compliance: data export (JSON), right to be forgotten (complete deletion within 30 days). Bulk export for migration." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Four-Pillar Multi-Tenancy" snippet="Schema-per-tenant isolation. Org deletion = DROP SCHEMA tenant_{slug} CASCADE + remove public registry entries. Schema name MUST be looked up from public.tenants.schema_name — never from user input." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Technology Stack" snippet="AWS S3 for object storage (export ZIP files, presigned download URLs). SendGrid/SES for transactional email. arq for background job processing." />
+      <doc path="docs/stories/1-5-login-session-management.md" title="Story 1.5" section="Session Management" snippet="AuthService.logout_all() for bulk session invalidation. Redis session key pattern: session:{user_id}:{token_hash}. Used to clear all org member sessions on deletion." />
+      <doc path="docs/stories/1-7-two-factor-authentication-totp.md" title="Story 1.7" section="TOTP Verification" snippet="MFAService.verify_totp() — highest confirmation barrier. Used in org deletion Step 3. If 2FA not enabled, fall back to password re-entry." />
+      <doc path="docs/stories/1-12-usage-analytics-audit-logs-basic.md" title="Story 1.12" section="Audit Service" snippet="AuditService.log_action() non-blocking (BackgroundTask). @audit_action decorator. 21-action catalog. Story 1.13 adds 5 new action types. Deletion events also written to public.deletion_audit." />
+      <doc path="scripts/init-local-db.sql" title="Local DB Init Script" section="Tenant schema tables" snippet="Complete inventory of tenant schema tables for export: users, organizations, projects, project_members, test_cases, test_executions, audit_logs, invitations, notification_preferences, password_reset_tokens. All removed by DROP SCHEMA CASCADE." />
+    </docs>
+
+    <code>
+      <!-- Existing code artifacts -->
+      <artifact path="scripts/init-local-db.sql" kind="database-init"
+        symbol="full tenant schema table inventory (users, organizations, projects, test_cases, test_executions, project_members, audit_logs)"
+        lines="1-163"
+        reason="EXISTING: Complete inventory of tenant schema tables. ExportService must serialize ALL of these tables to JSON. DROP SCHEMA CASCADE removes all atomically. Review to ensure export covers every table defined here." />
+      <artifact path="scripts/init-local-db.sql" kind="database-init"
+        symbol="public.organizations (tenant registry) — schema_name column"
+        reason="EXISTING: schema_name column is the ONLY safe source for DROP SCHEMA target. Deletion service MUST use this lookup — never construct from user input." />
+      <artifact path="tests/conftest.py" kind="pytest-fixtures"
+        symbol="db_pool, test_tenant, tenant_connection, TENANT_TABLES_DDL, createTestTenant(), cleanupTestTenant()"
+        reason="EXISTING: Pytest fixtures for isolated schema-per-tenant testing. Story 1.13 tests create isolated test schemas, verify DROP SCHEMA CASCADE cleanup, and test deletion_audit preservation. Multi-org user scenarios use multiple test_tenant fixtures." />
+
+      <!-- Planned artifacts from predecessor stories -->
+      <artifact path="backend/middleware/auth.py" kind="middleware" symbol="JWTAuthMiddleware"
+        reason="[PLANNED by Story 1.5] JWT validation — extracts user_id, tenant_id. All export/delete endpoints require Bearer auth." />
+      <artifact path="backend/middleware/tenant_context.py" kind="middleware" symbol="TenantContextMiddleware"
+        reason="[PLANNED by Story 1.2] Sets PostgreSQL search_path to tenant_{id} via ContextVar. Export queries automatically scoped to correct tenant schema." />
+      <artifact path="backend/middleware/rbac.py" kind="middleware" symbol="require_role"
+        reason="[PLANNED by Story 1.2] @require_role(['owner']) for export and delete. @require_role(['admin']) for admin/export-jobs. Owner NOT interchangeable with Admin." />
+      <artifact path="backend/services/auth/auth_service.py" kind="service" symbol="AuthService.logout_all()"
+        reason="[PLANNED by Story 1.5] Bulk session invalidation — clears all Redis session keys for a user or org. Called during org deletion to clear all member sessions simultaneously." />
+      <artifact path="backend/services/auth/auth_service.py" kind="service" symbol="AuthService.verify_password()"
+        reason="[PLANNED by Story 1.5] Password verification for deletion confirmation fallback (when 2FA not enabled)." />
+      <artifact path="backend/services/auth/mfa_service.py" kind="service" symbol="MFAService.verify_totp()"
+        reason="[PLANNED by Story 1.7] TOTP code verification (AES-256-GCM secret decrypt + pyotp verify). Used in org deletion Step 3 TOTP confirmation." />
+      <artifact path="backend/services/notification/notification_service.py" kind="service" symbol="NotificationService"
+        reason="[PLANNED by Story 1.3] Jinja2 templated email via SendGrid/SES. Reused for: export completion email (with download link) + departure email to all org members on deletion. Checks notification_preferences — security alerts non-suppressible." />
+      <artifact path="backend/services/audit/audit_service.py" kind="service" symbol="AuditService, @audit_action"
+        reason="[PLANNED by Story 1.12] Non-blocking audit INSERT via BackgroundTask. Decorates all endpoints. Story 1.13 adds 5 new action types. Deletion events ALSO written to public.deletion_audit (separate from tenant audit_logs which are dropped with schema)." />
+      <artifact path="backend/services/org/org_service.py" kind="service" symbol="OrgService"
+        reason="[PLANNED by Story 1.2] Org CRUD + schema provisioning. Story 1.13 extends with delete_org_background() — the background deletion job method." />
+
+      <!-- New artifacts created in this story -->
+      <artifact path="backend/services/admin/export_service.py" kind="service" symbol="ExportService"
+        reason="[NEW] request_export(), get_export_status(), generate_export(), get_download_url(). Background arq job: query all tenant tables, serialize JSON, bundle ZIP, S3 upload, send completion email. Rate limit enforcement via Redis." />
+      <artifact path="backend/models/export_job.py" kind="model" symbol="ExportJob (SQLAlchemy)"
+        reason="[NEW] SQLAlchemy model for public.export_jobs. Columns per tech spec §4.2: id, tenant_id, status, s3_key, download_url, requested_by, requested_by_email, expires_at, error_message, created_at." />
+      <artifact path="backend/models/deletion_audit.py" kind="model" symbol="DeletionAudit (SQLAlchemy)"
+        reason="[NEW] SQLAlchemy model for public.deletion_audit. Columns per tech spec §4.2: id, tenant_id, org_name, deleted_by_email, member_emails TEXT[], project_count, deleted_at, notes. Public schema — survives DROP SCHEMA CASCADE." />
+      <artifact path="backend/api/v1/organizations/export.py" kind="api-routes"
+        symbol="POST /organizations/{id}/export, GET /organizations/{id}/export/{job_id}, GET .../download, GET /organizations/{id}/exports"
+        reason="[NEW] Export endpoint handlers. Auth: Bearer JWT + require_role(['owner']). Rate limiting middleware. Returns 202 on POST. Streaming presigned URL redirect on download." />
+      <artifact path="backend/api/v1/organizations/delete.py" kind="api-routes"
+        symbol="DELETE /organizations/{id}, GET /organizations/{id}/deletion-status"
+        reason="[NEW] Org deletion endpoints. Auth: Bearer JWT + require_role(['owner']). DELETE validates org_name_confirm + TOTP before queuing job. Returns 202 immediately after validation passes." />
+      <artifact path="backend/api/v1/admin/export_jobs.py" kind="api-routes"
+        symbol="GET /admin/export-jobs"
+        reason="[NEW] Admin endpoint to list export jobs for org. Auth: require_role(['admin']). Per tech spec §4.3 Admin Endpoints." />
+      <artifact path="backend/migrations/versions/xxx_add_export_jobs_deletion_audit.py" kind="alembic-migration"
+        symbol="public.export_jobs + public.deletion_audit"
+        reason="[NEW] Alembic migration creating both public schema tables. Must run with explicit schema='public' to avoid tenant schema routing. Rollback script required." />
+      <artifact path="src/pages/settings/organization/DataExport.tsx" kind="react-component"
+        symbol="DataExportSection, ExportHistoryTable, ExportJobPoller"
+        reason="[NEW] Owner-only org settings section. Record count preview, Export All Data button, polling status, history list with download links." />
+      <artifact path="src/pages/settings/organization/DeleteOrganization.tsx" kind="react-component"
+        symbol="DeleteOrganizationSection, DangerZone, MultiStepDeleteDialog"
+        reason="[NEW] Danger Zone section. Multi-step shadcn/ui AlertDialog (warning → type org name → TOTP/password). Post-deletion redirect to no-org page." />
+    </code>
+
+    <dependencies>
+      <planned-backend>
+        <dep name="Python" version="3.11+" />
+        <dep name="fastapi" version="^0.109.0" role="Web framework, BackgroundTasks for async jobs" />
+        <dep name="sqlalchemy" version="^2.0.25" role="ORM for public.export_jobs and public.deletion_audit" />
+        <dep name="alembic" version="^1.13.1" role="Migrations for public schema tables" />
+        <dep name="asyncpg" version="^0.29.0" role="Async PostgreSQL driver for export queries and DROP SCHEMA execution" />
+        <dep name="boto3" version="^1.34.0" role="S3 upload, presigned URL generation, S3 object lifecycle, S3 object deletion on org removal" />
+        <dep name="redis[hiredis]" version="^5.0.1" role="Rate limiting (1 export/org/24h), session invalidation (SCAN+DEL all org member sessions)" />
+        <dep name="arq" version="^0.25.0" role="Async background job queue for export generation and org deletion sequence" />
+        <dep name="sendgrid" version="^6.11.0" role="Primary transactional email (export completion, departure notifications)" />
+        <dep name="jinja2" version="^3.1.3" role="Email template rendering for export/deletion notification emails" />
+        <dep name="pyotp" version="^2.9.0" role="TOTP code verification for deletion confirmation Step 3" />
+        <dep name="cryptography" version="^42.0.0" role="AES-256-GCM TOTP secret decryption (for verify_totp call)" />
+        <dep name="pydantic" version="^2.6.0" role="Request/response schemas for all export and delete endpoints" />
+      </planned-backend>
+      <planned-frontend>
+        <dep name="react" version="^18.2.0" />
+        <dep name="vite" version="^5.0.0" />
+        <dep name="tailwindcss" version="^3.4.0" />
+        <dep name="shadcn/ui" version="latest" role="Card, Button, AlertDialog, Input, Badge, Progress, Table, Toast — all used in export/delete UIs" />
+        <dep name="axios" version="^1.6.0" role="Export POST, status polling GET, deletion DELETE" />
+        <dep name="@tanstack/react-query" version="^5.17.0" role="Polling query for export job status (refetchInterval)" />
+        <dep name="zod" version="^3.22.0" role="Delete form validation (org name match, TOTP code format)" />
+      </planned-frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" source="tech-spec-epic-1 §4.3 + architecture.md" severity="critical">
+      DROP SCHEMA schema name MUST be looked up from public.tenants (schema_name or equivalent column).
+      NEVER construct the schema name from org_name_confirm or any user-supplied string.
+      Use format() with a validated PostgreSQL identifier — not string concatenation on user input.
+      This is the most destructive DDL in the system — one mistake causes wrong tenant deletion.
+    </constraint>
+    <constraint id="C2" source="tech-spec-epic-1 §5.5" severity="critical">
+      public.deletion_audit MUST be INSERTed BEFORE DROP SCHEMA executes (step 2 of 7 in deletion sequence).
+      The deletion_audit record (org_name, deleted_by_email, member_emails[], project_count) must exist
+      before any data is lost. It survives the subsequent DROP SCHEMA CASCADE. This is the GDPR proof of deletion.
+    </constraint>
+    <constraint id="C3" source="architecture.md + tech-spec-epic-1 §6.2" severity="critical">
+      Export ZIP must contain ONLY data from the requesting org's tenant schema.
+      All export queries MUST run with search_path set to the correct tenant schema.
+      Cross-tenant data in an export ZIP is a critical security violation (data breach).
+      Verify with integration test: two tenant schemas, export for A → B's data not present.
+    </constraint>
+    <constraint id="C4" source="architecture.md" severity="critical">
+      ALL database queries MUST use SQLAlchemy ORM or parameterized asyncpg queries.
+      Zero string-formatted SQL with user input. DROP SCHEMA is the one exception —
+      use `execute(text('DROP SCHEMA :schema CASCADE'), {'schema': looked_up_schema_name})`
+      with the schema_name from a trusted DB lookup.
+    </constraint>
+    <constraint id="C5" source="tech-spec-epic-1 §4.3, §8 AC1.13-AC1" severity="high">
+      Owner-only RBAC: export and deletion restricted to Owner role (NOT Admin).
+      @require_role(['owner']) on POST /organizations/{id}/export and DELETE /organizations/{id}.
+      Admin role gets 403 on these endpoints — this is intentional (irreversible operations).
+    </constraint>
+    <constraint id="C6" source="tech-spec-epic-1 §5.5, §8 AC1.13-AC5" severity="high">
+      Deletion requires BOTH org_name_confirm (exact match) AND TOTP code/password BEFORE the background
+      job is queued. Both checks must pass synchronously in the DELETE endpoint handler.
+      The 202 response is returned only after both validations pass.
+      Cannot be bypassed — no debug/skip parameter allowed.
+    </constraint>
+    <constraint id="C7" source="tech-spec-epic-1 §4.1 ExportService" severity="high">
+      S3 lifecycle: export ZIP object expires in 30 days (configured via S3 lifecycle rule on bucket/prefix).
+      Download presigned URL expiry: per tech spec §4.1 — 30-day URL for export download
+      (Note: story file says 24h but tech spec §4.1 says 30-day — use tech spec as authoritative.
+      Confirm with PM before implementation if needed — open question on expiry alignment).
+    </constraint>
+    <constraint id="C8" source="tech-spec-epic-1 §5.5, §8 AC1.13-AC6" severity="high">
+      ALL org member sessions MUST be invalidated as step 3 of the deletion sequence
+      (BEFORE DROP SCHEMA). Redis SCAN + DEL pattern for all session keys belonging to org members.
+      Members are effectively logged out before their data is deleted.
+    </constraint>
+    <constraint id="C9" source="tech-spec-epic-1 §8 AC1.13-AC8" severity="high">
+      User accounts in public.users MUST be preserved on org deletion.
+      Only user_email_index entries (per tech spec §5.5) are deleted — NOT public.users rows.
+      Multi-org users continue with remaining orgs. Single-org users see "No Organization" state.
+    </constraint>
+    <constraint id="C10" source="tech-spec-epic-1 §4.3" severity="medium">
+      Rate limiting: 1 export per org per 24 hours. Redis key: rate:export:{tenant_id}.
+      HTTP 429 with Retry-After header on exceeded limit.
+      409 "Export already in progress" if a job already has status=processing for this tenant.
+    </constraint>
+    <constraint id="C11" source="tech-spec-epic-1 §10 R6" severity="medium">
+      Background job error handling: idempotent job design.
+      If export fails: mark export_jobs.status='failed', preserve state, no retry needed (user can re-request).
+      If deletion fails midway: mark job 'failed', alert ops team. Deletion job must be re-runnable.
+      public.deletion_audit already written (step 2) — partial deletion state is auditable.
+    </constraint>
+    <constraint id="C12" source="tech-spec-epic-1 §4.2" severity="medium">
+      Alembic migration targets public schema, NOT tenant schema.
+      Must use explicit `schema='public'` in SQLAlchemy table definitions and Alembic operations.
+      These tables must NOT be subject to tenant_middleware search_path routing.
+    </constraint>
+    <constraint id="C13" source="tech-spec-epic-1 §6.2" severity="medium">
+      No PII or database internals in error responses. S3 paths, exception stack traces,
+      schema names must NOT appear in API error messages. Follow { error: { code, message, details } } format.
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <!-- Export REST Endpoints (tech spec §4.3 authoritative paths) -->
+    <interface name="POST /api/v1/organizations/{org_id}/export" kind="REST endpoint"
+      signature="POST /api/v1/organizations/{org_id}/export → 202 { job_id: UUID, status: 'pending' }. Owner only. Rate limited: 1/org/24h. 409 if export in progress"
+      path="backend/api/v1/organizations/export.py" />
+    <interface name="GET /api/v1/organizations/{org_id}/export/{job_id}" kind="REST endpoint"
+      signature="GET → { job_id, status: 'processing'|'ready'|'failed'|'expired', progress_percent: number, download_url?: string, error?: string }"
+      path="backend/api/v1/organizations/export.py" />
+    <interface name="GET /api/v1/organizations/{org_id}/export/{job_id}/download" kind="REST endpoint"
+      signature="GET → 302 redirect to presigned S3 URL. Owner only. Generates fresh presigned URL if S3 object exists (within 30-day lifecycle)"
+      path="backend/api/v1/organizations/export.py" />
+    <interface name="GET /api/v1/organizations/{org_id}/exports" kind="REST endpoint"
+      signature="GET → [{ job_id, status, created_at, expires_at, download_url? }] (up to 5, newest first). Owner only"
+      path="backend/api/v1/organizations/export.py" />
+    <interface name="GET /api/v1/admin/export-jobs" kind="REST endpoint"
+      signature="GET → { jobs: [ExportJob] }. Admin role. Lists export jobs for this org"
+      path="backend/api/v1/admin/export_jobs.py" />
+
+    <!-- Deletion REST Endpoints (tech spec §4.3 authoritative — DELETE method) -->
+    <interface name="DELETE /api/v1/organizations/{org_id}" kind="REST endpoint"
+      signature="DELETE /api/v1/organizations/{org_id} body: { org_name_confirm: string, totp_code: string } → 202 { job_id: UUID, status: 'processing' }. Owner only. Validates confirm + TOTP synchronously before queuing."
+      path="backend/api/v1/organizations/delete.py" />
+    <interface name="GET /api/v1/organizations/{org_id}/deletion-status" kind="REST endpoint"
+      signature="GET → { job_id, status: 'processing'|'completed'|'failed', error?: string }"
+      path="backend/api/v1/organizations/delete.py" />
+
+    <!-- ExportService Methods -->
+    <interface name="ExportService.request_export" kind="service method"
+      signature="request_export(tenant_id: UUID, requested_by: UUID, requested_by_email: str) → ExportJob. Creates export_jobs record (status=pending), enqueues arq job, enforces 1/24h rate limit."
+      path="backend/services/admin/export_service.py" />
+    <interface name="ExportService.generate_export" kind="service method"
+      signature="generate_export(job_id: UUID, tenant_id: UUID, schema_name: str) → None. Queries all tenant tables, serializes JSON per table, bundles ZIP, uploads to S3 (exports/{tenant_id}/{job_id}/{ts}.zip), sets lifecycle expiry, updates export_jobs, sends completion email."
+      path="backend/services/admin/export_service.py" />
+    <interface name="ExportService.get_download_url" kind="service method"
+      signature="get_download_url(s3_key: str, expiry_seconds: int = 2592000) → str. Generates presigned S3 GET URL (default 30 days)."
+      path="backend/services/admin/export_service.py" />
+
+    <!-- OrgService Deletion Method -->
+    <interface name="OrgService.delete_org_background" kind="service method"
+      signature="delete_org_background(org_id: UUID, tenant_id: UUID, schema_name: str, actor_email: str) → None. Ordered sequence per tech spec §5.5: audit → session revoke → notify members → DROP SCHEMA → DELETE tenants → DELETE user_email_index."
+      path="backend/services/org/org_service.py" />
+    <interface name="OrgService.request_deletion" kind="service method"
+      signature="request_deletion(org_id: UUID, actor_user_id: UUID, org_name_confirm: str, totp_code: str | None, password: str | None) → DeletionJobRef. Validates org name match, verifies 2FA/password, enqueues arq job, returns job_id."
+      path="backend/services/org/org_service.py" />
+
+    <!-- Database Schemas — public (tech spec §4.2 DDL) -->
+    <interface name="public.export_jobs" kind="database-schema"
+      signature="CREATE TABLE public.export_jobs (id UUID PK, tenant_id UUID FK tenants(id), status VARCHAR(20) DEFAULT 'pending', s3_key TEXT, download_url TEXT, requested_by UUID, requested_by_email VARCHAR(255), expires_at TIMESTAMPTZ, error_message TEXT, created_at TIMESTAMPTZ DEFAULT NOW())"
+      path="(Alembic migration — public schema)" />
+    <interface name="public.deletion_audit" kind="database-schema"
+      signature="CREATE TABLE public.deletion_audit (id UUID PK, tenant_id UUID NOT NULL, org_name VARCHAR(255), deleted_by_email VARCHAR(255), member_emails TEXT[], project_count INTEGER, deleted_at TIMESTAMPTZ DEFAULT NOW(), notes TEXT)"
+      path="(Alembic migration — public schema)" />
+
+    <!-- Cross-story dependencies -->
+    <interface name="TenantContextMiddleware (Story 1.2)" kind="cross-story"
+      signature="Sets search_path ContextVar to tenant schema from JWT. Export queries auto-scoped. Deletion looks up schema_name from public before routing changes."
+      path="backend/middleware/tenant_context.py" />
+    <interface name="require_role (Story 1.2)" kind="cross-story"
+      signature="@require_role(['owner']) on POST export and DELETE org. @require_role(['admin']) on GET admin/export-jobs. Owner is NOT Admin."
+      path="backend/middleware/rbac.py" />
+    <interface name="JWTAuthMiddleware (Story 1.5)" kind="cross-story"
+      signature="Extracts user_id, tenant_id, role from JWT. Required for all export/delete endpoints."
+      path="backend/middleware/auth.py" />
+    <interface name="AuthService (Story 1.5)" kind="cross-story"
+      signature="AuthService.logout_all(tenant_id) — clears all Redis session keys (SCAN+DEL) for all users in org. Called as step 3 in deletion sequence."
+      path="backend/services/auth/auth_service.py" />
+    <interface name="MFAService.verify_totp (Story 1.7)" kind="cross-story"
+      signature="verify_totp(user_id, totp_code) → bool. Decrypts AES-256-GCM TOTP secret, pyotp.TOTP.verify(). Used in deletion Step 3. Falls back to AuthService.verify_password() if 2FA not enabled."
+      path="backend/services/auth/mfa_service.py" />
+    <interface name="AuditService (Story 1.12)" kind="cross-story"
+      signature="log_action(action, actor_id, resource_type, resource_id, details, ip, user_agent) — non-blocking BackgroundTask. Adds 5 new actions: org.export_requested, org.export_completed, org.export_failed, org.deletion_requested, org.deleted. Deletion events ALSO written directly to public.deletion_audit."
+      path="backend/services/audit/audit_service.py" />
+    <interface name="NotificationService (Story 1.3)" kind="cross-story"
+      signature="send_email(recipient, template_name, context) — SendGrid primary/SES fallback. Export: 'export_complete' template with download_url. Deletion: 'org_deleted' template to all active member emails. Security notifications non-suppressible."
+      path="backend/services/notification/notification_service.py" />
+  </interfaces>
+
+  <tests>
+    <standards>
+      Backend: Pytest + pytest-asyncio with httpx.AsyncClient. PostgreSQL test database with per-test
+      transaction rollback via conftest.py fixtures (test_tenant, tenant_connection).
+      S3 mocked via moto or boto3 mock (verify upload, presigned URL generation, lifecycle config).
+      Redis mocked or test instance for rate limit and session invalidation tests.
+      Schema DROP tested in isolated test tenant (not the shared test DB).
+      Multi-org user scenarios: create two test tenants, assign user to both, delete one, verify other intact.
+      Frontend: Vitest + React Testing Library. Mock API with MSW (Mock Service Worker).
+      Coverage target: 80%+ for new service code. CRITICAL: tenant isolation for export must be
+      integration-tested (two tenant schemas, export A, verify B data not in ZIP).
+    </standards>
+    <locations>
+      <location>tests/unit/services/test_export_service.py</location>
+      <location>tests/unit/services/test_org_deletion_service.py</location>
+      <location>tests/unit/models/test_export_job.py</location>
+      <location>tests/unit/models/test_deletion_audit.py</location>
+      <location>tests/integration/organizations/test_export_request.py</location>
+      <location>tests/integration/organizations/test_export_status_polling.py</location>
+      <location>tests/integration/organizations/test_export_download.py</location>
+      <location>tests/integration/organizations/test_export_rate_limiting.py</location>
+      <location>tests/integration/organizations/test_delete_org_confirmation.py</location>
+      <location>tests/integration/organizations/test_delete_org_cascade.py</location>
+      <location>tests/integration/organizations/test_delete_org_user_impact.py</location>
+      <location>tests/integration/organizations/test_delete_org_session_invalidation.py</location>
+      <location>tests/integration/organizations/test_delete_org_tenant_isolation.py</location>
+      <location>tests/integration/organizations/test_deletion_audit_preservation.py</location>
+      <location>tests/security/test_export_delete_security.py</location>
+      <location>src/__tests__/pages/settings/organization/DataExport.test.tsx</location>
+      <location>src/__tests__/pages/settings/organization/DeleteOrganization.test.tsx</location>
+    </locations>
+    <ideas>
+      <group ac="1" title="Export Data Button &amp; Settings">
+        <idea>Verify Data Export section visible in org settings for Owner role</idea>
+        <idea>Verify Data Export section NOT rendered for Admin, PM, QA, Dev, Viewer roles</idea>
+        <idea>Verify record count preview shows table names with row counts before export</idea>
+        <idea>Verify Export All Data button triggers confirmation then POST export</idea>
+        <idea>Verify export covers all tenant tables listed in init-local-db.sql</idea>
+        <idea>Verify public schema data (tenants row, user_email_index) included per tenant_id filter</idea>
+      </group>
+      <group ac="2" title="Background Export Job">
+        <idea>Verify POST /api/v1/organizations/{id}/export returns 202 { job_id, status: 'pending' }</idea>
+        <idea>Verify export_jobs record created in public schema with status=processing</idea>
+        <idea>Verify ZIP contains one JSON file per table, each file is valid JSON array</idea>
+        <idea>Verify S3 object created at exports/{tenant_id}/{job_id}/{timestamp}.zip</idea>
+        <idea>Verify S3 object has 30-day lifecycle expiry rule applied</idea>
+        <idea>Verify GET export/{job_id} returns progress updates: processing → ready</idea>
+        <idea>Verify completion email sent with presigned download link via NotificationService</idea>
+      </group>
+      <group ac="3" title="Delete Organization — Confirmation">
+        <idea>Verify Delete Organization button visible only for Owner in Danger Zone section</idea>
+        <idea>Verify Delete button is NOT visible for Admin role</idea>
+        <idea>Verify Step 1 warning dialog shows org name and irreversibility warning</idea>
+        <idea>Verify Step 2 org name input: wrong name → 400 "Organization name does not match"</idea>
+        <idea>Verify Step 2: case-sensitive match — 'MyOrg' != 'myorg'</idea>
+        <idea>Verify Step 3: TOTP code required when 2FA enabled on Owner account</idea>
+        <idea>Verify Step 3: password re-entry required when 2FA NOT enabled</idea>
+        <idea>Verify invalid TOTP → 403 "Verification failed"</idea>
+        <idea>Verify Delete button stays disabled until all confirmation steps passed in UI</idea>
+        <idea>Verify DELETE /api/v1/organizations/{id} requires { org_name_confirm, totp_code }</idea>
+      </group>
+      <group ac="4" title="Background Deletion Job — Sequence">
+        <idea>Verify DELETE returns 202 { job_id, status: 'processing' } immediately after validation</idea>
+        <idea>Verify public.deletion_audit record inserted BEFORE any data deleted (query after each step)</idea>
+        <idea>Verify deletion_audit contains: org_name, deleted_by_email, member_emails[], project_count</idea>
+        <idea>Verify all org member Redis sessions cleared (check Redis key count before/after)</idea>
+        <idea>Verify departure email sent to each org member email address</idea>
+        <idea>Verify DROP SCHEMA tenant_{id} CASCADE executes (SELECT from pg_namespace — schema gone)</idea>
+        <idea>Verify public.tenants row deleted after schema drop</idea>
+        <idea>Verify public.user_email_index entries removed for tenant_id</idea>
+      </group>
+      <group ac="5" title="Export Download History">
+        <idea>Verify export history shows up to 5 past exports in /settings/exports</idea>
+        <idea>Verify completed exports show: status, created_at, file size, download link</idea>
+        <idea>Verify download redirect generates valid presigned S3 URL</idea>
+        <idea>Verify download endpoint returns 404 if S3 object expired (30+ days)</idea>
+        <idea>Verify download endpoint requires Owner authentication (Admin → 403)</idea>
+      </group>
+      <group ac="6" title="User Impact on Org Deletion">
+        <idea>Single-org user: public.users row preserved after org deletion</idea>
+        <idea>Single-org user: next login shows No Organization state (prompt to create/join)</idea>
+        <idea>Multi-org user: user_email_index entry for deleted org removed</idea>
+        <idea>Multi-org user: user can still authenticate and access remaining org</idea>
+        <idea>Verify no public.users rows deleted by org deletion</idea>
+        <idea>Verify user password_hash, totp_secret, avatar_url preserved after org deletion</idea>
+      </group>
+      <group ac="7" title="Validation &amp; Error Handling">
+        <idea>POST export when export in progress (status=processing) → 409</idea>
+        <idea>POST export 2nd time within 24h → 429 with Retry-After header</idea>
+        <idea>DELETE with wrong org_name_confirm → 400</idea>
+        <idea>DELETE with invalid TOTP code → 403</idea>
+        <idea>DELETE non-existent org → 404</idea>
+        <idea>POST export as Admin (not Owner) → 403</idea>
+        <idea>DELETE org as Admin (not Owner) → 403</idea>
+        <idea>Error format: { error: { code, message, details } } on all failures</idea>
+        <idea>No S3 paths, schema names, or stack traces in error responses</idea>
+      </group>
+      <group ac="8" title="Rate Limiting &amp; Audit">
+        <idea>Second export request within 24h → 429 Retry-After header present</idea>
+        <idea>org.export_requested audit event logged on POST export</idea>
+        <idea>org.export_completed audit logged with file_size_bytes and s3_key</idea>
+        <idea>org.export_failed audit logged with error details on background job failure</idea>
+        <idea>org.deletion_requested logged in public.deletion_audit BEFORE schema drop</idea>
+        <idea>deletion_audit row exists in public schema AFTER DROP SCHEMA CASCADE</idea>
+      </group>
+      <group title="Tenant Isolation — Critical">
+        <idea>Export ZIP for tenant A contains ZERO rows from tenant B tables</idea>
+        <idea>Export queries use correct search_path (tenant A schema only)</idea>
+        <idea>Deletion of tenant A schema does NOT affect tenant B pg_namespace entry</idea>
+        <idea>Deletion of tenant A does NOT remove tenant B's user_email_index entries</idea>
+        <idea>User in both org A and org B: after A deleted, user accesses B without issue</idea>
+      </group>
+      <group title="Security">
+        <idea>Verify DROP SCHEMA uses schema_name from public.tenants lookup (parameterized — not user input)</idea>
+        <idea>SQL injection in org_name_confirm: special chars → 400, not SQL execution</idea>
+        <idea>Verify TOTP cannot be skipped (no debug=true bypass in request)</idea>
+        <idea>Verify Owner-only RBAC: Admin, PM, QA, Dev, Viewer all get 403 on export/delete</idea>
+        <idea>Verify presigned URL expiry: URL generated &gt;30 days after export returns 403 from S3</idea>
+        <idea>Semgrep SAST: 0 HIGH findings in export_service.py and org_service.py</idea>
+      </group>
+    </ideas>
+  </tests>
+</story-context>

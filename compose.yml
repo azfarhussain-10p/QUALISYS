@@ -3,7 +3,7 @@
 # AC: 1  - compose.yml with all services
 # AC: 2  - PostgreSQL with pre-created schemas
 # AC: 3  - Redis accepting connections
-# AC: 4  - API hot reload (ts-node-dev)
+# AC: 4  - API hot reload (uvicorn --reload)
 # AC: 5  - Web hot reload (Next.js fast refresh)
 # AC: 6  - MailCatcher for email testing
 # AC: 12 - Health check endpoints
@@ -77,33 +77,34 @@ services:
 
   # ===========================================================================
   # API Service — Development (AC4, AC12)
+  # Python/FastAPI — Sprint Change Proposal 2026-02-20
   # ===========================================================================
   api:
     build:
-      context: ./api
+      context: ./backend
       dockerfile: Containerfile.dev
     container_name: qualisys-api
     environment:
-      NODE_ENV: development
-      DATABASE_URL: postgresql://${POSTGRES_USER:-qualisys}:${POSTGRES_PASSWORD:-qualisys_dev}@postgres:5432/${POSTGRES_DB:-qualisys_master}
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-qualisys}:${POSTGRES_PASSWORD:-qualisys_dev}@postgres:5432/${POSTGRES_DB:-qualisys_master}
       REDIS_URL: redis://redis:6379
       SMTP_HOST: mailcatcher
       SMTP_PORT: 1025
       JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_change_in_production}
-      PORT: 3001
+      CORS_ORIGINS: http://localhost:3000
+      PORT: 8000
     ports:
-      - "3001:3001"
+      - "8000:8000"
     volumes:
-      - ./api/src:/app/src:Z
-      - ./api/package.json:/app/package.json:Z
-      - api_node_modules:/app/node_modules
+      - ./backend/src:/app/src:Z
+      - ./backend/requirements.txt:/app/requirements.txt:Z
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -120,7 +121,7 @@ services:
     container_name: qualisys-web
     environment:
       NODE_ENV: development
-      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_API_URL: http://localhost:8000
       WATCHPACK_POLLING: "true"
     ports:
       - "3000:3000"
@@ -144,7 +145,6 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  api_node_modules:
   web_node_modules:
   web_next:
 

@@ -1,0 +1,226 @@
+<story-context id="1-10-project-team-assignment" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>10</storyId>
+    <title>Project Team Assignment</title>
+    <status>drafted</status>
+    <generatedAt>2026-02-18</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-10-project-team-assignment.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>PM</asA>
+    <iWant>assign team members to projects with role-based access</iWant>
+    <soThat>the right people can collaborate</soThat>
+    <tasks>
+      <task id="1" title="Database Schema — Project Members Table" acs="1,2,3,6">Alembic migration: create {tenant_schema}.project_members table (id UUID PK, project_id UUID FK→projects.id, user_id UUID FK→public.users.id, added_by UUID FK→public.users.id, created_at). Unique index on (project_id, user_id). Index on user_id. RLS policy scoped to tenant context</task>
+      <task id="2" title="Project Member Service" acs="2,3,4,5,6,7">ProjectMemberService: add_member(), add_members_bulk(), remove_member(), list_members(), check_access(), auto_assign_creator(). Access check: Owner/Admin bypass or project_members lookup. Email notification with preference check</task>
+      <task id="3" title="FastAPI Endpoints" acs="1,2,4,7,8">POST /projects/{id}/members (add, 201), GET /projects/{id}/members (list), DELETE /projects/{id}/members/{user_id} (remove, 204). check_project_access dependency. Update GET /projects to filter by membership. RBAC, rate limiting, audit</task>
+      <task id="4" title="Email Notification" acs="5">Email template for project assignment. SendGrid/SES integration (reuse Story 1.3 pattern). Check email_team_changes preference (Story 1.8). Async non-blocking delivery</task>
+      <task id="5" title="React UI — Team Members Tab" acs="1,2,4">Team Members tab on project settings page. Members table (avatar, name, email, role, date, remove). Add Member searchable dropdown (org members not yet assigned). Bulk add. Remove confirmation dialog. Read-only for non-Admin</task>
+      <task id="6" title="Project Access Integration" acs="3,6">Update ProjectService.create_project() to call auto_assign_creator(). Apply check_project_access to all project-scoped endpoints. Filter project list by membership for non-Admin users</task>
+      <task id="7" title="Testing" acs="all">Unit (access check logic), integration (add/remove/list members, RBAC, project list filtering, access enforcement, tenant isolation, auto-assign creator, rate limiting, email notification), security (SQL injection, RBAC bypass, cross-tenant), frontend tests</task>
+      <task id="8" title="Security Review" acs="3,7,8">Parameterized queries, tenant isolation (ContextVar + RLS), RBAC enforcement, access bypass prevention, Owner/Admin implicit access integrity, rate limiting</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1" title="Team Members Tab">Project settings shows Team Members tab. Table: avatar, name, email, org role, date added, Remove button. Owner/Admin sees management controls; others read-only. Empty state: "No team members assigned."</ac>
+    <ac id="2" title="Add Member to Project">Add Member button (Owner/Admin only) opens searchable dropdown of org members NOT in project. POST /projects/{id}/members { user_id } → 201. Uses org-level role (no project role). Bulk add supported</ac>
+    <ac id="3" title="Project Access Enforcement">Only project_members OR Owner/Admin can access project resources. Owner/Admin implicit access to ALL projects. Non-member gets 403. Project list returns only assigned projects (all for Owner/Admin). check_project_access() FastAPI dependency</ac>
+    <ac id="4" title="Remove Member from Project">Owner/Admin removes via Remove button. Confirmation dialog. DELETE /projects/{id}/members/{user_id} → 204. Cannot remove Owner/Admin implicit access. Immediate access revocation</ac>
+    <ac id="5" title="Email Notification on Assignment">Email: "You've been added to {project_name}". Includes project name, added_by, project link. Async. Respects email_team_changes preference (Story 1.8). SendGrid/SES pattern from Story 1.3</ac>
+    <ac id="6" title="Project Creator Auto-Assignment">Project creator auto-added to project_members on creation. Appears in Team Members tab. Provides audit record even though Owner/Admin has implicit access</ac>
+    <ac id="7" title="Validation &amp; Error Handling">Duplicate: 409 ALREADY_MEMBER. User not in org: 404. Project not found: 404. Consistent error format from Story 1.1. user_id must be valid UUID</ac>
+    <ac id="8" title="Rate Limiting &amp; Audit">30 member operations/project/hour (Redis-backed). Audit: member added (user_id, added_by, project_id), member removed (user_id, removed_by, project_id). user_id, IP, user_agent, timestamp</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/planning/prd.md" title="Product Requirements Document v3.0" section="Project Management" snippet="FR13: Users can assign team members to projects with role-based access. Actor: Admin." />
+      <doc path="docs/planning/prd.md" title="PRD v3.0" section="Roles &amp; Permissions" snippet="6 persona roles: Owner/Admin, PM/CSM, QA-Manual, QA-Automation, Dev, Viewer. Role assignment at org level governs project permissions." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="In Scope Stories" snippet="Story 1.10: Project Team Assignment — FR13. Maps org users to projects for access control." />
+      <doc path="docs/tech-specs/tech-spec-epic-1.md" title="Tech Spec — Epic 1" section="RBAC Permission Matrix" snippet="Permissions by role: Owner/Admin full access. PM can view/edit. QA can execute. Dev can integrate. Viewer read-only. All scoped to assigned projects." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Four-Pillar Multi-Tenancy" snippet="Schema-per-tenant isolation. Incoming Request → JWT → SET search_path → Resource Quota. project_members table in tenant schema for per-project access control." />
+      <doc path="docs/architecture/architecture.md" title="System Architecture" section="Security Threat Model" snippet="RLS policies, parameterized queries, audit trails, rate limiting. Defense-in-depth with multiple isolation layers." />
+      <doc path="docs/epics/epics.md" title="Epics &amp; Stories" section="Story 1.10" snippet="AC1: Team Members tab. AC2: Add Member dropdown with org users. AC3: Project-level permissions enforced. AC4: Email notification on add. FRs: FR13." />
+      <doc path="docs/stories/1-2-organization-creation-setup.md" title="Story 1.2" section="Architecture Patterns" snippet="RBAC @require_role decorator. ContextVar tenant middleware. public.tenants_users maps users to orgs. Org member roster for project team selection." />
+      <doc path="docs/stories/1-3-team-member-invitation.md" title="Story 1.3" section="Email Integration" snippet="Invitation email via SendGrid/AWS SES. Async delivery with retry. Email template pattern reusable for project assignment notification." />
+      <doc path="docs/stories/1-5-login-session-management.md" title="Story 1.5" section="JWT Auth" snippet="JWT auth middleware extracts user_id and tenant_id from claims. Tenant context set via ContextVar for RLS." />
+      <doc path="docs/stories/1-8-profile-notification-preferences.md" title="Story 1.8" section="Notification Preferences" snippet="email_team_changes toggle in user_notification_preferences table. NotificationPreferencesService.should_notify() checks before sending. Story 1.10 uses this for project assignment emails." />
+      <doc path="docs/stories/1-9-project-creation-configuration.md" title="Story 1.9" section="Dev Notes" snippet="No project-level roles. RBAC is org-level. Project team assignment (Story 1.10) maps org members to projects but doesn't create project-specific roles. created_by field records project creator." />
+    </docs>
+
+    <code>
+      <!-- Existing code artifacts -->
+      <artifact path="scripts/init-local-db.sql" kind="database-init" symbol="projects table" lines="57-69" reason="EXISTING projects table in tenant schemas. Story 1.10 creates a NEW project_members table in tenant schemas that FK references this projects table." />
+      <artifact path="scripts/init-local-db.sql" kind="database-init" symbol="RLS policies" lines="107-134" reason="EXISTING RLS policy pattern: tenant_isolation USING (tenant_id = current_setting('app.current_tenant')). Reuse same pattern for project_members table." />
+      <artifact path="scripts/dev-seed.ts" kind="seed-script" symbol="seedProjects" lines="137-165" reason="EXISTING seed creates projects. Story 1.10 may need to seed project_members records for dev environment." />
+      <artifact path="tests/conftest.py" kind="pytest-fixtures" symbol="db_pool, test_tenant, tenant_connection, TENANT_TABLES_DDL" lines="1-170" reason="Pytest fixtures. TENANT_TABLES_DDL will need project_members table addition. tenant_connection sets app.current_tenant for RLS." />
+      <artifact path="src/test-utils/tenant-isolation.ts" kind="test-utility" symbol="createTestTenant, cleanupTestTenant, setTenantContext" lines="1-302" reason="Tenant isolation for frontend integration tests. Project member tests MUST use tenant context." />
+
+      <!-- Planned code artifacts (created by predecessor stories) -->
+      <artifact path="src/middleware/auth.py" kind="middleware" symbol="JWTAuthMiddleware" reason="[PLANNED by Story 1.5] JWT auth. All project member endpoints require authentication. Extracts user_id and tenant_id." />
+      <artifact path="src/middleware/tenant_context.py" kind="middleware" symbol="TenantContextMiddleware" reason="[PLANNED by Story 1.2] Sets search_path to tenant schema. project_members queries automatically scoped." />
+      <artifact path="src/middleware/rbac.py" kind="middleware" symbol="require_role" reason="[PLANNED by Story 1.2] @require_role(['owner', 'admin']) for add/remove member endpoints. Read allowed for project members." />
+      <artifact path="src/services/project_service.py" kind="service" symbol="ProjectService.create_project()" reason="[PLANNED by Story 1.9] Project creation. Story 1.10 hooks into this to call auto_assign_creator() after project creation." />
+      <artifact path="src/api/v1/projects/" kind="api-routes" symbol="POST/GET/PATCH /projects" reason="[PLANNED by Story 1.9] Existing project endpoints. Story 1.10 adds member sub-routes and updates GET /projects with membership filtering." />
+      <artifact path="src/templates/email/" kind="template" symbol="invitation email template" reason="[PLANNED by Story 1.3] Email template pattern. Story 1.10 creates project_assignment.html following same pattern." />
+      <artifact path="src/services/notification_preferences_service.py" kind="service" symbol="NotificationPreferencesService.should_notify()" reason="[PLANNED by Story 1.8] Checks email_team_changes preference before sending project assignment email." />
+
+      <!-- Planned code artifacts (to be created in this story) -->
+      <artifact path="src/services/project_member_service.py" kind="service" symbol="ProjectMemberService" reason="[PLANNED] add_member(), add_members_bulk(), remove_member(), list_members(), check_access(), auto_assign_creator(). Core project membership management." />
+      <artifact path="src/api/v1/projects/members.py" kind="api-routes" symbol="POST/GET/DELETE /projects/{id}/members" reason="[PLANNED] Member management endpoints. RBAC-protected add/remove, all-members-can-view list." />
+      <artifact path="src/api/dependencies/project_access.py" kind="dependency" symbol="check_project_access" reason="[PLANNED] FastAPI dependency: verifies user is Owner/Admin OR in project_members. Reusable for all project-scoped endpoints." />
+      <artifact path="src/models/project_member.py" kind="model" symbol="ProjectMember" reason="[PLANNED] SQLAlchemy model for {tenant_schema}.project_members with project_id, user_id, added_by, created_at." />
+      <artifact path="src/templates/emails/project_assignment.html" kind="template" symbol="project assignment email" reason="[PLANNED] Email template: subject, project name, added_by, project link." />
+      <artifact path="src/pages/projects/settings/TeamMembers.tsx" kind="react-page" symbol="TeamMembersTab" reason="[PLANNED] Team Members tab on project settings page. Members table, Add Member dialog, Remove confirmation." />
+    </code>
+
+    <dependencies>
+      <note>No package.json or pyproject.toml in repo yet. Dependencies specified in planning docs.</note>
+      <planned-backend>
+        <dep name="Python" version="3.11+" />
+        <dep name="FastAPI" role="Web framework, async endpoints" />
+        <dep name="SQLAlchemy" role="ORM for {tenant_schema}.project_members" />
+        <dep name="Alembic" role="Database migrations for project_members table" />
+        <dep name="redis[hiredis]" role="Rate limiting (30 ops/project/hour)" />
+        <dep name="Pydantic" role="Request/response schemas for member endpoints" />
+        <dep name="sendgrid or boto3" role="Email delivery for project assignment notification (async)" />
+      </planned-backend>
+      <planned-frontend>
+        <dep name="React" version="18" />
+        <dep name="Vite" role="Build tool" />
+        <dep name="Tailwind CSS" role="Utility-first CSS" />
+        <dep name="shadcn/ui" role="UI components (Table, Button, Dialog, DropdownMenu, Avatar, Badge, Toast, Command/Combobox)" />
+        <dep name="axios" role="HTTP client for member management API calls" />
+      </planned-frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" source="architecture.md" severity="critical">All project_members queries MUST be tenant-scoped via ContextVar middleware setting search_path. RLS policies provide defense-in-depth. NEVER query project_members across tenant boundaries.</constraint>
+    <constraint id="C2" source="architecture.md" severity="critical">ALL database queries MUST use parameterized statements (SQLAlchemy ORM). Zero dynamic SQL with user input. Prevents SQL injection in user_id parameters.</constraint>
+    <constraint id="C3" source="story-1-10" severity="critical">Owner/Admin users have IMPLICIT access to ALL projects — they are NOT required to be in project_members. check_project_access() MUST check org role FIRST, then membership. This is the primary access control pattern for all project-scoped endpoints.</constraint>
+    <constraint id="C4" source="tech-spec-epic-1.md" severity="high">Only Owner/Admin roles can add or remove project members. Enforce via @require_role(['owner', 'admin']). All authenticated project members can VIEW the member list (GET).</constraint>
+    <constraint id="C5" source="story-1-10" severity="high">No project-specific roles. Project membership controls ACCESS to a project. PERMISSIONS come from the user's org-level role (6 roles: Owner/Admin, PM/CSM, QA-Manual, QA-Automation, Dev, Viewer). Do NOT create a role column on project_members.</constraint>
+    <constraint id="C6" source="story-1-10" severity="high">Duplicate membership prevention: unique index on (project_id, user_id). Return HTTP 409 ALREADY_MEMBER on violation. user_id must exist in the org's member roster (public.tenants_users) — reject with 404 if not.</constraint>
+    <constraint id="C7" source="story-1-10" severity="high">Project creator (Story 1.9) automatically added to project_members via auto_assign_creator(). Ensures creator visible in Team Members tab and provides audit trail.</constraint>
+    <constraint id="C8" source="story-1-8" severity="medium">Email notification on project assignment MUST check user's notification preferences (email_team_changes) via NotificationPreferencesService.should_notify() before sending. If disabled, no email sent.</constraint>
+    <constraint id="C9" source="story-1-10" severity="medium">Rate limiting: 30 member operations per project per hour. Redis-backed counters. HTTP 429 with Retry-After header on exceeded limit.</constraint>
+    <constraint id="C10" source="architecture.md" severity="medium">All membership operations MUST be logged to audit trail (member added with added_by, member removed with removed_by). Include user_id, IP, user_agent, timestamp.</constraint>
+    <constraint id="C11" source="story-1-10" severity="medium">GET /api/v1/projects (list) MUST be filtered by membership for non-Admin users. Admin sees all projects. This modifies Story 1.9's list endpoint behavior.</constraint>
+  </constraints>
+
+  <interfaces>
+    <!-- Project Member REST Endpoints -->
+    <interface name="POST /api/v1/projects/{project_id}/members" kind="REST endpoint" signature="POST /api/v1/projects/{project_id}/members { user_id: UUID } or { user_ids: UUID[] } → 201 { id, project_id, user_id, added_by, created_at, user: { full_name, email, avatar_url, org_role } }" path="src/api/v1/projects/members.py" />
+    <interface name="GET /api/v1/projects/{project_id}/members" kind="REST endpoint" signature="GET /api/v1/projects/{project_id}/members → [{ id, project_id, user_id, added_by, created_at, user: { full_name, email, avatar_url, org_role } }]" path="src/api/v1/projects/members.py" />
+    <interface name="DELETE /api/v1/projects/{project_id}/members/{user_id}" kind="REST endpoint" signature="DELETE /api/v1/projects/{project_id}/members/{user_id} → 204 No Content" path="src/api/v1/projects/members.py" />
+
+    <!-- Service Methods -->
+    <interface name="ProjectMemberService.add_member" kind="service method" signature="add_member(project_id: UUID, user_id: UUID, added_by: UUID) → ProjectMember (validates org membership, checks duplicate, inserts, triggers email)" path="src/services/project_member_service.py" />
+    <interface name="ProjectMemberService.add_members_bulk" kind="service method" signature="add_members_bulk(project_id: UUID, user_ids: list[UUID], added_by: UUID) → list[ProjectMember] (batch validate and insert, individual emails)" path="src/services/project_member_service.py" />
+    <interface name="ProjectMemberService.remove_member" kind="service method" signature="remove_member(project_id: UUID, user_id: UUID) → None (delete from project_members)" path="src/services/project_member_service.py" />
+    <interface name="ProjectMemberService.list_members" kind="service method" signature="list_members(project_id: UUID) → list[ProjectMemberWithUser] (joins with public.users for profile data)" path="src/services/project_member_service.py" />
+    <interface name="ProjectMemberService.check_access" kind="service method" signature="check_access(project_id: UUID, user_id: UUID, user_role: str) → bool (Owner/Admin → True, else check project_members)" path="src/services/project_member_service.py" />
+    <interface name="ProjectMemberService.auto_assign_creator" kind="service method" signature="auto_assign_creator(project_id: UUID, creator_id: UUID) → ProjectMember (called by ProjectService.create_project)" path="src/services/project_member_service.py" />
+
+    <!-- FastAPI Dependency -->
+    <interface name="check_project_access" kind="FastAPI dependency" signature="check_project_access(project_id: UUID, current_user: User) → None | raises HTTPException(403) — reusable dependency for all project-scoped endpoints" path="src/api/dependencies/project_access.py" />
+
+    <!-- Database Schema (new) -->
+    <interface name="{tenant_schema}.project_members" kind="database-schema" signature="CREATE TABLE {tenant_schema}.project_members (id UUID PK, project_id UUID FK→projects.id NOT NULL, user_id UUID FK→public.users.id NOT NULL, added_by UUID FK→public.users.id, created_at TIMESTAMPTZ DEFAULT NOW()); UNIQUE(project_id, user_id); INDEX(user_id)" path="(Alembic migration)" />
+
+    <!-- Cross-story dependencies -->
+    <interface name="TenantContextMiddleware (Story 1.2)" kind="cross-story" signature="Sets search_path to tenant schema from JWT tenant_id. All project_members queries automatically scoped." path="src/middleware/tenant_context.py" />
+    <interface name="require_role (Story 1.2)" kind="cross-story" signature="@require_role(['owner', 'admin']) decorator enforces RBAC on add/remove member endpoints" path="src/middleware/rbac.py" />
+    <interface name="JWTAuthMiddleware (Story 1.5)" kind="cross-story" signature="Extracts user_id and tenant_id from JWT httpOnly cookie. Required for all member endpoints." path="src/middleware/auth.py" />
+    <interface name="Email Service (Story 1.3)" kind="cross-story" signature="SendGrid/SES async email delivery with retry. Reuse for project assignment notification." path="src/services/email_service.py" />
+    <interface name="NotificationPreferencesService.should_notify (Story 1.8)" kind="cross-story" signature="should_notify(user_id, 'team_changes') → bool. Check before sending project assignment email." path="src/services/notification_preferences_service.py" />
+    <interface name="ProjectService.create_project (Story 1.9)" kind="cross-story" signature="Modified to call auto_assign_creator() after successful project creation." path="src/services/project_service.py" />
+    <interface name="GET /api/v1/projects (Story 1.9)" kind="cross-story" signature="Modified to filter by project membership for non-Admin users. Admin sees all projects." path="src/api/v1/projects/" />
+  </interfaces>
+
+  <tests>
+    <standards>
+      Backend: Pytest with async test client (httpx.AsyncClient), PostgreSQL test database with per-test transaction rollback via conftest.py fixtures. Frontend: Vitest + React Testing Library. Coverage target: 80%+ for new code. CRITICAL: All project member tests MUST use tenant context (test_tenant + tenant_connection fixtures). Tenant isolation tests MUST verify cross-tenant member query prevention via RLS. Email sending mocked in tests (verify template and should_notify check). Access enforcement tests are the most critical test category for this story.
+    </standards>
+    <locations>
+      <location>tests/unit/services/test_project_member_service.py</location>
+      <location>tests/unit/dependencies/test_project_access.py</location>
+      <location>tests/integration/projects/test_add_member.py</location>
+      <location>tests/integration/projects/test_remove_member.py</location>
+      <location>tests/integration/projects/test_list_members.py</location>
+      <location>tests/integration/projects/test_project_access_enforcement.py</location>
+      <location>tests/integration/projects/test_project_list_filtering.py</location>
+      <location>tests/integration/projects/test_project_member_tenant_isolation.py</location>
+      <location>tests/security/test_project_member_security.py</location>
+      <location>src/__tests__/pages/projects/settings/TeamMembers.test.tsx</location>
+      <location>src/__tests__/components/projects/AddMemberDialog.test.tsx</location>
+    </locations>
+    <ideas>
+      <group ac="1" title="Team Members Tab">
+        <idea>Verify Team Members tab renders on project settings page</idea>
+        <idea>Verify members table shows avatar, name, email, org role, date added, Remove button</idea>
+        <idea>Verify Owner/Admin sees Add Member button and Remove buttons</idea>
+        <idea>Verify non-Admin project member sees read-only list (no Add/Remove)</idea>
+        <idea>Verify empty state message when no members assigned</idea>
+      </group>
+      <group ac="2" title="Add Member to Project">
+        <idea>Verify POST /projects/{id}/members adds member and returns 201</idea>
+        <idea>Verify Add Member dropdown shows only org members NOT already in project</idea>
+        <idea>Verify member added with org-level role (no separate project role stored)</idea>
+        <idea>Verify bulk add: multiple user_ids in single request</idea>
+        <idea>Verify search by name or email filters dropdown list</idea>
+        <idea>Verify non-Admin cannot add members (403)</idea>
+      </group>
+      <group ac="3" title="Project Access Enforcement">
+        <idea>Verify Owner/Admin can access ANY project without being in project_members</idea>
+        <idea>Verify project member can access assigned project resources</idea>
+        <idea>Verify non-member non-Admin gets 403 on project endpoints</idea>
+        <idea>Verify GET /projects returns only assigned projects for non-Admin</idea>
+        <idea>Verify GET /projects returns ALL projects for Owner/Admin</idea>
+        <idea>Verify check_project_access dependency reusable across endpoints</idea>
+      </group>
+      <group ac="4" title="Remove Member from Project">
+        <idea>Verify DELETE /projects/{id}/members/{user_id} removes and returns 204</idea>
+        <idea>Verify confirmation dialog shown before remove</idea>
+        <idea>Verify removed user immediately loses project access (403 on next request)</idea>
+        <idea>Verify Owner/Admin implicit access cannot be removed via this endpoint</idea>
+        <idea>Verify non-Admin cannot remove members (403)</idea>
+      </group>
+      <group ac="5" title="Email Notification on Assignment">
+        <idea>Verify email sent on member add with correct project name and added_by</idea>
+        <idea>Verify email NOT sent when user has email_team_changes disabled (Story 1.8)</idea>
+        <idea>Verify email sent asynchronously (API response not blocked by email)</idea>
+        <idea>Verify email contains link to project dashboard (/projects/{slug})</idea>
+      </group>
+      <group ac="6" title="Project Creator Auto-Assignment">
+        <idea>Verify project creator appears in project_members after project creation</idea>
+        <idea>Verify creator visible in Team Members tab</idea>
+        <idea>Verify auto_assign_creator called during ProjectService.create_project()</idea>
+      </group>
+      <group ac="7" title="Validation &amp; Error Handling">
+        <idea>Verify adding existing member returns 409 ALREADY_MEMBER</idea>
+        <idea>Verify adding user not in org returns 404</idea>
+        <idea>Verify adding to non-existent project returns 404</idea>
+        <idea>Verify invalid UUID returns 400</idea>
+        <idea>Verify error response follows { error: { code, message, details } } format</idea>
+      </group>
+      <group ac="8" title="Rate Limiting &amp; Audit">
+        <idea>Verify 31st member operation within hour returns 429</idea>
+        <idea>Verify member added logged to audit (user_id, added_by, project_id)</idea>
+        <idea>Verify member removed logged to audit (user_id, removed_by, project_id)</idea>
+        <idea>Verify audit entries include IP and user_agent</idea>
+      </group>
+      <group title="Tenant Isolation (Critical)">
+        <idea>Verify project members in tenant A not visible via GET in tenant B</idea>
+        <idea>Verify RLS prevents direct SQL query of project_members across tenants</idea>
+        <idea>Verify adding a user from a different tenant's org is rejected</idea>
+        <idea>Verify check_project_access scoped to current tenant only</idea>
+      </group>
+    </ideas>
+  </tests>
+</story-context>

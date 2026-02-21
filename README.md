@@ -14,7 +14,8 @@
   <img src="https://img.shields.io/badge/AI%20Agents-7%20Specialized-blueviolet?style=flat-square" alt="AI Agents">
   <img src="https://img.shields.io/badge/Agent%20Skills-21%20Custom-orange?style=flat-square" alt="Skills">
   <img src="https://img.shields.io/badge/Functional%20Requirements-147-green?style=flat-square" alt="FRs">
-  <img src="https://img.shields.io/badge/Stories-132%20Total-yellowgreen?style=flat-square" alt="Stories">
+  <img src="https://img.shields.io/badge/Stories-27%2F132%20Done%20(20%25)-yellowgreen?style=flat-square" alt="Stories">
+  <img src="https://img.shields.io/badge/Sprint-Epic%201%20Foundation-ff69b4?style=flat-square" alt="Current Sprint">
   <img src="https://img.shields.io/badge/Cloud-AWS%20%7C%20Azure-informational?style=flat-square" alt="Multi-Cloud">
   <img src="https://img.shields.io/badge/License-Proprietary-red?style=flat-square" alt="License">
 </p>
@@ -555,7 +556,7 @@ QUALISYS serves **6 distinct personas** with role-optimized interfaces:
 | Epic | Name | Duration | Status | Key Deliverable |
 |------|------|----------|--------|----------------|
 | **0** | Infrastructure Foundation | 2-3 weeks | **Complete** (22/22 stories) | Multi-cloud infra, CI/CD, monitoring, local dev |
-| **1** | Foundation & Administration | 2 weeks | **In Progress** | Auth, orgs, projects, RBAC (6 roles) |
+| **1** | Foundation & Administration | 2 weeks | **In Progress** (5/13 stories done) | Auth, orgs, invitations, member management, login/sessions |
 | **2** | AI Agent Platform & Executive Visibility | 3-4 weeks | Backlog | 3 MVP agents, document ingestion, PM dashboards, JIRA integration |
 | **3** | Manual Testing & Developer Integration | 3-4 weeks | Backlog | Manual test execution, evidence capture, GitHub PR integration |
 | **4** | Automated Execution & Self-Healing | 4-5 weeks | Backlog | Playwright execution, self-healing engine, QA dashboards |
@@ -577,17 +578,55 @@ gantt
     axisFormat  %b %Y
 
     section MVP
-    Epic 0 — Infrastructure         :done, e0, 2026-01-06, 3w
-    Epic 1 — Foundation             :active, e1, after e0, 2w
-    Epic 2 — AI Agent Platform      :e2, after e1, 4w
-    Epic 3 — Manual Testing         :e3, after e2, 4w
-    Epic 4 — Self-Healing           :crit, e4, after e3, 5w
-    Epic 5 — Dashboards & Ecosystem :e5, after e4, 4w
+    Epic 0 — Infrastructure (22/22)  :done, e0, 2026-01-06, 2026-02-12
+    Epic 1 — Foundation (5/13)       :active, e1, 2026-02-12, 3w
+    Epic 2 — AI Agent Platform       :e2, after e1, 4w
+    Epic 3 — Manual Testing          :e3, after e2, 4w
+    Epic 4 — Self-Healing            :crit, e4, after e3, 5w
+    Epic 5 — Dashboards & Ecosystem  :e5, after e4, 4w
 
     section Post-MVP
-    Epic 6 — Advanced Agents        :e6, after e5, 11w
-    Epic 7 — Agent Skills           :e7, after e6, 5w
+    Epic 6 — Advanced Agents         :e6, after e5, 11w
+    Epic 7 — Agent Skills            :e7, after e6, 5w
 ```
+
+### Current Implementation Progress
+
+**Epic 0 — Infrastructure Foundation: COMPLETE** (22/22 stories)
+- Multi-cloud Terraform (AWS + Azure dual-root architecture)
+- Kubernetes cluster provisioning (EKS/AKS), PostgreSQL multi-tenant database, Redis caching layer
+- Container registry (ECR/ACR), secret management (Secrets Manager/Key Vault + ExternalSecrets Operator)
+- GitHub Actions CI/CD (PR checks, staging auto-deploy, production with approval gate)
+- Monitoring (Prometheus + Grafana), log aggregation (CloudWatch/Log Analytics + Fluent Bit)
+- Podman Compose local dev environment (5 services with hot reload)
+- Retrospective complete — 0 HIGH findings across all code reviews
+
+**Epic 1 — Foundation & Administration: IN PROGRESS** (5/13 stories done, 8 ready-for-dev)
+
+| Story | Name | Status |
+|-------|------|--------|
+| 1-1 | User Account Creation (email/password + Google OAuth, email verification) | **Done** |
+| 1-2 | Organization Creation & Setup (multi-tenant provisioning, ContextVar middleware) | **Done** |
+| 1-3 | Team Member Invitation (bulk invite, SHA-256 token hashing, dual-path accept) | **Done** |
+| 1-4 | User Management — Remove/Change Roles (soft-delete, last-admin guard, session invalidation) | **Done** |
+| 1-5 | Login & Session Management (RS256 JWT, refresh rotation, reuse detection, multi-org) | **Done** |
+| 1-6 | Password Reset Flow | Ready for Dev |
+| 1-7 | Two-Factor Authentication (TOTP) | Ready for Dev |
+| 1-8 | Profile & Notification Preferences | Ready for Dev |
+| 1-9 | Project Creation & Configuration | Ready for Dev |
+| 1-10 | Project Team Assignment | Ready for Dev |
+| 1-11 | Project Management (Archive/Delete/List) | Ready for Dev |
+| 1-12 | Usage Analytics & Audit Logs (Basic) | Ready for Dev |
+| 1-13 | Data Export & Org Deletion | Ready for Dev |
+
+**Backend Architecture Implemented** (Python/FastAPI):
+- 4 API router modules: `auth`, `orgs`, `invitations`, `members`
+- 5 service layers: `AuthService`, `InvitationService`, `NotificationService`, `TokenService`, `UserManagementService`
+- 3 middleware components: RBAC (`require_role`), rate limiting, tenant context (ContextVar)
+- 4 SQLAlchemy models: `User`, `Tenant`/`TenantUser`, `Invitation`
+- 4 Alembic migrations applied (users, tenant tables, invitations, member soft-delete)
+- 4 email templates: verification, invitation, role-changed, member-removed
+- Comprehensive test suites: unit, integration, and security tests (120+ tests passing)
 
 ### By The Numbers
 
@@ -595,6 +634,7 @@ gantt
 |--------|-------|
 | **Total Epics** | 8 (Epic 0-7) |
 | **Total Stories** | 132 (100 MVP + 32 Post-MVP) |
+| **Stories Completed** | 27 of 132 (~20%) — Epic 0 complete, Epic 1 in progress |
 | **Functional Requirements** | 147 (110 MVP + 9 Custom Agents + 28 Agent Skills) |
 | **AI Agents** | 7 (3 MVP + 4 Post-MVP) |
 | **Agent Skills** | 21 (across all 7 agents) |
@@ -636,12 +676,14 @@ gantt
 
 | Software | Version | Purpose |
 |----------|---------|---------|
-| Python | 3.11+ | Backend (FastAPI) |
-| Node.js | 18+ (20.x LTS recommended) | Frontend (React) |
-| PostgreSQL | 15+ (with pgvector) | Database |
-| Redis | 7+ | Cache and job queue |
-| Podman Desktop | 1.x+ | Container runtime (preferred) |
+| Python | 3.11+ | Backend (FastAPI + SQLAlchemy + Alembic) |
+| Node.js | 18+ (20.x LTS recommended) | Frontend (React + Vite) |
+| PostgreSQL | 15+ (with pgvector) | Database (multi-tenant, schema-per-tenant) |
+| Redis | 7+ | Cache, sessions, and rate limiting |
+| Podman Desktop | 1.x+ | Container runtime (Docker Desktop not approved) |
 | Git | 2.40+ | Version control |
+
+> **Note:** Docker Desktop is NOT approved for 10Pearls systems. Use Podman Desktop or `podman-compose` CLI.
 
 ### Quick Start
 
@@ -651,16 +693,17 @@ git clone <repository-url>
 cd QUALISYS
 cp .env.example .env
 
-# Start local services
+# Start local services (PostgreSQL, Redis, MailCatcher, API, Web)
 podman-compose up -d
 
-# Seed development data (3 tenants, 10 users, sample projects)
-podman-compose exec api npx ts-node scripts/dev-seed.ts
+# Run database migrations
+podman-compose exec api alembic upgrade head
 
 # Access the application
 # Web:  http://localhost:3000
-# API:  http://localhost:3001
-# Mail: http://localhost:1080
+# API:  http://localhost:8000
+# Mail: http://localhost:1080  (MailCatcher web UI for email testing)
+# API Health: http://localhost:8000/health
 ```
 
 For the complete setup guide, see [Local Development Guide](./docs/local-development.md).
@@ -669,22 +712,32 @@ For the complete setup guide, see [Local Development Guide](./docs/local-develop
 
 ```
 QUALISYS/
+├── backend/                     # Python FastAPI backend (Epic 1 active)
+│   ├── src/                    # Application source code
+│   │   ├── api/v1/             # REST API routers (auth, orgs, invitations, members)
+│   │   ├── middleware/         # RBAC, rate limiting, tenant context (ContextVar)
+│   │   ├── models/             # SQLAlchemy models (User, Tenant, Invitation)
+│   │   ├── services/           # Business logic (auth, invitation, notification, token, user mgmt)
+│   │   └── templates/email/    # Email templates (verification, invitation, role-changed)
+│   ├── alembic/                # Database migrations (4 migrations applied)
+│   └── tests/                  # Unit, integration, and security test suites
+├── web/                         # React frontend (Vite + TypeScript + Tailwind + shadcn/ui)
+├── infrastructure/              # Infrastructure as Code
+│   ├── terraform/              # Multi-cloud (aws/ and azure/ roots)
+│   └── kubernetes/             # K8s manifests (shared/, aws/, azure/)
 ├── docs/                        # Comprehensive project documentation
 │   ├── planning/               # PRD (147 FRs), product brief, UX design, agent specs
 │   ├── architecture/           # System architecture (3,600+ lines)
 │   ├── epics/                  # 8 epics with 132 stories
-│   ├── tech-specs/             # Per-epic technical specifications
+│   ├── tech-specs/             # Per-epic technical specifications + validation reports
 │   ├── stories/                # Individual story files with context
 │   ├── evaluations/            # Agent Skills architecture evaluations
 │   ├── reports/                # Validation and readiness reports
 │   └── research/               # Market and competitive research
-├── infrastructure/              # Infrastructure as Code
-│   ├── terraform/              # Multi-cloud (aws/ and azure/ roots)
-│   └── kubernetes/             # K8s manifests (shared/, aws/, azure/)
-├── api/                         # Python FastAPI backend
-├── web/                         # React frontend (Vite + TypeScript)
 ├── e2e/                         # End-to-end test suites
-└── playwright-runner/           # Containerized Playwright test runner
+├── .github/                     # GitHub Actions CI/CD workflows
+├── compose.yml                  # Podman Compose local dev (5 services)
+└── .bmad/                       # BMad Method v6 framework
 ```
 
 ---
@@ -710,7 +763,9 @@ QUALISYS/
 | [Epic Overview](./docs/epics/epics.md) | 8 epics, 132 stories, complete breakdown |
 | [Sprint Status](./docs/sprint-status.yaml) | Real-time implementation tracking |
 | [Epic 0 Tech Spec](./docs/tech-specs/tech-spec-epic-0.md) | Infrastructure foundation specification |
-| [Epic 1 Tech Spec](./docs/tech-specs/tech-spec-epic-1.md) | Foundation & Administration specification |
+| [Epic 1 Tech Spec](./docs/tech-specs/tech-spec-epic-1.md) | Foundation & Administration specification (validated 11/11) |
+| [Epic 1 Tech Spec Validation](./docs/tech-specs/validation-report-tech-spec-epic-1-20260221.md) | Tech spec validation report — 9/11 PASS, 2/11 PARTIAL (remediated) |
+| [Test Design System](./docs/planning/test-design-system.md) | Test strategy, patterns, and quality framework |
 
 ### Research & Validation
 
@@ -719,9 +774,12 @@ QUALISYS/
 | [Market Research](./docs/research/research-market-2025-11-30.md) | Market size, trends, growth projections |
 | [Competitive Research](./docs/research/research-competitive-2025-12-01.md) | DeepEval, Braintrust, Humanloop analysis |
 | [Architecture Board Review](./docs/reports/architecture-board-review-agent-skills-20260215.md) | Agent Skills approval (7.8/10) |
-| [Implementation Readiness](./docs/reports/implementation-readiness-report-2026-01-22.md) | Phase 3 to Phase 4 validation |
+| [Implementation Readiness](./docs/reports/implementation-readiness-report-2026-01-22.md) | Phase 3 to Phase 4 validation (8.7/10) |
+| [PRD Validation](./docs/reports/validation-report-prd-20251211.md) | PRD validation report |
+| [Architecture Validation](./docs/reports/validation-report-architecture-20260214.md) | Architecture document validation |
 | [Agent Skills Technical Review](./docs/evaluations/anthropic-agent-skills-technical-review.md) | Deep technical analysis, integration feasibility |
 | [Agent Skills Executive Strategy](./docs/evaluations/anthropic-agent-skills-executive-strategy.md) | Business case, competitive positioning, ROI |
+| [Agent Skills Architecture Board](./docs/evaluations/anthropic-agent-skills-architecture-board.md) | Architecture board evaluation for skills integration |
 
 ---
 
@@ -731,6 +789,7 @@ QUALISYS is built using the **BMad Method v6** — an AI-driven agile developmen
 
 - **Track:** Enterprise BMad Method (full 4-phase approach)
 - **Current Phase:** Phase 4 — Implementation
+- **Current Sprint:** Sprint 1 — Foundation & Administration (Epic 1)
 - **Methodology agents:** PM, Architect, Scrum Master, Developer, Test Engineer, Analyst, UX Designer, Tech Writer, and more
 
 The BMad framework is included in this repository (`.bmad/` directory) and requires no separate installation.
@@ -742,9 +801,18 @@ The BMad framework is included in this repository (`.bmad/` directory) and requi
 1. Check current sprint status: `docs/sprint-status.yaml`
 2. Review the relevant epic and tech spec in `docs/tech-specs/`
 3. Follow BMad Method workflows for story implementation
-4. Ensure all tests pass before submitting PRs
+4. Run backend tests: `cd backend && python -m pytest tests/ -v`
+5. Ensure all tests pass before submitting PRs
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines.
+
+### Sprint Change Proposals
+
+| Date | Proposal | Impact |
+|------|----------|--------|
+| 2026-01-24 | [Docker to Podman Migration](./docs/sprint-change-proposal-2026-01-24.md) | 9 documents updated per 10Pearls company policy |
+| 2026-02-06 | Agent Restructuring (8 → 7 agents) | Consolidated agents: 3 MVP + 4 Post-MVP |
+| 2026-02-20 | [Backend Tech Stack Correction](./docs/sprint-change-proposal-2026-02-20.md) | TypeScript/Express → Python/FastAPI per architecture spec |
 
 ---
 
@@ -773,5 +841,5 @@ Conceptualized the "AI System Quality Assurance" category and architected the mu
 <p align="center">
   <strong>QUALISYS</strong> — Defining the Future of AI System Quality Assurance
   <br>
-  <sub>Built by <a href="https://10pearls.com">10Pearls</a> | Version 0.1.0 | Last Updated: 2026-02-15</sub>
+  <sub>Built by <a href="https://10pearls.com">10Pearls</a> | Version 0.1.0 | Last Updated: 2026-02-22</sub>
 </p>
