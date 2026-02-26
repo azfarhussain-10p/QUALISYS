@@ -14,8 +14,8 @@
   <img src="https://img.shields.io/badge/AI%20Agents-7%20Specialized-blueviolet?style=flat-square" alt="AI Agents">
   <img src="https://img.shields.io/badge/Agent%20Skills-21%20Custom-orange?style=flat-square" alt="Skills">
   <img src="https://img.shields.io/badge/Functional%20Requirements-147-green?style=flat-square" alt="FRs">
-  <img src="https://img.shields.io/badge/Stories-27%2F132%20Done%20(20%25)-yellowgreen?style=flat-square" alt="Stories">
-  <img src="https://img.shields.io/badge/Sprint-Epic%201%20Foundation-ff69b4?style=flat-square" alt="Current Sprint">
+  <img src="https://img.shields.io/badge/Stories-35%2F132%20Done%20(26%25)-yellowgreen?style=flat-square" alt="Stories">
+  <img src="https://img.shields.io/badge/Sprint-Epic%202%20AI%20Agent%20Platform-ff69b4?style=flat-square" alt="Current Sprint">
   <img src="https://img.shields.io/badge/Cloud-AWS%20%7C%20Azure-informational?style=flat-square" alt="Multi-Cloud">
   <img src="https://img.shields.io/badge/License-Proprietary-red?style=flat-square" alt="License">
 </p>
@@ -556,8 +556,8 @@ QUALISYS serves **6 distinct personas** with role-optimized interfaces:
 | Epic | Name | Duration | Status | Key Deliverable |
 |------|------|----------|--------|----------------|
 | **0** | Infrastructure Foundation | 2-3 weeks | **Complete** (22/22 stories) | Multi-cloud infra, CI/CD, monitoring, local dev |
-| **1** | Foundation & Administration | 2 weeks | **In Progress** (5/13 stories done) | Auth, orgs, invitations, member management, login/sessions |
-| **2** | AI Agent Platform & Executive Visibility | 3-4 weeks | Backlog | 3 MVP agents, document ingestion, PM dashboards, JIRA integration |
+| **1** | Foundation & Administration | 2 weeks | **Complete** (13/13 stories done) | Auth, orgs, invitations, member management, MFA, projects, audit, export |
+| **2** | AI Agent Platform & Executive Visibility | 3-4 weeks | **Next** | 3 MVP agents, document ingestion, PM dashboards, JIRA integration |
 | **3** | Manual Testing & Developer Integration | 3-4 weeks | Backlog | Manual test execution, evidence capture, GitHub PR integration |
 | **4** | Automated Execution & Self-Healing | 4-5 weeks | Backlog | Playwright execution, self-healing engine, QA dashboards |
 | **5** | Complete Dashboards & Ecosystem | 3-4 weeks | Backlog | TestRail/Slack integrations, advanced reporting, SLA monitoring |
@@ -579,8 +579,8 @@ gantt
 
     section MVP
     Epic 0 — Infrastructure (22/22)  :done, e0, 2026-01-06, 2026-02-12
-    Epic 1 — Foundation (5/13)       :active, e1, 2026-02-12, 3w
-    Epic 2 — AI Agent Platform       :e2, after e1, 4w
+    Epic 1 — Foundation (13/13)      :done, e1, 2026-02-12, 2026-02-26
+    Epic 2 — AI Agent Platform       :active, e2, 2026-02-26, 4w
     Epic 3 — Manual Testing          :e3, after e2, 4w
     Epic 4 — Self-Healing            :crit, e4, after e3, 5w
     Epic 5 — Dashboards & Ecosystem  :e5, after e4, 4w
@@ -601,7 +601,7 @@ gantt
 - Podman Compose local dev environment (5 services with hot reload)
 - Retrospective complete — 0 HIGH findings across all code reviews
 
-**Epic 1 — Foundation & Administration: IN PROGRESS** (5/13 stories done, 8 ready-for-dev)
+**Epic 1 — Foundation & Administration: COMPLETE** (13/13 stories done — retrospective complete)
 
 | Story | Name | Status |
 |-------|------|--------|
@@ -610,23 +610,23 @@ gantt
 | 1-3 | Team Member Invitation (bulk invite, SHA-256 token hashing, dual-path accept) | **Done** |
 | 1-4 | User Management — Remove/Change Roles (soft-delete, last-admin guard, session invalidation) | **Done** |
 | 1-5 | Login & Session Management (RS256 JWT, refresh rotation, reuse detection, multi-org) | **Done** |
-| 1-6 | Password Reset Flow | Ready for Dev |
-| 1-7 | Two-Factor Authentication (TOTP) | Ready for Dev |
-| 1-8 | Profile & Notification Preferences | Ready for Dev |
-| 1-9 | Project Creation & Configuration | Ready for Dev |
-| 1-10 | Project Team Assignment | Ready for Dev |
-| 1-11 | Project Management (Archive/Delete/List) | Ready for Dev |
-| 1-12 | Usage Analytics & Audit Logs (Basic) | Ready for Dev |
-| 1-13 | Data Export & Org Deletion | Ready for Dev |
+| 1-6 | Password Reset Flow (Argon2id hashing, token expiry, Google OAuth guard) | **Done** |
+| 1-7 | Two-Factor Authentication — TOTP (QR setup, backup codes, MFA lockout) | **Done** |
+| 1-8 | Profile & Notification Preferences (avatar thumbnail, notification prefs per-user) | **Done** |
+| 1-9 | Project Creation & Configuration (atomic Lua rate limiting, auto-assign creator) | **Done** |
+| 1-10 | Project Team Assignment (bulk invite, project-scoped RBAC, email notifications) | **Done** |
+| 1-11 | Project Management — Archive/Delete/List (server-side name confirmation on delete) | **Done** |
+| 1-12 | Usage Analytics & Audit Logs (in-transaction audit, async fire-and-forget, CSV export) | **Done** |
+| 1-13 | Data Export & Org Deletion (async ZIP export, TOTP-gated deletion, presigned URLs) | **Done** |
 
 **Backend Architecture Implemented** (Python/FastAPI):
-- 4 API router modules: `auth`, `orgs`, `invitations`, `members`
-- 5 service layers: `AuthService`, `InvitationService`, `NotificationService`, `TokenService`, `UserManagementService`
-- 3 middleware components: RBAC (`require_role`), rate limiting, tenant context (ContextVar)
-- 4 SQLAlchemy models: `User`, `Tenant`/`TenantUser`, `Invitation`
-- 4 Alembic migrations applied (users, tenant tables, invitations, member soft-delete)
-- 4 email templates: verification, invitation, role-changed, member-removed
-- Comprehensive test suites: unit, integration, and security tests (120+ tests passing)
+- 10+ API router modules: `auth`, `mfa`, `orgs`, `export`, `invitations`, `members`, `projects`, `users`, `admin`
+- 12+ service layers: `AuthService`, `TOTPService`, `BackupCodeService`, `PasswordResetService`, `ProfileService`, `ProjectService`, `ProjectMemberService`, `AuditService`, `AnalyticsService`, `ExportService`, `OrgDeletionService`, `NotificationPreferencesService`
+- 3 middleware components: RBAC (`require_role`, `require_project_role`), atomic Lua rate limiting, tenant context (ContextVar)
+- 12 Alembic migrations applied (001–012: users → tenants → invitations → password resets → MFA → profile → projects → members → archive index → audit logs → export/deletion audit)
+- 6 email templates: verification, invitation, role-changed, member-removed, password-reset, project-assignment
+- Comprehensive test suites: unit, integration, and security tests (200+ tests passing)
+- **Retrospective:** [Epic 1 Retro 2026-02-26](./docs/stories/epic-1/epic-1-retro-2026-02-26.md) — 8 action items, 4 pattern spikes required before Epic 2
 
 ### By The Numbers
 
@@ -634,7 +634,7 @@ gantt
 |--------|-------|
 | **Total Epics** | 8 (Epic 0-7) |
 | **Total Stories** | 132 (100 MVP + 32 Post-MVP) |
-| **Stories Completed** | 27 of 132 (~20%) — Epic 0 complete, Epic 1 in progress |
+| **Stories Completed** | 35 of 132 (~26%) — Epic 0 complete (22), Epic 1 complete (13) |
 | **Functional Requirements** | 147 (110 MVP + 9 Custom Agents + 28 Agent Skills) |
 | **AI Agents** | 7 (3 MVP + 4 Post-MVP) |
 | **Agent Skills** | 21 (across all 7 agents) |
@@ -712,7 +712,7 @@ For the complete setup guide, see [Local Development Guide](./docs/local-develop
 
 ```
 QUALISYS/
-├── backend/                     # Python FastAPI backend (Epic 1 active)
+├── backend/                     # Python FastAPI backend (Epic 1 complete, Epic 2 next)
 │   ├── src/                    # Application source code
 │   │   ├── api/v1/             # REST API routers (auth, orgs, invitations, members)
 │   │   ├── middleware/         # RBAC, rate limiting, tenant context (ContextVar)
@@ -730,7 +730,7 @@ QUALISYS/
 │   ├── architecture/           # System architecture (3,600+ lines)
 │   ├── epics/                  # 8 epics with 132 stories
 │   ├── tech-specs/             # Per-epic technical specifications + validation reports
-│   ├── stories/                # Individual story files with context
+│   ├── stories/epic-{n}/       # Story files organised by epic (epic-0, epic-1, epic-2...)
 │   ├── evaluations/            # Agent Skills architecture evaluations
 │   ├── reports/                # Validation and readiness reports
 │   └── research/               # Market and competitive research
@@ -789,7 +789,7 @@ QUALISYS is built using the **BMad Method v6** — an AI-driven agile developmen
 
 - **Track:** Enterprise BMad Method (full 4-phase approach)
 - **Current Phase:** Phase 4 — Implementation
-- **Current Sprint:** Sprint 1 — Foundation & Administration (Epic 1)
+- **Current Sprint:** Sprint 2 — AI Agent Platform & Executive Visibility (Epic 2)
 - **Methodology agents:** PM, Architect, Scrum Master, Developer, Test Engineer, Analyst, UX Designer, Tech Writer, and more
 
 The BMad framework is included in this repository (`.bmad/` directory) and requires no separate installation.
@@ -810,9 +810,10 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines.
 
 | Date | Proposal | Impact |
 |------|----------|--------|
-| 2026-01-24 | [Docker to Podman Migration](./docs/sprint-change-proposal-2026-01-24.md) | 9 documents updated per 10Pearls company policy |
-| 2026-02-06 | Agent Restructuring (8 → 7 agents) | Consolidated agents: 3 MVP + 4 Post-MVP |
-| 2026-02-20 | [Backend Tech Stack Correction](./docs/sprint-change-proposal-2026-02-20.md) | TypeScript/Express → Python/FastAPI per architecture spec |
+| 2026-01-24 | [Docker to Podman Migration](./docs/sprint-changes/sprint-change-proposal-2026-01-24.md) | 9 documents updated per 10Pearls company policy |
+| 2026-02-06 | [Agent Restructuring (8 → 7 agents)](./docs/sprint-changes/sprint-change-proposal-2026-02-06.md) | Consolidated agents: 3 MVP + 4 Post-MVP |
+| 2026-02-09 | [Multi-cloud AWS + Azure](./docs/sprint-changes/sprint-change-proposal-2026-02-09.md) | Two Roots architecture adopted |
+| 2026-02-20 | [Backend Tech Stack Correction](./docs/sprint-changes/sprint-change-proposal-2026-02-20.md) | TypeScript/Express → Python/FastAPI per architecture spec |
 
 ---
 

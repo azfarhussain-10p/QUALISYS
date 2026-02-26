@@ -55,6 +55,26 @@ class Settings(BaseSettings):
     from_email: str = "noreply@qualisys.ai"
     from_name: str = "QUALISYS"
 
+    # MFA — Story 1.7 (AC3, AC9)
+    # AES-256-GCM key for TOTP secret encryption.
+    # In production: set via AWS Secrets Manager / Azure Key Vault.
+    # Must be a base64-encoded 32-byte (256-bit) key.
+    # Default is a dev-only key — MUST be overridden in production.
+    mfa_encryption_key: str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="  # dev-only 32-byte base64
+
+    # MFA rate limiting
+    mfa_token_ttl_seconds: int = 300        # 5 min mfa_token validity
+    mfa_setup_ttl_seconds: int = 600        # 10 min temp secret during setup
+    mfa_max_attempts_per_token: int = 5     # per mfa_token before invalidation
+    mfa_max_failures_per_hour: int = 10     # per user per hour before lockout
+    mfa_lockout_seconds: int = 3600         # 1 hour lockout after 10 failures
+
+    # Profile — Story 1.8
+    s3_avatar_key_prefix: str = "user-avatars"
+    avatar_presigned_url_expires: int = 300        # 5 minutes (AC: presigned URLs expire quickly)
+    change_password_rate_limit: int = 3             # per user per hour (AC5)
+    change_password_rate_window_seconds: int = 3600  # 1 hour
+
     # Google OAuth
     google_client_id: str = ""
     google_client_secret: str = ""

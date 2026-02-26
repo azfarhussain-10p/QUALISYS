@@ -9,10 +9,10 @@
 | Metric | Value |
 |--------|-------|
 | **Current Phase** | Phase 4: Implementation |
-| **Current Epic** | Epic 1 - Foundation & Administration |
+| **Current Epic** | Epic 2 - AI Agent Platform & Executive Visibility |
 | **Track** | Enterprise BMad Method |
 | **Stories** | 108 total (100 MVP + 8 Post-MVP) |
-| **Completed** | Epic 0 (22/22 stories) |
+| **Completed** | Epic 0 (22/22 stories), Epic 1 (13/13 stories) |
 
 ---
 
@@ -41,8 +41,10 @@ docs/
 │   ├── epics.md                # All epics overview (78 MVP stories)
 │   └── epic-0-infrastructure.md # Epic 0 detailed breakdown
 │
-├── stories/                    # Story Files (SM creates here)
-│   └── {epic}-{story}-{name}.md
+├── stories/                    # Story Files — organised by epic subdir
+│   ├── epic-0/                 # Epic 0 stories (22 .md + 22 .context.xml)
+│   ├── epic-1/                 # Epic 1 stories (13 .md + 13 .context.xml + retro)
+│   └── epic-2/                 # Epic 2 stories (placeholder, ready for drafting)
 │
 ├── tech-specs/                 # Epic Technical Specifications
 │   ├── tech-spec-epic-0.md     # Infrastructure tech spec
@@ -53,6 +55,8 @@ docs/
 │   ├── validation-report-architecture-*.md
 │   └── implementation-readiness-report-*.md
 │
+├── sprint-changes/             # Sprint change proposals (course corrections)
+│   └── sprint-change-proposal-*.md
 └── _archive/                   # Original Source Files
     ├── QUALISYS AI Powered Testing Platform.docx
     └── QUALISYS-Project-Documentation.md
@@ -81,9 +85,11 @@ docs/
 ### Phase 4: Implementation
 - [Sprint Status](./sprint-status.yaml) - Current sprint tracking
 - [All Epics Overview](./epics/epics.md) - Epic breakdown with stories
-- [Epic 0 Details](./epics/epic-0-infrastructure.md) - Infrastructure foundation
+- [Epic 0 Details](./epics/epic-0-infrastructure.md) - Infrastructure foundation ✅
 - [Epic 0 Tech Spec](./tech-specs/tech-spec-epic-0.md)
 - [Epic 1 Tech Spec](./tech-specs/tech-spec-epic-1.md)
+- [Epic 1 Retrospective](./stories/epic-1/epic-1-retro-2026-02-26.md) - Post-epic lessons learned ✅
+- [Sprint Change Proposals](./sprint-changes/) - Course correction history
 
 ---
 
@@ -92,8 +98,8 @@ docs/
 | Epic | Name | Stories | Status | Priority |
 |------|------|---------|--------|----------|
 | 0 | Infrastructure Foundation | 22 | **completed** | P0 CRITICAL |
-| 1 | Foundation & Administration | 13 | **active** | P1 HIGH |
-| 2 | AI Agent Platform & Executive Visibility | 18 | backlog | P1 HIGH |
+| 1 | Foundation & Administration | 13 | **completed** | P1 HIGH |
+| 2 | AI Agent Platform & Executive Visibility | 18 | **next** | P1 HIGH |
 | 3 | Manual Testing & Developer Integration | 15 | backlog | P1 HIGH |
 | 4 | Automated Execution & Self-Healing | 16 | backlog | P0 CRITICAL |
 | 5 | Complete Dashboards & Ecosystem Integration | 16 | backlog | P1 HIGH |
@@ -119,8 +125,8 @@ docs/
 - **Vector DB**: pgvector
 
 ### Frontend/Backend
-- **Frontend**: Next.js + React + TypeScript + Tailwind
-- **Backend**: Python FastAPI or Node.js/Express
+- **Frontend**: React 18 + Vite + TypeScript + Tailwind CSS
+- **Backend**: Python FastAPI (Python 3.11+)
 - **Testing**: Playwright (browser automation)
 
 ---
@@ -171,5 +177,5 @@ QUALISYS is an AI-powered testing platform combining:
 
 ---
 
-**Last Updated**: 2026-02-12
+**Last Updated**: 2026-02-26
 **Maintained By**: QUALISYS Development Team

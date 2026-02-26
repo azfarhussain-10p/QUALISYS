@@ -94,6 +94,10 @@ app.include_router(health_router)
 from src.api.v1.auth.router import router as auth_router  # noqa: E402
 app.include_router(auth_router)
 
+# Story 1.7 — MFA (TOTP setup, verify, backup codes, disable, regenerate, status)
+from src.api.v1.auth.mfa_router import mfa_router  # noqa: E402
+app.include_router(mfa_router)
+
 # Story 1.2 — Org management (create, settings, logo upload)
 from src.api.v1.orgs.router import router as org_router  # noqa: E402
 app.include_router(org_router)
@@ -108,9 +112,21 @@ app.include_router(invitation_public_router)
 from src.api.v1.members.router import router as members_router  # noqa: E402
 app.include_router(members_router)
 
-# Project, User routers added in subsequent Epic 1 stories
-# app.include_router(project_router, prefix="/api/v1/projects")
-# app.include_router(user_router, prefix="/api/v1/users")
+# Story 1.8 — User profile, avatar, notifications, change-password
+from src.api.v1.users.router import router as users_router  # noqa: E402
+app.include_router(users_router)
+
+# Story 1.9 — Project creation & configuration
+from src.api.v1.projects.router import router as projects_router  # noqa: E402
+app.include_router(projects_router)
+
+# Story 1.12 — Admin analytics + audit log viewer
+from src.api.v1.admin.router import router as admin_router  # noqa: E402
+app.include_router(admin_router)
+
+# Story 1.13 — Data export & org deletion
+from src.api.v1.orgs.export_router import router as export_deletion_router  # noqa: E402
+app.include_router(export_deletion_router)
 
 # ---------------------------------------------------------------------------
 # Startup / Shutdown

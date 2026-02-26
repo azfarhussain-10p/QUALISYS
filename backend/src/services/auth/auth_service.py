@@ -33,19 +33,26 @@ from src.models.user import User
 settings = get_settings()
 
 # ---------------------------------------------------------------------------
-# Password hashing — bcrypt cost factor 12 (AC4)
-# passlib handles automatic salt generation
+# Password hashing — Argon2id primary, bcrypt deprecated fallback (AC4)
+# Existing bcrypt hashes continue to verify and are transparently rehashed
+# to Argon2id on next login (passlib handles this automatically).
 # ---------------------------------------------------------------------------
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
+_pwd_context = CryptContext(
+    schemes=["argon2", "bcrypt"],
+    deprecated=["bcrypt"],
+    argon2__memory_cost=65536,   # 64 MiB
+    argon2__time_cost=3,
+    argon2__parallelism=4,
+)
 
 
 def hash_password(plain: str) -> str:
-    """Hash password with bcrypt cost 12."""
+    """Hash password with Argon2id."""
     return _pwd_context.hash(plain)
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    """Verify plain password against bcrypt hash."""
+    """Verify plain password against Argon2id or legacy bcrypt hash."""
     return _pwd_context.verify(plain, hashed)
 
 

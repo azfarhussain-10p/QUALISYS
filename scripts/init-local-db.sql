@@ -54,18 +54,24 @@ BEGIN
         updated_at TIMESTAMPTZ DEFAULT NOW()
       )', schema_name);
 
-    -- Projects table
+    -- Projects table (Story 1.9: added slug, app_url, github_repo_url, status, created_by)
     EXECUTE format('
       CREATE TABLE IF NOT EXISTS %I.projects (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        name VARCHAR(255) NOT NULL,
-        description TEXT,
-        organization_id UUID REFERENCES %I.organizations(id),
-        tenant_id UUID NOT NULL,
-        settings JSONB DEFAULT ''{}'',
-        is_active BOOLEAN NOT NULL DEFAULT true,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW()
+        id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name             VARCHAR(255) NOT NULL,
+        description      TEXT,
+        organization_id  UUID REFERENCES %I.organizations(id),
+        tenant_id        UUID NOT NULL,
+        slug             VARCHAR(100) NOT NULL,
+        app_url          VARCHAR(500),
+        github_repo_url  VARCHAR(500),
+        status           VARCHAR(20) NOT NULL DEFAULT ''active'',
+        settings         JSONB DEFAULT ''{}'',
+        is_active        BOOLEAN NOT NULL DEFAULT true,
+        created_by       UUID,
+        created_at       TIMESTAMPTZ DEFAULT NOW(),
+        updated_at       TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (slug)
       )', schema_name, schema_name);
 
     -- Test cases table

@@ -212,3 +212,137 @@ class SelectOrgRequest(BaseModel):
 class SwitchOrgRequest(BaseModel):
     """POST /api/v1/auth/switch-org — switch to a different org mid-session."""
     tenant_id: uuid.UUID
+
+
+# ---------------------------------------------------------------------------
+# Password Reset — Story 1.6 AC2, AC5, AC6
+# ---------------------------------------------------------------------------
+
+class ForgotPasswordRequest(BaseModel):
+    """POST /api/v1/auth/forgot-password — AC2: no email enumeration."""
+    email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def email_lowercase(cls, v: str) -> str:
+        return v.lower()
+
+
+class ValidateResetTokenResponse(BaseModel):
+    """GET /api/v1/auth/reset-password?token=... — AC5: token validation."""
+    valid: bool
+    # Partially masked email for UX confirmation (u***@example.com)
+    email: Optional[str] = None
+    error: Optional[str] = None  # "token_invalid" | "token_expired" | "token_used"
+
+
+class ResetPasswordRequest(BaseModel):
+    """POST /api/v1/auth/reset-password — AC6: consume token, update password."""
+    token: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_policy(cls, v: str) -> str:
+        return validate_password_policy(v)
+
+
+# ---------------------------------------------------------------------------
+# Login response — extended for MFA challenge (Story 1.7 AC5)
+# ---------------------------------------------------------------------------
+
+# LoginResponse already defined above — we extend it with optional MFA fields.
+# When mfa_required=True: user/orgs/has_multiple_orgs are None (not yet authenticated)
+# When mfa_required=False (default): normal login response
+LoginResponse.model_rebuild()  # noqa: no-op, trigger model rebuild if subclassed
+
+
+class MFAChallengeResponse(BaseModel):
+    """
+    200 response when MFA-enabled user submits correct password.
+    JWT cookies are NOT issued yet — MFA verification required first (AC5).
+    """
+    mfa_required: bool = True
+    mfa_token: str  # Short-lived opaque token (5 min) proving password was validated
+
+
+# ---------------------------------------------------------------------------
+# MFA management — Story 1.7
+# ---------------------------------------------------------------------------
+
+class MFASetupResponse(BaseModel):
+    """POST /api/v1/auth/mfa/setup — AC2: QR code + manual secret."""
+    qr_uri: str      # otpauth://totp/QUALISYS:{email}?secret=...
+    secret: str      # Plaintext base32 secret for manual entry
+    setup_token: str  # Opaque token linking this setup session (10-min TTL)
+
+
+class MFASetupConfirmRequest(BaseModel):
+    """POST /api/v1/auth/mfa/setup/confirm — AC3: validate TOTP code."""
+    setup_token: str
+    totp_code: str
+
+    @field_validator("totp_code")
+    @classmethod
+    def code_format(cls, v: str) -> str:
+        v = v.strip()
+        if not v.isdigit() or len(v) != 6:
+            raise ValueError("TOTP code must be exactly 6 digits.")
+        return v
+
+
+class MFASetupConfirmResponse(BaseModel):
+    """200 response with backup codes after successful 2FA setup (AC4)."""
+    backup_codes: list[str]
+    message: str = "Two-factor authentication enabled. Save your backup codes."
+
+
+class MFAVerifyRequest(BaseModel):
+    """POST /api/v1/auth/mfa/verify — AC5: complete login with TOTP code."""
+    mfa_token: str
+    totp_code: str
+
+    @field_validator("totp_code")
+    @classmethod
+    def code_format(cls, v: str) -> str:
+        v = v.strip()
+        if not v.isdigit() or len(v) != 6:
+            raise ValueError("TOTP code must be exactly 6 digits.")
+        return v
+
+
+class MFABackupRequest(BaseModel):
+    """POST /api/v1/auth/mfa/backup — AC6: complete login with backup code."""
+    mfa_token: str
+    backup_code: str
+
+    @field_validator("backup_code")
+    @classmethod
+    def code_format(cls, v: str) -> str:
+        v = v.strip().upper()
+        if len(v) != 8:
+            raise ValueError("Backup code must be exactly 8 characters.")
+        return v
+
+
+class MFADisableRequest(BaseModel):
+    """POST /api/v1/auth/mfa/disable — AC7: requires current password."""
+    password: str
+
+
+class MFARegenerateCodesRequest(BaseModel):
+    """POST /api/v1/auth/mfa/backup-codes/regenerate — AC8: requires current password."""
+    password: str
+
+
+class MFARegenerateCodesResponse(BaseModel):
+    """200 response with new backup codes (AC8)."""
+    backup_codes: list[str]
+    message: str = "Backup codes regenerated. Save these new codes — the old ones are now invalid."
+
+
+class MFAStatusResponse(BaseModel):
+    """GET /api/v1/auth/mfa/status — AC1: current MFA state."""
+    enabled: bool
+    enabled_at: Optional[datetime] = None
+    backup_codes_remaining: int

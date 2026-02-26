@@ -7,11 +7,11 @@
 # CONFIGURATION
 # ===================================================================
 generated: "2025-12-12"
-updated: "2026-02-22"  # story 1-5 → done
+updated: "2026-02-26"  # stories 1-6 through 1-12 → done (code review fixes applied)
 project: QUALISYS
 project_key: qualisys-ai-testing-platform
 tracking_system: file-system
-story_location: "{project-root}/docs/stories"
+story_location: "{project-root}/docs/stories/{epic-id}"  # stories organised by epic subdir: epic-0/, epic-1/, epic-2/ ...
 
 # ===================================================================
 # STATUS DEFINITIONS
@@ -41,10 +41,10 @@ story_location: "{project-root}/docs/stories"
 mvp_summary:
   total_epics: 6
   total_stories: 100
-  epics_completed: 1
-  stories_completed: 24
-  current_sprint: "Sprint 1 - Foundation & Administration"
-  current_epic: "epic-1"
+  epics_completed: 2
+  stories_completed: 31
+  current_sprint: "Sprint 2 - AI Agent Platform"
+  current_epic: "epic-2"
   blocking_items: []
 
 # Post-MVP Summary (Epics 6-7)
@@ -103,21 +103,21 @@ development_status:
   # FRs Covered: FR1-15, FR102-108
   # Tech Spec: docs/tech-specs/tech-spec-epic-1.md
   # =====================================================
-  epic-1: contexted
+  epic-1: completed
   1-1-user-account-creation: done
   1-2-organization-creation-setup: done
   1-3-team-member-invitation: done
   1-4-user-management-remove-change-roles: done
   1-5-login-session-management: done
-  1-6-password-reset-flow: ready-for-dev
-  1-7-two-factor-authentication-totp: ready-for-dev
-  1-8-profile-notification-preferences: ready-for-dev
-  1-9-project-creation-configuration: ready-for-dev
-  1-10-project-team-assignment: ready-for-dev
-  1-11-project-management-archive-delete-list: ready-for-dev
-  1-12-usage-analytics-audit-logs-basic: ready-for-dev
-  1-13-data-export-org-deletion: ready-for-dev
-  epic-1-retrospective: optional
+  1-6-password-reset-flow: done
+  1-7-two-factor-authentication-totp: done
+  1-8-profile-notification-preferences: done
+  1-9-project-creation-configuration: done
+  1-10-project-team-assignment: done
+  1-11-project-management-archive-delete-list: done
+  1-12-usage-analytics-audit-logs-basic: done
+  1-13-data-export-org-deletion: done
+  epic-1-retrospective: done  # docs/stories/epic-1/epic-1-retro-2026-02-26.md
 
   # =====================================================
   # Epic 2: AI Agent Platform & Executive Visibility
@@ -720,6 +720,10 @@ changelog:
     action: "Story 1-6-password-reset-flow context generated"
     by: "SM Agent (Bob)"
     notes: "Generated context XML with 10 doc references, 14 code artifacts (3 existing + 5 predecessor-planned + 6 new-planned), 8 interfaces (3 REST endpoints, 3 service methods, 1 DB schema, 1 cross-story dependency), 10 constraints, 9 test idea groups. Status: drafted → ready-for-dev."
+  - date: "2026-02-24"
+    action: "Story 1-6-password-reset-flow implemented"
+    by: "DEV Agent (Amelia)"
+    notes: "Full implementation: 8 tasks complete, all 8 ACs satisfied. Created: Alembic migration 005, PasswordReset model, password_reset_service.py (request_reset_internal/validate_token/reset_password), 3 FastAPI endpoints (POST /forgot-password, GET/POST /reset-password), 2 Jinja2 email templates, notification_service functions, ForgotPasswordPage.tsx, ResetPasswordPage.tsx, comprehensive backend integration tests (test_password_reset.py), frontend vitest tests. Modified: schemas.py, router.py, notification_service.py, api.ts, App.tsx. All security controls verified (256-bit entropy, SHA-256 storage, no-enumeration timing, single-use tokens, session invalidation, rate limiting). Status: in-progress → review."
   - date: "2026-02-17"
     action: "Story 1-7-two-factor-authentication-totp drafted"
     by: "SM Agent (Bob)"
@@ -728,6 +732,10 @@ changelog:
     action: "Story 1-7-two-factor-authentication-totp context generated"
     by: "SM Agent (Bob)"
     notes: "Generated context XML with 12 doc references, 16 code artifacts (4 existing + 5 predecessor-planned + 7 new-planned), 19 interfaces (7 REST endpoints, 8 service methods, 1 Redis data model, 2 DB schemas, 1 modified service), 12 constraints, 10 test idea groups. Key: Redis MFA key structure (mfa:{hash}, mfa_setup:{user_id}, mfa_attempts, mfa_lockout, mfa_failures). Status: drafted → ready-for-dev."
+  - date: "2026-02-24"
+    action: "Story 1-7-two-factor-authentication-totp implemented"
+    by: "DEV Agent (Amelia)"
+    notes: "All 9 tasks complete (Tasks 1–9). Created: Alembic migration 006 (totp_secret_encrypted/totp_enabled_at/mfa_lockout_until columns + user_backup_codes table), user_backup_code.py model, totp_service.py (AES-256-GCM encrypt/decrypt, pyotp TOTP ±1 window), backup_code_service.py (10 bcrypt-hashed codes, single-use verification, regeneration), MFA schemas (10 Pydantic models), mfa_router.py (7 endpoints: setup/confirm/verify/backup/disable/regenerate/status), LoginPage.tsx (MFAChallenge inline component with auto-submit on 6th digit, backup code toggle), SecurityPage.tsx (full MFA section: status badge, setup flow with QR code via qrcode.react, 6-digit confirm, backup codes modal with download/copy, disable dialog, regen dialog). Modified: router.py (login returns mfa_required challenge), user.py (MFA columns), config.py (MFA settings), main.py (mfa_router registered), api.ts (MFAChallenge types + 7 API methods). Tests: unit (test_totp_service.py: 20 tests; test_backup_code_service.py: 24 tests), integration (test_mfa.py: 28 tests), frontend (SecurityPage.test.tsx: 25 tests). Security review: 9.1–9.8 all verified. Status: in-progress → review."
   - date: "2026-02-17"
     action: "Story 1-8-profile-notification-preferences drafted"
     by: "SM Agent (Bob)"
@@ -736,6 +744,10 @@ changelog:
     action: "Story 1-8-profile-notification-preferences context generated"
     by: "SM Agent (Bob)"
     notes: "Generated context XML with 13 doc references, 16 code artifacts (4 existing + 5 predecessor-planned + 7 new-planned), 20 interfaces (7 REST endpoints, 8 service methods, 2 DB schemas, 1 cross-story dependency, 2 presigned URL flows), 11 constraints, 9 test idea groups. Key: S3 presigned URL avatar pattern, notification preferences lazy creation, security alerts non-disableable. Status: drafted → ready-for-dev."
+  - date: "2026-02-24"
+    action: "Story 1-8-profile-notification-preferences implemented"
+    by: "DEV Agent (Amelia)"
+    notes: "Full implementation: Alembic migration 007 (timezone column + user_notification_preferences table), User model timezone field, UserNotificationPreferences model, profile_service (update_profile, get_avatar_presigned_url, update_avatar_url, remove_avatar, change_password), notification_preferences_service (get_preferences lazy-create, update_preferences with security_alerts enforcement, should_notify), users API router (7 endpoints: GET me, PATCH profile, POST/PATCH/DELETE avatar, GET/PUT notifications, POST change-password with 3/hr rate limit), React: SettingsLayout with tab nav, ProfilePage (avatar + initials fallback + timezone dropdown + name edit), NotificationsPage (toggles + frequency + digest picker), ChangePasswordSection in SecurityPage (hidden for Google auth_provider), AppHeader user menu with Settings link. Tests: 20 unit (profile_service), 26 integration (users API), 25 frontend (ProfilePage), 20 frontend (NotificationsPage). Status: in-progress → review."
   - date: "2026-02-17"
     action: "Story 1-9-project-creation-configuration drafted"
     by: "SM Agent (Bob)"

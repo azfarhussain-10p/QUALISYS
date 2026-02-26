@@ -200,3 +200,126 @@ def require_role(*allowed_roles: str):
         return current_user, membership
 
     return Depends(_check_role)
+
+
+# ---------------------------------------------------------------------------
+# require_project_role — for endpoints that do NOT have org_id in path
+# Story: 1-9-project-creation-configuration (AC: #1, #3, #5)
+# Gets tenant_id from JWT claims instead of path parameter.
+# ---------------------------------------------------------------------------
+
+def require_project_role(*allowed_roles: str):
+    """
+    Dependency factory for project endpoints where org_id is NOT a path param.
+
+    Extracts tenant_id from JWT `tenant_id` claim, validates the user has
+    an active membership in that tenant, and checks against allowed_roles.
+    If allowed_roles is empty, any active tenant membership is accepted.
+
+    Returns (User, TenantUser) tuple.
+
+    Example:
+        @router.post("")
+        async def create_project(
+            auth: tuple = require_project_role("owner", "admin"),
+        ):
+            user, membership = auth
+    """
+    async def _check_project_role(
+        request: Request,
+        credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
+        db: AsyncSession = Depends(get_db),
+    ) -> tuple[User, TenantUser]:
+        token = _extract_token(request, credentials)
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={"error": {"code": "NOT_AUTHENTICATED", "message": "Authentication required."}},
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        try:
+            payload = token_service.validate_access_token(token)
+            if payload.get("type") != "access":
+                raise JWTError("Not an access token")
+            user_id_str = payload.get("sub")
+            tenant_id_str = payload.get("tenant_id")
+            if not user_id_str:
+                raise JWTError("Missing sub claim")
+            user_id = uuid.UUID(user_id_str)
+        except (JWTError, ValueError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={"error": {"code": "INVALID_TOKEN", "message": "Invalid or expired token."}},
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from exc
+
+        if not tenant_id_str or tenant_id_str == "None":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"error": {"code": "NO_TENANT_CONTEXT", "message": "Select an organization first."}},
+            )
+
+        try:
+            tenant_id = uuid.UUID(tenant_id_str)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"error": {"code": "INVALID_TENANT", "message": "Invalid tenant context."}},
+            ) from exc
+
+        # Load user
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={"error": {"code": "USER_NOT_FOUND", "message": "User not found."}},
+            )
+
+        # Verify tenant exists
+        result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+        tenant = result.scalar_one_or_none()
+        if tenant is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"error": {"code": "ORG_NOT_FOUND", "message": "Organization not found."}},
+            )
+
+        # Verify membership
+        result = await db.execute(
+            select(TenantUser).where(
+                TenantUser.tenant_id == tenant_id,
+                TenantUser.user_id == user_id,
+            )
+        )
+        membership = result.scalar_one_or_none()
+
+        if membership is None or not membership.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"error": {"code": "FORBIDDEN", "message": "You do not have access to this organization."}},
+            )
+
+        # Role check (skip if no roles specified — any member OK)
+        if allowed_roles and membership.role not in allowed_roles:
+            logger.warning(
+                "RBAC: insufficient role for project endpoint",
+                user_id=str(user_id),
+                tenant_id=str(tenant_id),
+                user_role=membership.role,
+                required_roles=list(allowed_roles),
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": {
+                        "code": "INSUFFICIENT_ROLE",
+                        "message": f"This action requires one of: {', '.join(allowed_roles)}.",
+                    }
+                },
+            )
+
+        return user, membership
+
+    return Depends(_check_project_role)

@@ -122,6 +122,49 @@ def _build_base_migration_ddl(schema: str) -> list[str]:
         # Enforce audit_logs immutability (INSERT-ONLY)
         f"""CREATE RULE audit_no_update AS ON UPDATE TO {q}.audit_logs DO INSTEAD NOTHING""",
         f"""CREATE RULE audit_no_delete AS ON DELETE TO {q}.audit_logs DO INSTEAD NOTHING""",
+
+        # projects — AC2 (Story 1.9): full schema including slug and new columns
+        f"""CREATE TABLE {q}.projects (
+            id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+            name             VARCHAR(255) NOT NULL,
+            description      TEXT,
+            organization_id  UUID,
+            tenant_id        UUID        NOT NULL,
+            slug             VARCHAR(100) NOT NULL,
+            app_url          VARCHAR(500),
+            github_repo_url  VARCHAR(500),
+            status           VARCHAR(20)  NOT NULL DEFAULT 'active',
+            settings         JSONB        NOT NULL DEFAULT '{{}}',
+            is_active        BOOLEAN      NOT NULL DEFAULT TRUE,
+            created_by       UUID,
+            created_at       TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+            updated_at       TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+            UNIQUE (slug)
+        )""",
+        f"CREATE INDEX idx_proj_tenant_id ON {q}.projects (tenant_id)",
+        f"CREATE INDEX idx_proj_is_active ON {q}.projects (is_active) WHERE NOT is_active",
+
+        # RLS on projects — tenant isolation via app.current_tenant session variable
+        f"ALTER TABLE {q}.projects ENABLE ROW LEVEL SECURITY",
+        f"""CREATE POLICY tenant_isolation ON {q}.projects
+            USING (tenant_id::text = current_setting('app.current_tenant', true))""",
+
+        # project_members — AC#1 (Story 1.10): join table for project-level access control
+        f"""CREATE TABLE {q}.project_members (
+            id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+            project_id  UUID        NOT NULL,
+            user_id     UUID        NOT NULL,
+            added_by    UUID,
+            tenant_id   UUID        NOT NULL,
+            created_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+            UNIQUE (project_id, user_id)
+        )""",
+        f"CREATE INDEX idx_pm_user_id ON {q}.project_members (user_id)",
+
+        # RLS on project_members — same tenant isolation pattern
+        f"ALTER TABLE {q}.project_members ENABLE ROW LEVEL SECURITY",
+        f"""CREATE POLICY tenant_isolation ON {q}.project_members
+            USING (tenant_id::text = current_setting('app.current_tenant', true))""",
     ]
 
 

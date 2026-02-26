@@ -1,7 +1,7 @@
 """
 QUALISYS Auth API Router
-Story: 1-1-user-account-creation, 1-5-login-session-management
-ACs: AC1–AC8 (1.1) | AC1–AC10 (1.5)
+Story: 1-1-user-account-creation, 1-5-login-session-management, 1-6-password-reset-flow
+ACs: AC1–AC8 (1.1) | AC1–AC10 (1.5) | AC2–AC8 (1.6)
 
 Endpoints:
   POST   /api/v1/auth/register                   — email/password signup (1.1)
@@ -9,7 +9,7 @@ Endpoints:
   GET    /api/v1/auth/oauth/google/callback       — handle OAuth callback + set cookies (1.1+1.5)
   POST   /api/v1/auth/verify-email               — validate verification token (1.1)
   POST   /api/v1/auth/resend-verification        — resend verification email (1.1)
-  POST   /api/v1/auth/login                      — password login + issue cookies (1.5 AC1)
+  POST   /api/v1/auth/login                      — password login + issue cookies / MFA challenge (1.5+1.7)
   POST   /api/v1/auth/refresh                    — rotate refresh token (1.5 AC4)
   POST   /api/v1/auth/logout                     — revoke current session (1.5 AC5)
   POST   /api/v1/auth/logout-all                 — revoke all sessions (1.5 AC5)
@@ -17,6 +17,9 @@ Endpoints:
   DELETE /api/v1/auth/sessions/{session_id}      — revoke specific session (1.5 AC5)
   POST   /api/v1/auth/select-org                 — choose org after multi-org login (1.5 AC6)
   POST   /api/v1/auth/switch-org                 — switch org within active session (1.5 AC6)
+  POST   /api/v1/auth/forgot-password            — initiate password reset (1.6 AC2)
+  GET    /api/v1/auth/reset-password             — validate reset token (1.6 AC5)
+  POST   /api/v1/auth/reset-password             — consume token + update password (1.6 AC6)
 """
 
 import base64
@@ -33,18 +36,22 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.v1.auth.schemas import (
+    ForgotPasswordRequest,
     LoginRequest,
     LoginResponse,
+    MFAChallengeResponse,
     MessageResponse,
     RefreshResponse,
     RegisterRequest,
     RegisterResponse,
+    ResetPasswordRequest,
     SelectOrgRequest,
     SessionInfo,
     SessionListResponse,
     SwitchOrgRequest,
     TenantOrgInfo,
     UserResponse,
+    ValidateResetTokenResponse,
     VerifyEmailRequest,
     ResendVerificationRequest,
 )
@@ -244,8 +251,8 @@ async def register(
 
 @router.post(
     "/login",
-    response_model=LoginResponse,
     responses={
+        200: {"description": "Login success (JWT cookies) or MFA challenge"},
         401: {"description": "Invalid credentials"},
         423: {"description": "Account locked"},
         429: {"description": "Rate limit exceeded"},
@@ -256,14 +263,21 @@ async def login(
     request: Request,
     response: Response,
     db: AsyncSession = Depends(get_db),
-) -> LoginResponse:
+) -> LoginResponse | MFAChallengeResponse:
     """
-    Authenticate with email + password. Issues httpOnly session cookies (AC1, AC3).
+    Authenticate with email + password.
 
-    Multi-org flow (AC6):
-      - 1 org: access token contains tenant_id + role; redirects to dashboard
-      - N orgs: access token contains tenant_id=null; client must POST /select-org
+    Two outcomes (1.5 AC1, 1.7 AC5):
+      a) MFA disabled: issues httpOnly cookies, returns LoginResponse
+      b) MFA enabled:  returns MFAChallengeResponse {mfa_required:true, mfa_token}
+                       Cookies NOT set until /mfa/verify or /mfa/backup succeeds
+
+    Multi-org flow (1.5 AC6):
+      - 1 org: access token contains tenant_id + role
+      - N orgs: access token tenant_id=null; client must POST /select-org
     """
+    import hashlib
+
     correlation_id = _correlation_id(request)
     session_info = _session_info_from_request(request)
 
@@ -296,7 +310,49 @@ async def login(
             detail={"error": {"code": "INVALID_CREDENTIALS", "message": str(exc)}},
         )
 
-    # Load active org memberships (AC6)
+    # ---------------------------------------------------------------------------
+    # Story 1.7 AC5 — MFA challenge when 2FA is enabled
+    # ---------------------------------------------------------------------------
+    if user.totp_enabled_at is not None:
+        # Check MFA lockout (AC9)
+        from datetime import datetime, timezone
+        if user.mfa_lockout_until and user.mfa_lockout_until > datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail={"error": {
+                    "code": "MFA_LOCKED",
+                    "message": "Account MFA is temporarily locked due to too many failed attempts. Try again later.",
+                }},
+            )
+
+        # Generate short-lived mfa_token (proves password was validated)
+        raw_mfa_token = secrets.token_urlsafe(32)
+        mfa_token_hash = hashlib.sha256(raw_mfa_token.encode()).hexdigest()
+
+        # Store in Redis: mfa:{hash} → {user_id, remember_me, session_info}, TTL 5 min (AC5)
+        redis = get_redis_client()
+        import json
+        mfa_payload = json.dumps({
+            "user_id": str(user.id),
+            "remember_me": payload.remember_me,
+            "session_info": session_info,
+        })
+        await redis.setex(
+            f"mfa:{mfa_token_hash}",
+            settings.mfa_token_ttl_seconds,
+            mfa_payload,
+        )
+
+        logger.info(
+            "MFA challenge issued",
+            user_id=str(user.id),
+            correlation_id=correlation_id,
+        )
+        return MFAChallengeResponse(mfa_required=True, mfa_token=raw_mfa_token)
+
+    # ---------------------------------------------------------------------------
+    # No MFA — normal login flow (1.5 AC1, AC6)
+    # ---------------------------------------------------------------------------
     memberships = await _get_user_orgs(db, user.id)
     orgs = [
         TenantOrgInfo(
@@ -308,7 +364,6 @@ async def login(
         for tu, tenant in memberships
     ]
 
-    # Multi-org: tenant_id=None in token; single org: embed tenant directly
     if len(orgs) == 1:
         active_tenant_id = orgs[0].id
         active_tenant_slug = orgs[0].slug
@@ -910,4 +965,252 @@ async def resend_verification(
 
     return MessageResponse(
         message="If an unverified account exists for that email, a new verification link has been sent."
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /api/v1/auth/forgot-password — 1.6 AC2, AC3, AC4, AC7, AC8
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/forgot-password",
+    response_model=MessageResponse,
+    responses={429: {"description": "Rate limit exceeded"}},
+)
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+) -> MessageResponse:
+    """
+    Initiate password reset — ALWAYS returns 200 with identical message (AC2).
+    No email enumeration: same response whether email exists or not.
+
+    Rate limits (AC7):
+      - 3 requests per email per hour
+      - 10 requests per IP per hour (global)
+    """
+    from src.services.password_reset.password_reset_service import (
+        request_reset_internal,
+        InvalidTokenError,
+    )
+    from src.services.notification.notification_service import (
+        send_password_reset_email,
+        send_password_reset_google_email,
+    )
+
+    correlation_id = _correlation_id(request)
+    client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or (
+        request.client.host if request.client else "unknown"
+    )
+    user_agent = request.headers.get("User-Agent", "")
+
+    # AC7: Per-email rate limit (3/hr)
+    email_rate_key = f"rate:reset_request:{payload.email}"
+    redis = get_redis_client()
+    pipe = redis.pipeline()
+    pipe.incr(email_rate_key)
+    pipe.ttl(email_rate_key)
+    results = await pipe.execute()
+    email_count, email_ttl = results[0], results[1]
+    if email_count == 1:
+        await redis.expire(email_rate_key, 3600)
+        email_ttl = 3600
+    if email_count > 3:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"error": {"code": "RATE_LIMIT_EXCEEDED", "message": "Too many reset requests. Please wait before trying again."}},
+            headers={"Retry-After": str(max(email_ttl, 1))},
+        )
+
+    # AC7: Per-IP rate limit (10/hr global)
+    await check_rate_limit(request, action="forgot_password", max_requests=10, window_seconds=3600)
+
+    # Core logic — always returns 200 regardless of email existence (AC2)
+    raw_token, user, is_google_only = await request_reset_internal(
+        db=db,
+        email=payload.email,
+        ip=client_ip,
+        user_agent=user_agent,
+        correlation_id=correlation_id,
+    )
+
+    # Trigger email asynchronously (non-blocking — AC4)
+    if user is not None:
+        if is_google_only:
+            background_tasks.add_task(
+                send_password_reset_google_email,
+                recipient_email=user.email,
+                full_name=user.full_name,
+                correlation_id=correlation_id,
+            )
+        elif raw_token is not None:
+            background_tasks.add_task(
+                send_password_reset_email,
+                recipient_email=user.email,
+                full_name=user.full_name,
+                reset_token=raw_token,
+                correlation_id=correlation_id,
+            )
+
+    # AC2: ALWAYS return identical message (no enumeration)
+    return MessageResponse(
+        message="If an account with that email exists, we've sent a password reset link."
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /api/v1/auth/reset-password — 1.6 AC5, AC7
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/reset-password",
+    response_model=ValidateResetTokenResponse,
+)
+async def validate_reset_token(
+    request: Request,
+    token: str,
+    db: AsyncSession = Depends(get_db),
+) -> ValidateResetTokenResponse:
+    """
+    Validate a password reset token before showing the reset form (AC5).
+    Returns partial email for UX confirmation. Rate limited: 5/token/hr (AC7).
+
+    Response:
+      valid=true  → { valid: true, email: 'u***@example.com' }
+      valid=false → { valid: false, error: 'token_expired' | 'token_used' | 'token_invalid' }
+    """
+    from src.services.password_reset.password_reset_service import (
+        validate_token,
+        InvalidTokenError,
+        TokenExpiredError,
+        TokenUsedError,
+        _mask_email_partial,
+        _hash_token,
+    )
+
+    correlation_id = _correlation_id(request)
+
+    # AC7: Per-token rate limit (5/hr)
+    token_hash_prefix = _hash_token(token)[:16]
+    redis = get_redis_client()
+    rate_key = f"rate:reset_validate:{token_hash_prefix}"
+    pipe = redis.pipeline()
+    pipe.incr(rate_key)
+    pipe.ttl(rate_key)
+    results = await pipe.execute()
+    count, ttl = results[0], results[1]
+    if count == 1:
+        await redis.expire(rate_key, 3600)
+        ttl = 3600
+    if count > 5:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"error": {"code": "RATE_LIMIT_EXCEEDED", "message": "Too many validation attempts."}},
+            headers={"Retry-After": str(max(ttl, 1))},
+        )
+
+    try:
+        result = await validate_token(db=db, raw_token=token, correlation_id=correlation_id)
+        return ValidateResetTokenResponse(
+            valid=True,
+            email=_mask_email_partial(result.email),
+        )
+    except TokenExpiredError:
+        return ValidateResetTokenResponse(valid=False, error="token_expired")
+    except TokenUsedError:
+        return ValidateResetTokenResponse(valid=False, error="token_used")
+    except InvalidTokenError:
+        return ValidateResetTokenResponse(valid=False, error="token_invalid")
+
+
+# ---------------------------------------------------------------------------
+# POST /api/v1/auth/reset-password — 1.6 AC6, AC7, AC8
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/reset-password",
+    response_model=MessageResponse,
+    responses={
+        400: {"description": "Invalid/expired/used token or policy violation"},
+        429: {"description": "Rate limit exceeded"},
+    },
+)
+async def reset_password_endpoint(
+    payload: ResetPasswordRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> MessageResponse:
+    """
+    Consume reset token, update password_hash, invalidate all sessions (AC6).
+    Rate limited: 5 attempts per token per hour (AC7).
+    """
+    from src.services.password_reset.password_reset_service import (
+        reset_password,
+        InvalidTokenError,
+        TokenExpiredError,
+        TokenUsedError,
+        PasswordPolicyError,
+        _hash_token,
+    )
+
+    correlation_id = _correlation_id(request)
+    client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or (
+        request.client.host if request.client else "unknown"
+    )
+    user_agent = request.headers.get("User-Agent", "")
+
+    # AC7: Per-token rate limit (5/hr)
+    token_hash_prefix = _hash_token(payload.token)[:16]
+    redis = get_redis_client()
+    rate_key = f"rate:reset_consume:{token_hash_prefix}"
+    pipe = redis.pipeline()
+    pipe.incr(rate_key)
+    pipe.ttl(rate_key)
+    results = await pipe.execute()
+    count, ttl = results[0], results[1]
+    if count == 1:
+        await redis.expire(rate_key, 3600)
+        ttl = 3600
+    if count > 5:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"error": {"code": "RATE_LIMIT_EXCEEDED", "message": "Too many reset attempts."}},
+            headers={"Retry-After": str(max(ttl, 1))},
+        )
+
+    try:
+        await reset_password(
+            db=db,
+            raw_token=payload.token,
+            new_password=payload.new_password,
+            ip=client_ip,
+            user_agent=user_agent,
+            correlation_id=correlation_id,
+        )
+    except TokenExpiredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": {"code": "TOKEN_EXPIRED", "message": str(exc)}},
+        )
+    except TokenUsedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": {"code": "TOKEN_USED", "message": str(exc)}},
+        )
+    except InvalidTokenError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": {"code": "TOKEN_INVALID", "message": str(exc)}},
+        )
+    except PasswordPolicyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": {"code": "PASSWORD_POLICY", "message": str(exc)}},
+        )
+
+    # AC8: Audit — reset completed logged in reset_password()
+    return MessageResponse(
+        message="Password reset successfully. Please log in with your new password."
     )

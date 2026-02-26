@@ -5,7 +5,7 @@
 
 project_name: QUALISYS
 user_skill_level: intermediate
-sprint_artifacts: '{project-root}/docs/stories'
+sprint_artifacts: '{project-root}/docs/stories'  # stories live in epic subdirs: docs/stories/{epic-id}/
 tea_use_mcp_enhancements: true
 
 # Core Configuration Values

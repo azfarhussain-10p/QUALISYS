@@ -600,8 +600,8 @@ As a QA-Automation user, I want to select which AI agents to run, so that I can 
 - AC1: Agent selection page shows 3 MVP agents (BAConsultant AI Agent, QAConsultant AI Agent, AutomationConsultant AI Agent)
 - AC2: Each agent card shows: Icon, Name, Description, Inputs (e.g., "Requires: PRD"), Outputs (e.g., "Generates: Coverage Matrix"), Est. Runtime (~2-5 min)
 - AC3: Agents selectable via checkbox
-- AC4: "Use Recommended Pipeline" button auto-selects all 4 agents
-- AC5: Selected agents highlighted, count shown: "4 agents selected"
+- AC4: "Use Recommended Pipeline" button auto-selects all 3 agents
+- AC5: Selected agents highlighted, count shown: "3 agents selected"
 - **FRs Covered:** FR26, FR27
 
 **Story 2.7: Agent Pipeline Orchestration**

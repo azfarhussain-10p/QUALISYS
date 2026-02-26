@@ -131,6 +131,13 @@ export interface LoginResponse {
   has_multiple_orgs: boolean
 }
 
+export interface MFAChallengeResponse {
+  mfa_required: true
+  mfa_token: string
+}
+
+export type LoginOrMFAResponse = LoginResponse | MFAChallengeResponse
+
 export interface SessionInfo {
   session_id: string
   ip: string | null
@@ -173,7 +180,7 @@ export const authApi = {
   // Story 1.5 endpoints
 
   login: (payload: LoginPayload) =>
-    apiClient.post<LoginResponse>('/api/v1/auth/login', payload).then((r) => r.data),
+    apiClient.post<LoginOrMFAResponse>('/api/v1/auth/login', payload).then((r) => r.data),
 
   refresh: () =>
     apiClient.post<{ success: boolean }>('/api/v1/auth/refresh').then((r) => r.data),
@@ -195,6 +202,63 @@ export const authApi = {
 
   switchOrg: (payload: SelectOrgPayload) =>
     apiClient.post<LoginResponse>('/api/v1/auth/switch-org', payload).then((r) => r.data),
+
+  // Story 1.7 — MFA
+
+  mfaSetup: () =>
+    apiClient.post<{ qr_uri: string; secret: string; setup_token: string }>('/api/v1/auth/mfa/setup').then((r) => r.data),
+
+  mfaSetupConfirm: (setup_token: string, totp_code: string) =>
+    apiClient
+      .post<{ backup_codes: string[]; message: string }>('/api/v1/auth/mfa/setup/confirm', { setup_token, totp_code })
+      .then((r) => r.data),
+
+  mfaVerify: (mfa_token: string, totp_code: string) =>
+    apiClient
+      .post<LoginResponse>('/api/v1/auth/mfa/verify', { mfa_token, totp_code })
+      .then((r) => r.data),
+
+  mfaBackup: (mfa_token: string, backup_code: string) =>
+    apiClient
+      .post<LoginResponse>('/api/v1/auth/mfa/backup', { mfa_token, backup_code })
+      .then((r) => r.data),
+
+  mfaDisable: (password: string) =>
+    apiClient
+      .post<{ success: boolean; message: string }>('/api/v1/auth/mfa/disable', { password })
+      .then((r) => r.data),
+
+  mfaRegenerateCodes: (password: string) =>
+    apiClient
+      .post<{ backup_codes: string[]; message: string }>('/api/v1/auth/mfa/backup-codes/regenerate', { password })
+      .then((r) => r.data),
+
+  mfaStatus: () =>
+    apiClient
+      .get<{ enabled: boolean; enabled_at: string | null; backup_codes_remaining: number }>('/api/v1/auth/mfa/status')
+      .then((r) => r.data),
+
+  // Story 1.6 — Password reset
+
+  forgotPassword: (email: string) =>
+    apiClient
+      .post<{ success: boolean; message: string }>('/api/v1/auth/forgot-password', { email })
+      .then((r) => r.data),
+
+  validateResetToken: (token: string) =>
+    apiClient
+      .get<{ valid: boolean; email?: string; error?: string }>('/api/v1/auth/reset-password', {
+        params: { token },
+      })
+      .then((r) => r.data),
+
+  resetPassword: (token: string, new_password: string) =>
+    apiClient
+      .post<{ success: boolean; message: string }>('/api/v1/auth/reset-password', {
+        token,
+        new_password,
+      })
+      .then((r) => r.data),
 }
 
 // ---------------------------------------------------------------------------
@@ -406,4 +470,378 @@ export const orgApi = {
         `/api/v1/orgs/${orgId}/provisioning-status`,
       )
       .then((r) => r.data),
+}
+
+// ---------------------------------------------------------------------------
+// User Profile & Notifications — Story 1.8
+// ---------------------------------------------------------------------------
+
+export interface UserProfileResponse {
+  id: string
+  email: string
+  full_name: string
+  avatar_url: string | null
+  timezone: string
+  auth_provider: string
+  email_verified: boolean
+  created_at: string
+  org_role: string | null  // Current tenant role (owner/admin/etc.)
+}
+
+export interface UpdateProfilePayload {
+  full_name?: string
+  timezone?: string
+}
+
+export interface AvatarPresignedUrlPayload {
+  filename: string
+  content_type: string
+  file_size: number
+}
+
+export interface AvatarPresignedUrlResponse {
+  upload_url: string
+  key: string
+  expires_in_seconds: number
+}
+
+export interface NotificationPreferences {
+  email_test_completions: boolean
+  email_test_failures: boolean
+  email_team_changes: boolean
+  email_security_alerts: boolean
+  email_frequency: 'realtime' | 'daily' | 'weekly'
+  digest_time: string   // "HH:MM"
+  digest_day: string
+}
+
+export interface ChangePasswordPayload {
+  current_password: string
+  new_password: string
+  confirm_new_password: string
+}
+
+// ---------------------------------------------------------------------------
+// Project types + endpoints — Story 1.9
+// ---------------------------------------------------------------------------
+
+export interface ProjectResponse {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  app_url: string | null
+  github_repo_url: string | null
+  status: string
+  settings: Record<string, unknown>
+  is_active: boolean
+  created_by: string | null
+  tenant_id: string
+  organization_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+// Story 1.11 — Extended project list item with member_count and health
+export interface ProjectListItem extends ProjectResponse {
+  member_count: number
+  health: string  // '—' placeholder in Epic 1
+}
+
+export interface PaginationMeta {
+  page: number
+  per_page: number
+  total: number
+  total_pages: number
+}
+
+export interface PaginatedProjectsResponse {
+  data: ProjectListItem[]
+  pagination: PaginationMeta
+}
+
+// Story 1.11 — List query params
+export interface ListProjectsParams {
+  status?: 'active' | 'archived' | 'all'
+  search?: string
+  sort?: 'name' | 'created_at' | 'status'
+  page?: number
+  per_page?: number
+}
+
+export interface CreateProjectPayload {
+  name: string
+  description?: string
+  app_url?: string
+  github_repo_url?: string
+}
+
+export interface UpdateProjectPayload {
+  name?: string
+  description?: string
+  app_url?: string
+  github_repo_url?: string
+  settings?: Record<string, unknown>
+}
+
+export interface ProjectSettingsResponse {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  app_url: string | null
+  github_repo_url: string | null
+  default_environment: string | null
+  default_browser: string | null
+  tags: string[]
+}
+
+// ---------------------------------------------------------------------------
+// Project member types + endpoints — Story 1.10
+// ---------------------------------------------------------------------------
+
+export interface ProjectMemberResponse {
+  id: string
+  project_id: string
+  user_id: string
+  added_by: string | null
+  tenant_id: string
+  created_at: string
+  full_name: string | null
+  email: string | null
+  avatar_url: string | null
+  org_role: string | null
+}
+
+export interface AddMemberPayload {
+  user_id: string
+}
+
+export interface AddMembersBulkPayload {
+  user_ids: string[]
+}
+
+export interface ProjectMembersListResponse {
+  members: ProjectMemberResponse[]
+  count: number
+}
+
+export interface BulkAddMembersResponse {
+  added: ProjectMemberResponse[]
+  count: number
+}
+
+export const projectApi = {
+  // Story 1.11 — paginated list with filters
+  list: (params?: ListProjectsParams) =>
+    apiClient
+      .get<PaginatedProjectsResponse>('/api/v1/projects', { params })
+      .then((r) => r.data),
+
+  create: (payload: CreateProjectPayload) =>
+    apiClient.post<ProjectResponse>('/api/v1/projects', payload).then((r) => r.data),
+
+  get: (projectId: string) =>
+    apiClient.get<ProjectResponse>(`/api/v1/projects/${projectId}`).then((r) => r.data),
+
+  update: (projectId: string, payload: UpdateProjectPayload) =>
+    apiClient.patch<ProjectResponse>(`/api/v1/projects/${projectId}`, payload).then((r) => r.data),
+
+  getSettings: (projectId: string) =>
+    apiClient
+      .get<ProjectSettingsResponse>(`/api/v1/projects/${projectId}/settings`)
+      .then((r) => r.data),
+
+  // Story 1.11 — archive, restore, delete
+  archive: (projectId: string) =>
+    apiClient
+      .post<ProjectResponse>(`/api/v1/projects/${projectId}/archive`)
+      .then((r) => r.data),
+
+  restore: (projectId: string) =>
+    apiClient
+      .post<ProjectResponse>(`/api/v1/projects/${projectId}/restore`)
+      .then((r) => r.data),
+
+  delete: (projectId: string) =>
+    apiClient
+      .delete(`/api/v1/projects/${projectId}`)
+      .then(() => undefined),
+
+  // Team membership (Story 1.10)
+  listMembers: (projectId: string) =>
+    apiClient
+      .get<ProjectMembersListResponse>(`/api/v1/projects/${projectId}/members`)
+      .then((r) => r.data),
+
+  addMember: (projectId: string, payload: AddMemberPayload) =>
+    apiClient
+      .post<ProjectMemberResponse>(`/api/v1/projects/${projectId}/members`, payload)
+      .then((r) => r.data),
+
+  addMembersBulk: (projectId: string, payload: AddMembersBulkPayload) =>
+    apiClient
+      .post<BulkAddMembersResponse>(`/api/v1/projects/${projectId}/members/bulk`, payload)
+      .then((r) => r.data),
+
+  removeMember: (projectId: string, userId: string) =>
+    apiClient
+      .delete(`/api/v1/projects/${projectId}/members/${userId}`)
+      .then(() => undefined),
+}
+
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Admin types + endpoints — Story 1.12
+// ---------------------------------------------------------------------------
+
+export interface DashboardMetrics {
+  active_users: number
+  active_projects: number
+  test_runs: number
+  storage_consumed: string
+}
+
+export interface AuditLogEntry {
+  id: string
+  tenant_id: string
+  actor_user_id: string
+  action: string
+  resource_type: string
+  resource_id: string | null
+  details: Record<string, unknown> | null
+  ip_address: string | null
+  user_agent: string | null
+  created_at: string
+}
+
+export interface AuditLogPagination {
+  page: number
+  per_page: number
+  total: number
+  total_pages: number
+}
+
+export interface PaginatedAuditLogsResponse {
+  data: AuditLogEntry[]
+  pagination: AuditLogPagination
+}
+
+export interface AuditLogFilters {
+  date_from?: string
+  date_to?: string
+  action?: string
+  actor_user_id?: string
+  page?: number
+  per_page?: number
+}
+
+export const adminApi = {
+  getMetrics: () =>
+    apiClient.get<DashboardMetrics>('/api/v1/admin/analytics').then((r) => r.data),
+
+  getAuditLogs: (filters?: AuditLogFilters) =>
+    apiClient
+      .get<PaginatedAuditLogsResponse>('/api/v1/admin/audit-logs', { params: filters })
+      .then((r) => r.data),
+
+  exportAuditLogs: (filters?: Omit<AuditLogFilters, 'page' | 'per_page'>) =>
+    apiClient
+      .post('/api/v1/admin/audit-logs/export', null, {
+        params: filters,
+        responseType: 'blob',
+      })
+      .then((r) => r.data as Blob),
+}
+
+// ---------------------------------------------------------------------------
+// Data Export & Org Deletion — Story 1.13
+// ---------------------------------------------------------------------------
+
+export interface ExportJob {
+  job_id: string
+  status: 'processing' | 'completed' | 'failed'
+  progress_percent: number
+  file_size_bytes: number | null
+  error: string | null
+  created_at: string | null
+  completed_at: string | null
+  download_url: string | null
+}
+
+export interface RequestExportResponse {
+  job_id: string
+  status: string
+  estimated_duration: string
+}
+
+export interface ExportEstimate {
+  tables: Record<string, number>
+  total_records: number
+  note: string
+}
+
+export interface DeleteOrgPayload {
+  org_name_confirmation: string
+  totp_code?: string
+  password?: string
+}
+
+export const exportApi = {
+  getEstimate: (orgId: string) =>
+    apiClient
+      .get<ExportEstimate>(`/api/v1/orgs/${orgId}/export/estimate`)
+      .then((r) => r.data),
+
+  requestExport: (orgId: string) =>
+    apiClient
+      .post<RequestExportResponse>(`/api/v1/orgs/${orgId}/export`)
+      .then((r) => r.data),
+
+  listExports: (orgId: string) =>
+    apiClient
+      .get<{ exports: ExportJob[] }>(`/api/v1/orgs/${orgId}/exports`)
+      .then((r) => r.data),
+
+  getExportStatus: (orgId: string, jobId: string) =>
+    apiClient
+      .get<ExportJob>(`/api/v1/orgs/${orgId}/exports/${jobId}`)
+      .then((r) => r.data),
+
+  getDownloadUrl: (orgId: string, jobId: string) =>
+    `/api/v1/orgs/${orgId}/exports/${jobId}/download`,
+
+  deleteOrg: (orgId: string, payload: DeleteOrgPayload) =>
+    apiClient
+      .post<{ status: string; message: string }>(`/api/v1/orgs/${orgId}/delete`, payload)
+      .then((r) => r.data),
+}
+
+// ---------------------------------------------------------------------------
+
+export const userApi = {
+  getMe: () =>
+    apiClient.get<UserProfileResponse>('/api/v1/users/me').then((r) => r.data),
+
+  updateProfile: (payload: UpdateProfilePayload) =>
+    apiClient.patch<UserProfileResponse>('/api/v1/users/me/profile', payload).then((r) => r.data),
+
+  getAvatarUploadUrl: (payload: AvatarPresignedUrlPayload) =>
+    apiClient.post<AvatarPresignedUrlResponse>('/api/v1/users/me/avatar', payload).then((r) => r.data),
+
+  setAvatarUrl: (avatar_url: string) =>
+    apiClient.patch<UserProfileResponse>('/api/v1/users/me/avatar', { avatar_url }).then((r) => r.data),
+
+  removeAvatar: () =>
+    apiClient.delete<UserProfileResponse>('/api/v1/users/me/avatar').then((r) => r.data),
+
+  getNotifications: () =>
+    apiClient.get<NotificationPreferences>('/api/v1/users/me/notifications').then((r) => r.data),
+
+  updateNotifications: (payload: Partial<NotificationPreferences>) =>
+    apiClient.put<NotificationPreferences>('/api/v1/users/me/notifications', payload).then((r) => r.data),
+
+  changePassword: (payload: ChangePasswordPayload) =>
+    apiClient.post<{ message: string }>('/api/v1/users/me/change-password', payload).then((r) => r.data),
 }

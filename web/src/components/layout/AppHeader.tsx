@@ -7,7 +7,7 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, ChevronDown, Building2, Loader2 } from 'lucide-react'
+import { LogOut, ChevronDown, Building2, Loader2, Settings, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { authApi, ApiError, TenantOrgInfo } from '@/lib/api'
 
@@ -16,13 +16,23 @@ interface AppHeaderProps {
   currentOrgName?: string
   /** All orgs the user belongs to (for switcher) */
   orgs?: TenantOrgInfo[]
+  /** Display name for the logged-in user (shown in user menu) */
+  userName?: string
+  /** Avatar URL for the logged-in user */
+  avatarUrl?: string | null
 }
 
-export default function AppHeader({ currentOrgName, orgs = [] }: AppHeaderProps) {
+export default function AppHeader({
+  currentOrgName,
+  orgs = [],
+  userName,
+  avatarUrl,
+}: AppHeaderProps) {
   const navigate = useNavigate()
   const [logoutLoading, setLogoutLoading] = useState(false)
   const [switcherOpen, setSwitcherOpen] = useState(false)
   const [switchingId, setSwitchingId] = useState<string | null>(null)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
 
   // AC8: Logout current session
   const handleLogout = async () => {
@@ -123,25 +133,83 @@ export default function AppHeader({ currentOrgName, orgs = [] }: AppHeaderProps)
             )}
           </div>
 
-          {/* Right actions */}
+          {/* Right actions — user avatar menu (AC1: Settings link) */}
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground"
-              disabled={logoutLoading}
-              onClick={handleLogout}
-              data-testid="logout-btn"
-            >
-              {logoutLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex items-center gap-2 text-muted-foreground"
+                onClick={() => setUserMenuOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={userMenuOpen}
+                data-testid="user-menu-btn"
+              >
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt="avatar"
+                    className="h-7 w-7 rounded-full object-cover"
+                  />
+                ) : (
+                  <User className="h-4 w-4" />
+                )}
+                {userName && (
+                  <span className="max-w-[120px] truncate text-sm">{userName}</span>
+                )}
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+
+              {userMenuOpen && (
                 <>
-                  <LogOut className="mr-1.5 h-4 w-4" />
-                  Log out
+                  {/* Backdrop */}
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setUserMenuOpen(false)}
+                    aria-hidden="true"
+                  />
+                  <ul
+                    role="menu"
+                    className="absolute right-0 top-full z-20 mt-1 min-w-[160px] rounded-md border border-border bg-white shadow-md py-1 text-sm"
+                    data-testid="user-menu-dropdown"
+                  >
+                    <li role="none">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="w-full text-left px-4 py-2 flex items-center gap-2 hover:bg-accent text-foreground"
+                        onClick={() => {
+                          setUserMenuOpen(false)
+                          navigate('/settings/profile')
+                        }}
+                        data-testid="settings-link"
+                      >
+                        <Settings className="h-4 w-4 text-muted-foreground" />
+                        Settings
+                      </button>
+                    </li>
+                    <li role="none" className="border-t border-border my-1" />
+                    <li role="none">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="w-full text-left px-4 py-2 flex items-center gap-2 hover:bg-accent text-foreground"
+                        disabled={logoutLoading}
+                        onClick={handleLogout}
+                        data-testid="logout-btn"
+                      >
+                        {logoutLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <LogOut className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        Log out
+                      </button>
+                    </li>
+                  </ul>
                 </>
               )}
-            </Button>
+            </div>
           </div>
         </div>
       </div>

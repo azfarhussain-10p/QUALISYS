@@ -1,14 +1,16 @@
 /**
  * Login Page
- * Story: 1-5-login-session-management
- * AC1 — email/password form, show/hide toggle, redirect after login
- * AC2 — "Sign in with Google" button
- * AC5 — "Remember me" checkbox
- * AC6 — multi-org: redirect to /select-org
- * AC9 — error states: invalid credentials, account locked, rate limited
+ * Story: 1-5-login-session-management, 1-7-two-factor-authentication-totp
+ * AC1 — email/password form, show/hide toggle, redirect after login (1.5)
+ * AC2 — "Sign in with Google" button (1.5)
+ * AC5 — "Remember me" checkbox (1.5)
+ * AC6 — multi-org: redirect to /select-org (1.5)
+ * AC9 — error states: invalid credentials, account locked, rate limited (1.5)
+ * AC5 (1.7) — MFA challenge: TOTP 6-digit input, auto-submit on 6th digit
+ * AC6 (1.7) — "Use a backup code" toggle: 8-char alphanumeric input
  */
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -63,6 +65,210 @@ function _safeRedirect(next: string | null): string {
 }
 
 // ---------------------------------------------------------------------------
+// MFA Challenge component — shown after successful password auth when MFA enabled
+// AC5 (1.7): 6-digit TOTP input with auto-submit on 6th digit
+// AC6 (1.7): "Use a backup code" toggle — 8-char alphanumeric input
+// ---------------------------------------------------------------------------
+type MFAMode = 'totp' | 'backup'
+
+function MFAChallenge({
+  mfaToken,
+  nextUrl,
+  onError,
+}: {
+  mfaToken: string
+  nextUrl: string
+  onError: (msg: string) => void
+}) {
+  const navigate = useNavigate()
+  const [mode, setMode] = useState<MFAMode>('totp')
+  const [totpValue, setTotpValue] = useState('')
+  const [backupValue, setBackupValue] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [mfaError, setMfaError] = useState<string | null>(null)
+  const totpRef = useRef<HTMLInputElement>(null)
+  const backupRef = useRef<HTMLInputElement>(null)
+
+  // Auto-focus on mount and mode change
+  useEffect(() => {
+    if (mode === 'totp') totpRef.current?.focus()
+    else backupRef.current?.focus()
+  }, [mode])
+
+  const _completeLogin = (result: { has_multiple_orgs: boolean; orgs: unknown[] }) => {
+    if (result.has_multiple_orgs) {
+      sessionStorage.setItem('pendingOrgs', JSON.stringify(result.orgs))
+      navigate('/select-org')
+    } else {
+      sessionStorage.removeItem('pendingOrgs')
+      navigate(nextUrl, { replace: true })
+    }
+  }
+
+  const handleTotpChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\D/g, '').slice(0, 6)
+    setTotpValue(val)
+    setMfaError(null)
+
+    // AC5 (1.7): auto-submit on 6th digit
+    if (val.length === 6) {
+      setSubmitting(true)
+      try {
+        const result = await authApi.mfaVerify(mfaToken, val)
+        _completeLogin(result as { has_multiple_orgs: boolean; orgs: unknown[] })
+      } catch (err) {
+        setTotpValue('')
+        totpRef.current?.focus()
+        if (err instanceof ApiError) {
+          setMfaError(
+            err.code === 'MFA_TOKEN_INVALID'
+              ? 'MFA session expired. Please log in again.'
+              : err.code === 'MFA_ATTEMPTS_EXCEEDED' || err.code === 'MFA_LOCKED'
+              ? err.message
+              : 'Invalid code. Please try again.',
+          )
+        } else {
+          setMfaError('Something went wrong. Please try again.')
+        }
+      } finally {
+        setSubmitting(false)
+      }
+    }
+  }
+
+  const handleBackupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!backupValue || backupValue.length !== 8) {
+      setMfaError('Backup code must be exactly 8 characters.')
+      return
+    }
+    setSubmitting(true)
+    setMfaError(null)
+    try {
+      const result = await authApi.mfaBackup(mfaToken, backupValue.toUpperCase())
+      _completeLogin(result as { has_multiple_orgs: boolean; orgs: unknown[] })
+    } catch (err) {
+      setBackupValue('')
+      backupRef.current?.focus()
+      if (err instanceof ApiError) {
+        setMfaError(
+          err.code === 'MFA_TOKEN_INVALID'
+            ? 'MFA session expired. Please log in again.'
+            : err.code === 'MFA_ATTEMPTS_EXCEEDED' || err.code === 'MFA_LOCKED'
+            ? err.message
+            : 'Invalid backup code. Please try again.',
+        )
+      } else {
+        setMfaError('Something went wrong. Please try again.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-border p-8">
+      <h2 className="text-xl font-semibold text-foreground mb-2">Two-factor authentication</h2>
+      <p className="text-muted-foreground text-sm mb-6">
+        {mode === 'totp'
+          ? 'Enter the 6-digit code from your authenticator app.'
+          : 'Enter one of your 8-character backup codes.'}
+      </p>
+
+      {mfaError && (
+        <div
+          role="alert"
+          className="mb-4 rounded-md bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive"
+          data-testid="mfa-error"
+        >
+          {mfaError}
+        </div>
+      )}
+
+      {mode === 'totp' ? (
+        <div className="mb-6">
+          <Label htmlFor="totp-code">Authenticator code</Label>
+          <Input
+            id="totp-code"
+            ref={totpRef}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={6}
+            placeholder="000000"
+            className="mt-1 text-center text-2xl tracking-widest font-mono"
+            value={totpValue}
+            onChange={handleTotpChange}
+            disabled={submitting}
+            autoComplete="one-time-code"
+            data-testid="input-totp"
+          />
+          {submitting && (
+            <div className="flex justify-center mt-3">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
+        </div>
+      ) : (
+        <form onSubmit={handleBackupSubmit} noValidate data-testid="backup-code-form">
+          <div className="mb-6">
+            <Label htmlFor="backup-code">Backup code</Label>
+            <Input
+              id="backup-code"
+              ref={backupRef}
+              type="text"
+              maxLength={8}
+              placeholder="A1B2C3D4"
+              className="mt-1 text-center text-xl tracking-widest font-mono uppercase"
+              value={backupValue}
+              onChange={(e) => {
+                setBackupValue(e.target.value.toUpperCase().slice(0, 8))
+                setMfaError(null)
+              }}
+              disabled={submitting}
+              autoComplete="off"
+              data-testid="input-backup-code"
+            />
+          </div>
+          <Button type="submit" className="w-full" disabled={submitting} data-testid="backup-submit-btn">
+            {submitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Verifying…
+              </>
+            ) : (
+              'Verify backup code'
+            )}
+          </Button>
+        </form>
+      )}
+
+      <div className="mt-4 text-center">
+        {mode === 'totp' ? (
+          <button
+            type="button"
+            className="text-sm text-primary hover:underline"
+            onClick={() => { setMode('backup'); setMfaError(null); setTotpValue('') }}
+            data-testid="use-backup-code-link"
+          >
+            Use a backup code
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="text-sm text-primary hover:underline"
+            onClick={() => { setMode('totp'); setMfaError(null); setBackupValue('') }}
+            data-testid="use-totp-link"
+          >
+            Use authenticator app
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 export default function LoginPage() {
@@ -73,6 +279,8 @@ export default function LoginPage() {
   const [serverError, setServerError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  // Story 1.7: MFA challenge state
+  const [mfaToken, setMfaToken] = useState<string | null>(null)
 
   const {
     register,
@@ -92,12 +300,18 @@ export default function LoginPage() {
         remember_me: values.remember_me,
       })
 
-      // Store org list in sessionStorage for the select-org page (AC6)
-      if (result.has_multiple_orgs) {
-        sessionStorage.setItem('pendingOrgs', JSON.stringify(result.orgs))
+      // Story 1.7 AC5: MFA challenge
+      if ('mfa_required' in result && result.mfa_required) {
+        setMfaToken(result.mfa_token)
+        return
+      }
+
+      // Normal login flow — store org list for select-org page (AC6)
+      const loginResult = result as import('@/lib/api').LoginResponse
+      if (loginResult.has_multiple_orgs) {
+        sessionStorage.setItem('pendingOrgs', JSON.stringify(loginResult.orgs))
         navigate('/select-org')
       } else {
-        // Single org or no org: go to the intended destination
         sessionStorage.removeItem('pendingOrgs')
         navigate(nextUrl, { replace: true })
       }
@@ -109,6 +323,25 @@ export default function LoginPage() {
   const handleGoogleLogin = () => {
     setIsGoogleLoading(true)
     authApi.googleAuthorize()
+  }
+
+  // Show MFA challenge when password auth succeeded but MFA is required
+  if (mfaToken) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-brand mb-1">QUALISYS</h1>
+            <p className="text-muted-foreground text-sm">AI-Powered Testing Platform</p>
+          </div>
+          <MFAChallenge
+            mfaToken={mfaToken}
+            nextUrl={nextUrl}
+            onError={setServerError}
+          />
+        </div>
+      </div>
+    )
   }
 
   return (

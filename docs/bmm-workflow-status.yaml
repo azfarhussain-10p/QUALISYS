@@ -41,4 +41,4 @@ workflow_status:
   implementation-readiness: "docs/implementation-readiness-report-2026-01-22.md" # Completed 2026-01-22 - Score 8.7/10, READY WITH CONDITIONS
 
   # Phase 3: Implementation (Required)
-  sprint-planning: "docs/sprint-artifacts/sprint-status.yaml" # Completed 2026-01-22 - 6 epics, 108 stories tracked
+  sprint-planning: "docs/sprint-status.yaml" # Completed 2026-01-22 - 6 epics, 108 stories tracked

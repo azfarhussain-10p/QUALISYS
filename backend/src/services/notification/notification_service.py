@@ -355,6 +355,198 @@ async def send_member_removed_email(
         )
 
 
+async def send_password_reset_email(
+    recipient_email: str,
+    full_name: str,
+    reset_token: str,
+    correlation_id: str,
+) -> None:
+    """
+    Send branded password reset email via SendGrid/SES with retry logic.
+    Story: 1-6-password-reset-flow, AC4.
+
+    AC4: async, non-blocking, 3 retry attempts with exponential backoff (1s, 4s, 16s).
+    AC4: mobile-responsive HTML template, branded CTA button, expiry notice, security notice.
+    """
+    import asyncio
+
+    reset_url = f"{settings.frontend_url}/reset-password?token={reset_token}"
+
+    html_body = _render_template(
+        "password-reset.html",
+        app_name="QUALISYS",
+        full_name=full_name,
+        reset_url=reset_url,
+    )
+    text_body = (
+        f"Hi {full_name},\n\n"
+        f"We received a request to reset the password for your QUALISYS account.\n\n"
+        f"Reset your password:\n{reset_url}\n\n"
+        f"This link expires in 1 hour.\n\n"
+        f"If you didn't request a password reset, you can safely ignore this email.\n"
+    )
+    subject = "Reset your QUALISYS password"
+
+    # AC4: retry up to 3 attempts with exponential backoff (1s, 4s, 16s)
+    for attempt in range(1, 4):
+        try:
+            await _send_email(
+                recipient_email=recipient_email,
+                subject=subject,
+                html_body=html_body,
+                text_body=text_body,
+                correlation_id=correlation_id,
+            )
+            logger.info(
+                "Password reset email sent",
+                recipient=recipient_email,
+                attempt=attempt,
+                correlation_id=correlation_id,
+            )
+            return
+        except Exception as exc:
+            if attempt < 3:
+                backoff = 4 ** (attempt - 1)  # 1s, 4s, 16s
+                logger.warning(
+                    "Password reset email delivery failed, retrying",
+                    attempt=attempt,
+                    backoff_seconds=backoff,
+                    error=str(exc),
+                    correlation_id=correlation_id,
+                )
+                await asyncio.sleep(backoff)
+            else:
+                logger.error(
+                    "Password reset email delivery failed after 3 attempts",
+                    recipient=recipient_email,
+                    error=str(exc),
+                    correlation_id=correlation_id,
+                )
+
+
+async def send_password_reset_google_email(
+    recipient_email: str,
+    full_name: str,
+    correlation_id: str,
+) -> None:
+    """
+    Send alternative password reset email for Google-only accounts.
+    Story: 1-6-password-reset-flow, AC3.
+
+    Informs user their account uses Google Sign-In and directs them to the login page.
+    AC4: retry up to 3 attempts with exponential backoff (1s, 4s, 16s).
+    """
+    import asyncio
+
+    login_url = f"{settings.frontend_url}/login"
+
+    html_body = _render_template(
+        "password-reset-google.html",
+        app_name="QUALISYS",
+        full_name=full_name,
+        login_url=login_url,
+    )
+    text_body = (
+        f"Hi {full_name},\n\n"
+        f"We received a password reset request for your QUALISYS account. However, your account "
+        f"uses Google Sign-In and does not have a separate password.\n\n"
+        f"To access QUALISYS, use the 'Sign in with Google' button on the login page:\n{login_url}\n\n"
+        f"If you didn't request a password reset, you can safely ignore this email.\n"
+    )
+    subject = "Password reset request for your QUALISYS account"
+
+    for attempt in range(1, 4):
+        try:
+            await _send_email(
+                recipient_email=recipient_email,
+                subject=subject,
+                html_body=html_body,
+                text_body=text_body,
+                correlation_id=correlation_id,
+            )
+            logger.info(
+                "Google-account password reset email sent",
+                recipient=recipient_email,
+                attempt=attempt,
+                correlation_id=correlation_id,
+            )
+            return
+        except Exception as exc:
+            if attempt < 3:
+                backoff = 4 ** (attempt - 1)
+                logger.warning(
+                    "Google-account reset email delivery failed, retrying",
+                    attempt=attempt,
+                    backoff_seconds=backoff,
+                    error=str(exc),
+                    correlation_id=correlation_id,
+                )
+                await asyncio.sleep(backoff)
+            else:
+                logger.error(
+                    "Google-account reset email delivery failed after 3 attempts",
+                    recipient=recipient_email,
+                    error=str(exc),
+                    correlation_id=correlation_id,
+                )
+
+
+async def send_project_assignment_email(
+    recipient_email: str,
+    full_name: str,
+    added_by_name: str,
+    project_name: str,
+    project_slug: str,
+    correlation_id: str,
+) -> None:
+    """
+    Notify a user they have been added to a project. AC#5 (Story 1.10).
+    Sent asynchronously — delivery failure is logged, does not fail the API call.
+    Caller must check notification preferences before invoking.
+    """
+    project_url = f"{settings.frontend_url}/projects/{project_slug}"
+    settings_url = f"{settings.frontend_url}/settings/notifications"
+
+    html_body = _render_template(
+        "project-assignment.html",
+        app_name="QUALISYS",
+        full_name=full_name,
+        added_by_name=added_by_name,
+        project_name=project_name,
+        project_url=project_url,
+        settings_url=settings_url,
+    )
+    text_body = (
+        f"Hi {full_name},\n\n"
+        f"{added_by_name} has added you to the project '{project_name}' on QUALISYS.\n\n"
+        f"View the project:\n{project_url}\n\n"
+        f"If you did not expect this, please contact your organization admin.\n"
+    )
+    subject = f"You've been added to {project_name} on QUALISYS"
+
+    try:
+        await _send_email(
+            recipient_email=recipient_email,
+            subject=subject,
+            html_body=html_body,
+            text_body=text_body,
+            correlation_id=correlation_id,
+        )
+        logger.info(
+            "Project assignment email sent",
+            recipient=recipient_email,
+            project=project_name,
+            correlation_id=correlation_id,
+        )
+    except Exception as exc:
+        logger.error(
+            "Project assignment email delivery failed (non-fatal)",
+            recipient=recipient_email,
+            error=str(exc),
+            correlation_id=correlation_id,
+        )
+
+
 def _render_template(template_name: str, **context) -> str:
     template = _jinja_env.get_template(template_name)
     return template.render(**context)
