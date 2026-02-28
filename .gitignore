@@ -87,7 +87,7 @@ cython_debug/
 .uv/
 
 # =============================================================================
-# Node.js / Next.js (Frontend)
+# Node.js / Vite (Frontend)
 # =============================================================================
 node_modules/
 .npm
@@ -99,18 +99,8 @@ node_modules/
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.js
-
-# Next.js
-.next/
 out/
-build/
-dist/
 .vercel
-.vercel.json
-
-# Nuxt.js
-.nuxt
-.output
 
 # =============================================================================
 # IDEs and Editors
@@ -130,8 +120,14 @@ dist/
 .settings/
 *.iml
 
-# Cursor specific
-.cursor/
+# Cursor specific — ignore all except BMad rules and skills
+.cursor/*
+!.cursor/rules/
+.cursor/rules/*
+!.cursor/rules/bmad/
+!.cursor/skills/
+.cursor/skills/*
+!.cursor/skills/bmad-agent-enhancer/
 .cursorrules.local
 
 # Claude Code
@@ -178,7 +174,6 @@ lpt9
 # Kubernetes & Helm
 # =============================================================================
 charts/
-*.tgz
 Chart.lock
 
 # =============================================================================
@@ -186,7 +181,6 @@ Chart.lock
 # =============================================================================
 .dockerignore.local
 docker-compose.override.yml
-*.log
 
 # =============================================================================
 # Testing & Coverage
@@ -196,12 +190,9 @@ coverage/
 test-results/
 playwright-report/
 playwright/.cache/
-test-results/
 test-results-junit/
 *.lcov
 .coverage.*
-htmlcov/
-.pytest_cache/
 junit.xml
 test-output/
 allure-results/
@@ -261,8 +252,6 @@ lerna-debug.log*
 *.temp
 *.bak
 *.backup
-*.swp
-*.swo
 tmp/
 temp/
 .tmp/

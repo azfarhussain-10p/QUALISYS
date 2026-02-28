@@ -147,7 +147,7 @@ async def test_run_agent_step_marks_running_then_completed():
         )
 
     assert result.tokens_used == 100
-    assert result.artifact_type == "requirements_matrix"
+    assert result.artifact_type == "coverage_matrix"
 
 
 @pytest.mark.asyncio
@@ -264,7 +264,8 @@ async def test_execute_pipeline_sums_tokens_on_completion():
 
         await execute_pipeline(_RUN_ID, _SCHEMA, _PROJECT_ID, _TENANT_ID, _USER_ID)
 
-    assert completion_call.get("total_tokens") == 200  # 100 * 2 agents
+    # ba_consultant: 100 tokens; qa_consultant: 100 (primary) + 100 (BDD) = 200
+    assert completion_call.get("total_tokens") == 300
 
 
 @pytest.mark.asyncio
@@ -610,3 +611,84 @@ async def test_create_artifact_returns_artifact_id():
     # Verify the returned id is a valid UUID
     import uuid as _uuid
     _uuid.UUID(artifact_id)  # raises ValueError if invalid
+
+
+# ---------------------------------------------------------------------------
+# Tests — Story 2-10: artifact_type constants and BDD artifact generation
+# ---------------------------------------------------------------------------
+
+def test_artifact_type_constants_match_spec():
+    # Proves: all three agent modules export artifact_type values matching the tech spec.
+    import src.services.agents.ba_consultant as ba
+    import src.services.agents.qa_consultant as qa
+    import src.services.agents.automation_consultant as auto
+
+    assert ba.ARTIFACT_TYPE == "coverage_matrix"
+    assert ba.CONTENT_TYPE == "application/json"
+
+    assert qa.ARTIFACT_TYPE == "manual_checklist"
+    assert qa.CONTENT_TYPE == "text/markdown"
+
+    assert auto.ARTIFACT_TYPE == "playwright_script"
+    assert auto.CONTENT_TYPE == "text/typescript"
+
+    assert qa.BDD_ARTIFACT_TYPE == "bdd_scenario"
+    assert qa.BDD_CONTENT_TYPE == "text/plain"
+
+
+@pytest.mark.asyncio
+async def test_qa_consultant_creates_two_artifacts():
+    # Proves: _run_agent_step() for qa_consultant calls _create_artifact() twice
+    #         (once for manual_checklist, once for bdd_scenario) [AC-25].
+    mock_db = _make_mock_db()
+
+    primary_result = LLMResult(
+        content="# Manual Test Checklists\n## Login\n- [ ] check login",
+        tokens_used=80,
+        cost_usd=0.002,
+        cached=False,
+        provider="openai",
+    )
+    bdd_result = LLMResult(
+        content="Feature: Login\n  Scenario: Valid login\n    Given a user\n    When they login\n    Then they see dashboard",
+        tokens_used=60,
+        cost_usd=0.001,
+        cached=False,
+        provider="openai",
+    )
+
+    with patch(
+        "src.services.agents.qa_consultant.call_llm",
+        new_callable=AsyncMock,
+        side_effect=[primary_result, bdd_result],
+    ):
+        with patch.object(
+            orchestrator, "_create_artifact", new_callable=AsyncMock, return_value=str(uuid.uuid4())
+        ) as mock_create_artifact:
+            result = await orchestrator._run_agent_step(
+                db=mock_db,
+                schema_name=_SCHEMA,
+                step_id=_STEP_ID,
+                agent_type="qa_consultant",
+                context={"doc_text": "test", "github_summary": "", "crawl_data": ""},
+                tenant_id=_TENANT_ID,
+                user_id=_USER_ID,
+                project_id=_PROJECT_ID,
+                run_id=_RUN_ID,
+            )
+
+    assert mock_create_artifact.call_count == 2
+
+    # _create_artifact(db, schema_name, project_id, run_id, agent_type, result, user_id)
+    # result is at positional index 5 (0-based)
+    first_call_args = mock_create_artifact.call_args_list[0][0]
+    first_call_result = first_call_args[5]
+    assert first_call_result.artifact_type == "manual_checklist"
+
+    second_call_args = mock_create_artifact.call_args_list[1][0]
+    second_call_result = second_call_args[5]
+    assert second_call_result.artifact_type == "bdd_scenario"
+    assert "Scenario:" in second_call_result.content
+
+    # Combined tokens
+    assert result.tokens_used == 140  # 80 + 60

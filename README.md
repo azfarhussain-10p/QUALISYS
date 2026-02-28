@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/AI%20Agents-7%20Specialized-blueviolet?style=flat-square" alt="AI Agents">
   <img src="https://img.shields.io/badge/Agent%20Skills-21%20Custom-orange?style=flat-square" alt="Skills">
   <img src="https://img.shields.io/badge/Functional%20Requirements-147-green?style=flat-square" alt="FRs">
-  <img src="https://img.shields.io/badge/Stories-35%2F132%20Done%20(26%25)-yellowgreen?style=flat-square" alt="Stories">
+  <img src="https://img.shields.io/badge/Stories-45%2F132%20Done%20(34%25)-yellowgreen?style=flat-square" alt="Stories">
   <img src="https://img.shields.io/badge/Sprint-Epic%202%20AI%20Agent%20Platform-ff69b4?style=flat-square" alt="Current Sprint">
   <img src="https://img.shields.io/badge/Cloud-AWS%20%7C%20Azure-informational?style=flat-square" alt="Multi-Cloud">
   <img src="https://img.shields.io/badge/License-Proprietary-red?style=flat-square" alt="License">
@@ -557,7 +557,7 @@ QUALISYS serves **6 distinct personas** with role-optimized interfaces:
 |------|------|----------|--------|----------------|
 | **0** | Infrastructure Foundation | 2-3 weeks | **Complete** (22/22 stories) | Multi-cloud infra, CI/CD, monitoring, local dev |
 | **1** | Foundation & Administration | 2 weeks | **Complete** (13/13 stories done) | Auth, orgs, invitations, member management, MFA, projects, audit, export |
-| **2** | AI Agent Platform & Executive Visibility | 3-4 weeks | **Next** | 3 MVP agents, document ingestion, PM dashboards, JIRA integration |
+| **2** | AI Agent Platform & Executive Visibility | 3-4 weeks | **In Progress** (10/18 stories done) | 3 MVP agents, document ingestion, PM dashboards, JIRA integration |
 | **3** | Manual Testing & Developer Integration | 3-4 weeks | Backlog | Manual test execution, evidence capture, GitHub PR integration |
 | **4** | Automated Execution & Self-Healing | 4-5 weeks | Backlog | Playwright execution, self-healing engine, QA dashboards |
 | **5** | Complete Dashboards & Ecosystem | 3-4 weeks | Backlog | TestRail/Slack integrations, advanced reporting, SLA monitoring |
@@ -620,13 +620,43 @@ gantt
 | 1-13 | Data Export & Org Deletion (async ZIP export, TOTP-gated deletion, presigned URLs) | **Done** |
 
 **Backend Architecture Implemented** (Python/FastAPI):
-- 10+ API router modules: `auth`, `mfa`, `orgs`, `export`, `invitations`, `members`, `projects`, `users`, `admin`
-- 12+ service layers: `AuthService`, `TOTPService`, `BackupCodeService`, `PasswordResetService`, `ProfileService`, `ProjectService`, `ProjectMemberService`, `AuditService`, `AnalyticsService`, `ExportService`, `OrgDeletionService`, `NotificationPreferencesService`
+- 14+ API router modules: `auth`, `mfa`, `orgs`, `export`, `invitations`, `members`, `projects`, `users`, `admin`, `agent_runs`, `artifacts`, `crawls`, `documents`, `events`, `github`
+- 20+ service layers: `AuthService`, `TOTPService`, `BackupCodeService`, `PasswordResetService`, `ProfileService`, `ProjectService`, `ProjectMemberService`, `AuditService`, `AnalyticsService`, `ExportService`, `OrgDeletionService`, `NotificationPreferencesService`, `AgentRunService`, `ArtifactService`, `DOMCrawlerService`, `DocumentService`, `EmbeddingService`, `GithubConnectorService`, `SourceCodeAnalyzerService`, `SSEManager`, `TokenBudgetService`
+- 4 reusable integration patterns: LLM, pgvector, SSE, Playwright (`backend/src/patterns/`)
 - 3 middleware components: RBAC (`require_role`, `require_project_role`), atomic Lua rate limiting, tenant context (ContextVar)
-- 12 Alembic migrations applied (001–012: users → tenants → invitations → password resets → MFA → profile → projects → members → archive index → audit logs → export/deletion audit)
-- 6 email templates: verification, invitation, role-changed, member-removed, password-reset, project-assignment
-- Comprehensive test suites: unit, integration, and security tests (200+ tests passing)
+- 15 Alembic migrations applied (001–015: users → tenants → invitations → password resets → MFA → profile → projects → members → archive index → audit logs → export/deletion audit → pgvector/documents → github/crawls → agent runs/artifacts)
+- 7 email templates: verification, invitation, role-changed, member-removed, password-reset, password-reset-google, project-assignment
+- Comprehensive test suites: unit, integration, and security tests (350+ tests passing across Epics 1-2)
 - **Retrospective:** [Epic 1 Retro 2026-02-26](./docs/stories/epic-1/epic-1-retro-2026-02-26.md) — 8 action items, 4 pattern spikes required before Epic 2
+
+**Epic 2 — AI Agent Platform & Executive Visibility: IN PROGRESS** (10/18 stories done)
+
+| Story | Name | Status |
+|-------|------|--------|
+| 2-1 | Document Upload & Parsing (PDF/DOCX/TXT, multi-format, vector-ready chunks) | **Done** |
+| 2-2 | Vector Embeddings Generation (pgvector, semantic search, context retrieval) | **Done** |
+| 2-3 | GitHub Repository Connection (OAuth App, encrypted credentials, repo listing) | **Done** |
+| 2-4 | Source Code Analysis (file-tree traversal, language detection, embedding storage) | **Done** |
+| 2-5 | Application DOM Crawling (Playwright-based, credential vault, page snapshots) | **Done** |
+| 2-6 | AI Agent Selection UI (project agents tab, run creation, agent selection) | **Done** |
+| 2-7 | Agent Pipeline Orchestration (3-agent pipeline, retry logic, budget gates) | **Done** |
+| 2-8 | Agent Execution Engine (LLM calls, context hashing, token tracking) | **Done** |
+| 2-9 | Real-Time Agent Progress Tracking (SSE streaming, live status, error handling) | **Done** |
+| 2-10 | Test Artifact Storage & Viewer (artifact CRUD, versioning, 4-tab viewer) | **Done** |
+| 2-11 | Artifact Editing & Versioning | Backlog |
+| 2-12 | PM/CSM Dashboard — Project Health Overview | Backlog |
+| 2-13 | PM Dashboard — Test Coverage Metrics | Backlog |
+| 2-14 | PM Dashboard — Execution Velocity & Defect Leakage Placeholders | Backlog |
+| 2-15 | JIRA Integration — Connection Setup | Backlog |
+| 2-16 | JIRA Integration — Import Issues | Backlog |
+| 2-17 | JIRA Integration — Bi-Directional Traceability | Backlog |
+| 2-18 | Token Budget & Cost Monitoring | Backlog |
+
+**Epic 2 Backend** (added on top of Epic 1):
+- 4 pattern spikes completed before Epic 2: LLM, pgvector, SSE, Playwright (`backend/src/patterns/`)
+- 3 AI agent services: BAConsultant, QAConsultant, AutomationConsultant + Agent Orchestrator
+- 15 Alembic migrations (001–015, adding pgvector/documents, github/crawls, agent runs/artifacts)
+- 350+ tests passing (unit + integration across both epics)
 
 ### By The Numbers
 
@@ -634,7 +664,7 @@ gantt
 |--------|-------|
 | **Total Epics** | 8 (Epic 0-7) |
 | **Total Stories** | 132 (100 MVP + 32 Post-MVP) |
-| **Stories Completed** | 35 of 132 (~26%) — Epic 0 complete (22), Epic 1 complete (13) |
+| **Stories Completed** | 45 of 132 (~34%) — Epic 0 (22), Epic 1 (13), Epic 2 partial (10/18) |
 | **Functional Requirements** | 147 (110 MVP + 9 Custom Agents + 28 Agent Skills) |
 | **AI Agents** | 7 (3 MVP + 4 Post-MVP) |
 | **Agent Skills** | 21 (across all 7 agents) |
@@ -712,14 +742,25 @@ For the complete setup guide, see [Local Development Guide](./docs/local-develop
 
 ```
 QUALISYS/
-├── backend/                     # Python FastAPI backend (Epic 1 complete, Epic 2 next)
+├── backend/                     # Python FastAPI backend (Epics 0-1 complete, Epic 2 in progress — 10/18 done)
 │   ├── src/                    # Application source code
-│   │   ├── api/v1/             # REST API routers (auth, orgs, invitations, members)
+│   │   ├── api/v1/             # REST API routers (auth, mfa, orgs, export, invitations, members,
+│   │   │                       #   projects, users, admin, agent_runs, artifacts, crawls,
+│   │   │                       #   documents, events, github)
 │   │   ├── middleware/         # RBAC, rate limiting, tenant context (ContextVar)
-│   │   ├── models/             # SQLAlchemy models (User, Tenant, Invitation)
-│   │   ├── services/           # Business logic (auth, invitation, notification, token, user mgmt)
-│   │   └── templates/email/    # Email templates (verification, invitation, role-changed)
-│   ├── alembic/                # Database migrations (4 migrations applied)
+│   │   ├── models/             # SQLAlchemy models (User, Tenant, Invitation, PasswordReset,
+│   │   │                       #   UserBackupCode, UserNotificationPreferences)
+│   │   ├── patterns/           # Reusable integration patterns (LLM, pgvector, SSE, Playwright)
+│   │   ├── services/           # Business logic (agents/, auth, invitation, notification,
+│   │   │                       #   artifact, agent_run, audit, document, dom_crawler,
+│   │   │                       #   embedding, export, github_connector, password_reset,
+│   │   │                       #   profile, project, project_member, source_code_analyzer,
+│   │   │                       #   sse_manager, tenant_provisioning, token, token_budget,
+│   │   │                       #   user_management)
+│   │   └── templates/email/    # Email templates (7: verification, invitation, role-changed,
+│   │                           #   member-removed, password-reset, password-reset-google,
+│   │                           #   project-assignment)
+│   ├── alembic/                # Database migrations (15 migrations applied: 001–015)
 │   └── tests/                  # Unit, integration, and security test suites
 ├── web/                         # React frontend (Vite + TypeScript + Tailwind + shadcn/ui)
 ├── infrastructure/              # Infrastructure as Code
@@ -727,7 +768,7 @@ QUALISYS/
 │   └── kubernetes/             # K8s manifests (shared/, aws/, azure/)
 ├── docs/                        # Comprehensive project documentation
 │   ├── planning/               # PRD (147 FRs), product brief, UX design, agent specs
-│   ├── architecture/           # System architecture (3,600+ lines)
+│   ├── architecture/           # System architecture (3,900+ lines)
 │   ├── epics/                  # 8 epics with 132 stories
 │   ├── tech-specs/             # Per-epic technical specifications + validation reports
 │   ├── stories/epic-{n}/       # Story files organised by epic (epic-0, epic-1, epic-2...)
@@ -759,7 +800,7 @@ QUALISYS/
 
 | Document | Description |
 |----------|-------------|
-| [System Architecture](./docs/architecture/architecture.md) | Technical design, risk analysis, ADRs (3,600+ lines) |
+| [System Architecture](./docs/architecture/architecture.md) | Technical design, risk analysis, ADRs (3,900+ lines) |
 | [Epic Overview](./docs/epics/epics.md) | 8 epics, 132 stories, complete breakdown |
 | [Sprint Status](./docs/sprint-status.yaml) | Real-time implementation tracking |
 | [Epic 0 Tech Spec](./docs/tech-specs/tech-spec-epic-0.md) | Infrastructure foundation specification |

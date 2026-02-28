@@ -1,6 +1,6 @@
 # Story 2.10: Test Artifact Storage & Viewer
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -241,4 +241,213 @@ claude-sonnet-4-6
 
 ### Completion Notes List
 
+- Task 1: artifact_type constants updated in all 3 agent files (AC-22, AC-23, AC-24)
+- Task 2: QAConsultant `run_bdd()` + `BDD_SYSTEM_PROMPT` added; orchestrator calls it after primary artifact (AC-25)
+- Task 3: ArtifactService with `list_artifacts`, `get_artifact`, `list_versions`, `get_version` — follows document_service.py SQL pattern
+- Task 4: artifacts API router with 4 GET endpoints, Pydantic schemas, registered in main.py
+- Task 5: `artifactApi` namespace + TypeScript interfaces added to api.ts
+- Task 6: ArtifactsTab (4-tab viewer with expand/collapse, coverage matrix table, empty states) + ArtifactsPage wrapper at `/projects/:projectId/artifacts` route
+- Task 7: 13 tests (7 unit artifact_service + 2 orchestrator + 4 integration) — all passing
+- Pre-existing orchestrator tests updated for new constants and BDD token accounting — 17/17 passing
+
 ### File List
+
+**Modified:**
+- `backend/src/services/agents/ba_consultant.py` — ARTIFACT_TYPE → `"coverage_matrix"`, CONTENT_TYPE → `"application/json"`
+- `backend/src/services/agents/qa_consultant.py` — ARTIFACT_TYPE → `"manual_checklist"`, CONTENT_TYPE → `"text/markdown"`, added BDD constants + `run_bdd()` + `BDD_SYSTEM_PROMPT`
+- `backend/src/services/agents/automation_consultant.py` — ARTIFACT_TYPE → `"playwright_script"`, CONTENT_TYPE → `"text/typescript"`
+- `backend/src/services/agents/orchestrator.py` — Added BDD secondary artifact creation in `_run_agent_step()` for `qa_consultant`; combined token accounting
+- `backend/src/main.py` — Registered `artifacts_router`
+- `web/src/lib/api.ts` — Added `ArtifactSummary`, `ArtifactDetail`, `ArtifactVersionSummary` interfaces + `artifactApi` namespace
+- `web/src/App.tsx` — Added `/projects/:projectId/artifacts` route
+- `backend/tests/unit/services/test_orchestrator.py` — Updated 2 pre-existing tests for new constants + token accounting; added 2 new tests
+- `docs/sprint-status.yaml` — `2-10` → `review`
+
+**Created:**
+- `backend/src/services/artifact_service.py` — ArtifactService (list, get, versions)
+- `backend/src/api/v1/artifacts/__init__.py` — Package init
+- `backend/src/api/v1/artifacts/schemas.py` — Pydantic response models
+- `backend/src/api/v1/artifacts/router.py` — 4 GET endpoints with RBAC
+- `web/src/pages/projects/artifacts/ArtifactsTab.tsx` — 4-tab artifact viewer (AC-26b/c/d)
+- `web/src/pages/projects/artifacts/ArtifactsPage.tsx` — Standalone page wrapper for route
+- `backend/tests/unit/services/test_artifact_service.py` — 7 unit tests
+- `backend/tests/integration/test_artifacts.py` — 4 integration tests
+
+## Senior Developer Review (AI)
+
+### Reviewer
+AI Senior Developer (Code Review Workflow)
+
+### Date
+2026-03-01
+
+### Outcome
+**CHANGES REQUESTED** — 1 MEDIUM finding requires a code change before approval. All acceptance criteria are structurally implemented and verified with evidence; the MEDIUM finding addresses a production data gap that the test mocks currently mask.
+
+### Summary
+
+Story 2-10 delivers a well-structured implementation of the Test Artifact Storage & Viewer. All 7 acceptance criteria are addressed across 17 modified/created files with 13 new tests and 2 updated tests. The backend follows established SQL/RBAC patterns, the frontend provides a clean tabbed UI with proper empty states and content rendering, and the BDD secondary artifact pattern is cleanly integrated into the orchestrator. One MEDIUM finding was identified: the `artifacts.metadata` JSONB column is never populated by the orchestrator's `_create_artifact()`, meaning `metadata.tokens_used` would always be `NULL` in production despite AC-26 requiring it in responses and the UI referencing it.
+
+### Key Findings
+
+#### HIGH Severity
+None.
+
+#### MEDIUM Severity
+
+**M-1: `artifacts.metadata` column never populated — tokens_used NULL in production**
+The orchestrator's `_create_artifact()` INSERT (`orchestrator.py:337-355`) does not include the `metadata` column despite the migration 015 defining it as `JSONB` (`015_create_agent_runs_and_artifacts.py:135`). The `artifact_service.py` SELECT includes `metadata` (line 29), the Pydantic `ArtifactSummary` exposes it (line 20), and the frontend `ArtifactCard` reads `artifact.metadata?.tokens_used` (line 193). In production, this field would always be `NULL`. The integration tests mask this because they mock rows with `"metadata": {"tokens_used": 100}`. Fix: add `metadata` to the `_create_artifact()` INSERT with `json.dumps({"tokens_used": result.tokens_used, "cost_usd": result.cost_usd})`.
+
+#### LOW Severity
+
+**L-1: Stale docstring in `ba_consultant.py`**
+Line 6 still references `Artifact: requirements_matrix (JSON content_type)` but the constant was changed to `"coverage_matrix"`. Cosmetic but misleading for future developers.
+
+**L-2: Stale docstring in `automation_consultant.py`**
+Line 6 still references `Artifact: playwright_scripts (TypeScript content_type)` (plural) but the constant is now `"playwright_script"` (singular).
+
+**L-3: No tests for version endpoints**
+`test_artifacts.py` covers list, list-with-filter, detail, and 404 — but no tests for `GET /artifacts/{id}/versions` or `GET /artifacts/{id}/versions/{ver}`. These endpoints are implemented and have unit-level coverage in `test_artifact_service.py` but lack integration-level HTTP tests.
+
+**L-4: BDD `run_bdd()` not covered by retry loop**
+The primary `agent.run()` call benefits from the 3x retry with 5s/10s/20s backoff (`orchestrator.py:209-240`), but the `run_bdd()` call (`orchestrator.py:281`) is outside the retry block. If the BDD LLM call fails transiently, the entire step fails without retry. Acceptable for MVP (documented in dev notes as "two LLM calls, two artifact rows per QA step") but should be addressed for production resilience.
+
+**L-5: ArtifactCard uses manual fetch state instead of React Query**
+`ArtifactCard` manages detail loading via `useState` + manual `artifactApi.get()` (`ArtifactsTab.tsx:166-191`) instead of `useQuery`, missing React Query's caching, deduplication, and automatic refetch benefits. Functional but inconsistent with the pattern used for the artifact list.
+
+### Acceptance Criteria Coverage
+
+| AC# | Description | Status | Evidence |
+|-----|-------------|--------|----------|
+| AC-22 | BA Consultant stores `coverage_matrix` artifact | IMPLEMENTED | `ba_consultant.py:16-17` — `ARTIFACT_TYPE = "coverage_matrix"`, `CONTENT_TYPE = "application/json"` |
+| AC-23 | QA Consultant stores `manual_checklist` artifact | IMPLEMENTED | `qa_consultant.py:17-18` — `ARTIFACT_TYPE = "manual_checklist"`, `CONTENT_TYPE = "text/markdown"` |
+| AC-24 | Automation Consultant stores `playwright_script` artifact | IMPLEMENTED | `automation_consultant.py:16-17` — `ARTIFACT_TYPE = "playwright_script"`, `CONTENT_TYPE = "text/typescript"` |
+| AC-25 | QA Consultant generates BDD scenario; orchestrator creates 2 artifacts | IMPLEMENTED | `qa_consultant.py:21-23,48-70,104-121` — BDD constants + prompt + `run_bdd()`; `orchestrator.py:280-294` — dual artifact creation with token accumulation |
+| AC-26 | GET endpoints with RBAC + ArtifactService | IMPLEMENTED | `router.py:26-107` — 4 endpoints with `require_project_role`; `artifact_service.py:18-178` — 4 service methods; `main.py:153-154` — router registered |
+| AC-26b | 4-tab viewer page | IMPLEMENTED | `ArtifactsTab.tsx:26-55` — tab definitions; `ArtifactsTab.tsx:280-299` — tab UI; `ArtifactsTab.tsx:196-249` — ArtifactCard; `App.tsx:67` — route `/projects/:projectId/artifacts` |
+| AC-26c | Empty states per tab | IMPLEMENTED | `ArtifactsTab.tsx:31-53` — unique `emptyMessage` per tab; `ArtifactsTab.tsx:318-329` — empty state UI with icon |
+| AC-26d | Content format: JSON→table, others→pre | IMPLEMENTED | `ArtifactsTab.tsx:71-126` — `CoverageMatrixTable` (JSON parse + HTML table with status badges); `ArtifactsTab.tsx:241-244` — `<pre className="font-mono">` for others |
+
+**Summary: 8 of 8 acceptance criteria fully implemented** (M-1 is a data-population gap, not a missing AC implementation)
+
+### Task Completion Validation
+
+| Task | Marked As | Verified As | Evidence |
+|------|-----------|-------------|---------|
+| 1.1 BA constant change | Unmarked | VERIFIED COMPLETE | `ba_consultant.py:16-17` |
+| 1.2 QA constant change | Unmarked | VERIFIED COMPLETE | `qa_consultant.py:17-18` |
+| 1.3 Automation constant change | Unmarked | VERIFIED COMPLETE | `automation_consultant.py:16-17` |
+| 2.1 BDD constants | Unmarked | VERIFIED COMPLETE | `qa_consultant.py:21-23` |
+| 2.2 BDD prompt + run_bdd() | Unmarked | VERIFIED COMPLETE | `qa_consultant.py:48-70,104-121` |
+| 2.3 Orchestrator BDD integration | Unmarked | VERIFIED COMPLETE | `orchestrator.py:280-294` |
+| 2.4 BDD artifact constants used | Unmarked | VERIFIED COMPLETE | `orchestrator.py:286-289` — uses `_qa.BDD_ARTIFACT_TYPE`, `_qa.BDD_CONTENT_TYPE`, `_qa.BDD_TITLE` |
+| 3.1 ArtifactService | Unmarked | VERIFIED COMPLETE | `artifact_service.py:18-178` — 4 methods, singleton instantiated |
+| 4.1 artifacts __init__.py | Unmarked | VERIFIED COMPLETE | `backend/src/api/v1/artifacts/__init__.py` exists |
+| 4.2 Pydantic schemas | Unmarked | VERIFIED COMPLETE | `schemas.py:12-39` — 3 models |
+| 4.3 Router endpoints | Unmarked | VERIFIED COMPLETE | `router.py:26-107` — 4 GET endpoints |
+| 4.4 main.py registration | Unmarked | VERIFIED COMPLETE | `main.py:153-154` |
+| 5.1 TypeScript interfaces | Unmarked | VERIFIED COMPLETE | `api.ts:998-1020` |
+| 5.2 artifactApi namespace | Unmarked | VERIFIED COMPLETE | `api.ts:1022-1047` |
+| 6.1 ArtifactsTab component | Unmarked | VERIFIED COMPLETE | `ArtifactsTab.tsx:1-346` |
+| 6.2 Route registration | Unmarked | VERIFIED COMPLETE | `ArtifactsPage.tsx` + `App.tsx:67` |
+| 7.1 Unit tests for ArtifactService | Unmarked | VERIFIED COMPLETE | `test_artifact_service.py` — 7 tests |
+| 7.2 Orchestrator BDD test | Unmarked | VERIFIED COMPLETE | `test_orchestrator.py:640-694` |
+| 7.3 Constants test | Unmarked | VERIFIED COMPLETE | `test_orchestrator.py:620-636` |
+| 7.4 Integration tests | Unmarked | VERIFIED COMPLETE | `test_artifacts.py` — 4 tests |
+| 7.5 Sprint status update | Unmarked | VERIFIED COMPLETE | `sprint-status.yaml:152` — set to `review` (note: task text incorrectly says `drafted`; `review` is correct post-implementation) |
+
+**Summary: 21 of 21 tasks verified complete, 0 questionable, 0 falsely marked**
+
+### Test Coverage and Gaps
+
+**Tests present:**
+- 7 unit tests for ArtifactService (list, filter, detail, 404, versions, version 404)
+- 2 orchestrator tests (constants validation, BDD dual-artifact pattern)
+- 4 integration tests (empty list, filtered list, detail with content, 404)
+- 2 pre-existing orchestrator tests updated (constant values, token totals)
+- Total: 13 new + 2 updated = 15 test touch points
+
+**Gaps:**
+- No integration tests for version endpoints (L-3)
+- Integration tests only exercise `owner` role — no coverage of `admin` or `qa-automation` roles
+- Integration test for `metadata.tokens_used` uses mocked data, masking the production NULL (M-1)
+
+### Architectural Alignment
+
+- SQL pattern: Follows `document_service.py` exactly (`text()` + `:params`, f-string for schema name only) ✅
+- RBAC pattern: Follows `agent_runs/router.py` (`require_project_role`) ✅
+- Multi-tenancy: Uses `current_tenant_slug` ContextVar + `slug_to_schema_name` ✅
+- Frontend pattern: Uses React Query, Axios client, tab UI consistent with existing pages ✅
+- BDD secondary artifact: Follows the dev notes pattern — clean integration without modifying orchestrator signature ✅
+
+### Security Notes
+
+- **RBAC**: All 4 endpoints enforce `require_project_role("owner", "admin", "qa-automation")` ✅
+- **SQL injection**: All queries use `text()` with named `:params`. Schema name only in f-string (validated upstream). ✅
+- **IDOR protection**: `list_artifacts` filters by `project_id`. `get_artifact` checks both `aid` AND `pid`. `list_versions` does ownership check before returning versions. `get_version` joins with project_id filter. ✅
+- **No secrets exposed**: No tokens, keys, or credentials in code or responses. ✅
+
+### Best-Practices and References
+
+- [FastAPI Query Parameters](https://fastapi.tiangolo.com/tutorial/query-params/) — `artifact_type` filter uses `Query(None)` correctly
+- [React Query](https://tanstack.com/query/latest/docs/react/overview) — list fetch uses `useQuery` with proper `queryKey` array for cache invalidation on tab switch
+- [Pydantic V2 model inheritance](https://docs.pydantic.dev/latest/concepts/models/#model-inheritance) — `ArtifactDetail(ArtifactSummary)` extends cleanly
+
+### Action Items
+
+**Code Changes Required:**
+- [x] [Med] Populate `artifacts.metadata` JSONB column in `_create_artifact()` with `{"tokens_used": result.tokens_used, "cost_usd": result.cost_usd}` so `metadata.tokens_used` is available in production responses [file: `backend/src/services/agents/orchestrator.py:337-359`] — **FIXED**: added `metadata` to INSERT with `json.dumps()`
+
+**Advisory Notes (all resolved):**
+- [x] L-1: Updated stale docstring in `ba_consultant.py:6` — `requirements_matrix` → `coverage_matrix`
+- [x] L-2: Updated stale docstring in `automation_consultant.py:6` — `playwright_scripts` → `playwright_script`
+- [x] L-3: Added 3 integration tests for version endpoints (`test_list_versions_returns_ordered`, `test_get_specific_version_returns_content`, `test_get_version_404_unknown`) — 7/7 integration tests passing
+- [x] L-4: Wrapped BDD `run_bdd()` in same 3x retry loop with 5s/10s/20s backoff in `orchestrator.py` — `BudgetExceededError` still non-retryable
+- [x] L-5: Migrated `ArtifactCard` detail fetch from manual `useState` to `useQuery` with `enabled: expanded` and 5-min `staleTime` for caching
+- Note: Add integration test coverage for `admin` and `qa-automation` roles (deferred — not a code defect)
+
+## Senior Developer Review — Pass 2 (AI)
+
+### Reviewer
+AI Senior Developer (Code Review Workflow)
+
+### Date
+2026-03-01
+
+### Outcome
+**APPROVE** — All 6 Pass 1 findings verified resolved. No new issues introduced. 31/31 tests passing.
+
+### Pass 1 Finding Verification
+
+| Finding | Status | Verification Evidence |
+|---------|--------|-----------------------|
+| M-1: `artifacts.metadata` never populated | **RESOLVED** | `orchestrator.py:364-367` — `json.dumps({"tokens_used": result.tokens_used, "cost_usd": result.cost_usd})` added. INSERT now includes `metadata` column (line 373) and `:metadata` param (line 384). Production artifacts will have `metadata.tokens_used` and `metadata.cost_usd`. |
+| L-1: Stale docstring in `ba_consultant.py` | **RESOLVED** | `ba_consultant.py:6` — now reads `Artifact: coverage_matrix (application/json content_type).` |
+| L-2: Stale docstring in `automation_consultant.py` | **RESOLVED** | `automation_consultant.py:6` — now reads `Artifact: playwright_script (text/typescript content_type).` |
+| L-3: No integration tests for version endpoints | **RESOLVED** | `test_artifacts.py:280-379` — 3 new tests added: `test_list_versions_returns_ordered` (asserts version ordering), `test_get_specific_version_returns_content` (asserts content + content_type), `test_get_version_404_unknown` (asserts VERSION_NOT_FOUND). Integration test count: 4 → 7. |
+| L-4: BDD `run_bdd()` not in retry loop | **RESOLVED** | `orchestrator.py:281-307` — Full 3x retry loop with 5s/10s/20s backoff wrapping `agent.run_bdd()`. `BudgetExceededError` immediately re-raised (non-retryable). On exhaustion, raises `RuntimeError` with descriptive message. Matches primary `agent.run()` retry pattern exactly. |
+| L-5: ArtifactCard manual fetch state | **RESOLVED** | `ArtifactsTab.tsx:168-177` — Replaced `useState`/manual fetch with `useQuery({ queryKey: ['artifact-detail', projectId, artifact.id], enabled: expanded, staleTime: 5 * 60 * 1000 })`. Toggle handler simplified to `setExpanded((prev) => !prev)`. Consistent with list-level `useQuery` pattern. |
+
+### New Code Quality Check
+
+No new issues introduced by the fixes:
+- M-1 fix: `json.dumps` serialization is correct for JSONB column insertion via SQLAlchemy `text()` with `:params`. The metadata dict structure matches what the frontend reads (`artifact.metadata?.tokens_used`).
+- L-4 fix: BDD retry loop correctly scopes `bdd_last_error` and `bdd_result_llm` variables within the `if agent_type == "qa_consultant"` block. No variable shadowing with the outer retry loop.
+- L-5 fix: `useQuery` with `enabled: expanded` correctly defers the fetch until the card is expanded. The `staleTime` prevents re-fetches within 5 minutes for already-loaded cards. The `isError` boolean from `useQuery` replaces the previous `loadError` string state cleanly.
+
+### Test Results
+
+- **17/17** orchestrator unit tests passing (includes `test_qa_consultant_creates_two_artifacts` verifying BDD path with retry)
+- **7/7** artifact service unit tests passing
+- **7/7** artifact integration tests passing (includes 3 new version endpoint tests)
+- **Total: 31/31 tests passing**
+
+## Change Log
+
+| Date | Change | By |
+|------|--------|----|
+| 2026-03-01 | Story created | SM Agent |
+| 2026-03-01 | Implementation complete — all 7 tasks, 13 new tests | DEV Agent |
+| 2026-03-01 | Senior Developer Review Pass 1 — CHANGES REQUESTED (1 MEDIUM, 5 LOW) | AI Code Review |
+| 2026-03-01 | All review findings resolved (M-1 + L-1 through L-5). 31/31 tests passing (17 orchestrator + 7 artifact unit + 7 integration). Re-submitted for review. | DEV Agent |
+| 2026-03-01 | Senior Developer Review Pass 2 — APPROVED. All 6 findings verified resolved, 0 new issues. | AI Code Review |

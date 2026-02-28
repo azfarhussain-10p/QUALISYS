@@ -25,20 +25,20 @@ workflow_path: ".bmad/bmm/workflows/workflow-status/paths/enterprise-greenfield.
 workflow_status:
   # Phase 0: Discovery (Required for Enterprise)
   brainstorm-project: "skipped"
-  research: "docs/research-competitive-2025-12-01.md"
-  product-brief: "docs/product-brief-QUALISYS-2025-12-01.md"
+  research: "docs/research/research-competitive-2025-12-01.md"
+  product-brief: "docs/planning/product-brief-QUALISYS-2025-12-01.md"
 
   # Phase 1: Planning (Required)
-  prd: "docs/prd.md" # Updated 2025-12-02 - Complete rewrite aligned with README and Technical Doc
-  validate-prd: "docs/validation-report-prd-20251211.md"
-  create-design: "docs/ux-design-specification.md" # Completed 2025-12-02 - 6 flows, design system, components
+  prd: "docs/planning/prd.md" # Updated 2025-12-02 - Complete rewrite aligned with README and Technical Doc
+  validate-prd: "docs/reports/validation-report-prd-20251211.md"
+  create-design: "docs/planning/ux-design-specification.md" # Completed 2025-12-02 - 6 flows, design system, components
 
   # Phase 2: Solutioning (Required)
-  create-architecture: "docs/architecture.md" # Completed 2025-12-10 - Comprehensive 3600+ line architecture with advanced elicitation
-  test-design: "docs/test-design-system.md"
-  validate-architecture: "docs/validation-report-architecture-20251211.md"
-  create-epics-and-stories: "docs/epics.md"
-  implementation-readiness: "docs/implementation-readiness-report-2026-01-22.md" # Completed 2026-01-22 - Score 8.7/10, READY WITH CONDITIONS
+  create-architecture: "docs/architecture/architecture.md" # Completed 2025-12-10 - Comprehensive 3900+ line architecture with advanced elicitation
+  test-design: "docs/planning/test-design-system.md"
+  validate-architecture: "docs/reports/validation-report-architecture-20251211.md"
+  create-epics-and-stories: "docs/epics/epics.md"
+  implementation-readiness: "docs/reports/implementation-readiness-report-2026-01-22.md" # Completed 2026-01-22 - Score 8.7/10, READY WITH CONDITIONS
 
   # Phase 3: Implementation (Required)
   sprint-planning: "docs/sprint-status.yaml" # Completed 2026-01-22 - 6 epics, 108 stories tracked

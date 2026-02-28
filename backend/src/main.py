@@ -149,6 +149,10 @@ app.include_router(agent_runs_router)
 from src.api.v1.events.router import router as events_router  # noqa: E402
 app.include_router(events_router)
 
+# Story 2.10 — Test artifact storage & viewer
+from src.api.v1.artifacts.router import router as artifacts_router  # noqa: E402
+app.include_router(artifacts_router)
+
 # ---------------------------------------------------------------------------
 # Startup / Shutdown
 # ---------------------------------------------------------------------------

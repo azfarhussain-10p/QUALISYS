@@ -1,9 +1,10 @@
 """
 QUALISYS — QA Consultant Agent
-Story: 2-7-agent-pipeline-orchestration
+Story: 2-7-agent-pipeline-orchestration, 2-10-test-artifact-storage-viewer
 
 AC-17f: Builds system prompt + context, calls call_llm(), returns AgentResult.
-Artifact: test_checklists (Markdown content_type).
+AC-25:  run_bdd() — secondary LLM call producing BDD/Gherkin scenario artifact.
+Artifact: manual_checklist (text/markdown), bdd_scenario (text/plain).
 """
 
 from __future__ import annotations
@@ -13,9 +14,13 @@ from typing import Optional
 from src.patterns.llm_pattern import LLMResult, call_llm
 
 # AC-17g: artifact metadata
-ARTIFACT_TYPE = "test_checklists"
-CONTENT_TYPE  = "markdown"
+ARTIFACT_TYPE = "manual_checklist"
+CONTENT_TYPE  = "text/markdown"
 TITLE         = "Manual Test Checklists"
+
+BDD_ARTIFACT_TYPE = "bdd_scenario"
+BDD_CONTENT_TYPE  = "text/plain"
+BDD_TITLE         = "BDD/Gherkin Test Scenarios"
 
 _DAILY_BUDGET = 100_000
 
@@ -40,10 +45,36 @@ Respond ONLY with Markdown — no JSON, no preamble.
 """
 
 
+BDD_SYSTEM_PROMPT = """\
+You are a Senior QA Engineer specialising in Behaviour-Driven Development (BDD).
+Using the requirements, coverage gaps, and project artefacts provided,
+produce BDD test scenarios in standard Gherkin syntax.
+
+Structure your output as follows:
+  Feature: <Feature Name>
+
+    Scenario: <Scenario Title>
+      Given <precondition>
+      When <action>
+      Then <expected outcome>
+
+    Scenario: <Another Scenario>
+      Given <precondition>
+      And <additional precondition>
+      When <action>
+      Then <expected outcome>
+      And <additional assertion>
+
+Cover happy paths, edge cases, and error scenarios. Group by Feature.
+Respond ONLY with plain-text Gherkin — no Markdown fences, no JSON, no preamble.
+"""
+
+
 class QAConsultantAgent:
     """
     QA Consultant — produces manual test checklists and BDD scenarios.
     AC-17f: async run(context, tenant_id) -> LLMResult via call_llm().
+    AC-25:  async run_bdd(context, tenant_id) -> LLMResult (Gherkin).
     """
 
     async def run(
@@ -67,6 +98,25 @@ class QAConsultantAgent:
             daily_budget=_DAILY_BUDGET,
             agent_type="qa_consultant",
             system_prompt=SYSTEM_PROMPT,
+            context_hash=context_hash,
+        )
+
+    async def run_bdd(
+        self, context: dict, tenant_id: str, *, context_hash: Optional[str] = None
+    ) -> LLMResult:
+        """
+        AC-25: Secondary LLM call producing BDD/Gherkin scenarios.
+
+        Uses a separate agent_type ("qa_consultant_bdd") for cache key isolation
+        so the BDD result is never confused with the primary manual_checklist result.
+        """
+        prompt = _build_prompt(context)
+        return await call_llm(
+            prompt=prompt,
+            tenant_id=tenant_id,
+            daily_budget=_DAILY_BUDGET,
+            agent_type="qa_consultant_bdd",
+            system_prompt=BDD_SYSTEM_PROMPT,
             context_hash=context_hash,
         )
 

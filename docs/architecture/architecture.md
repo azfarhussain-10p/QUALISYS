@@ -1836,179 +1836,182 @@ This section evaluates critical technology choices using weighted criteria for o
 **Monorepo Strategy**: Single repository with clear service boundaries for simplified deployment and shared type safety.
 
 ```
-qualisys/
-├── frontend/                        # Vite + React 18 application
+QUALISYS/
+├── web/                             # Vite + React 18 application
 │   ├── src/
-│   │   ├── features/                # Feature-based organization
-│   │   │   ├── auth/                # Login, OAuth, SAML
-│   │   │   ├── test-management/     # Test suite creation, execution
-│   │   │   ├── self-healing/        # Healing dashboard, approval UI
-│   │   │   ├── ai-agents/           # Agent interaction UI (4 agents)
-│   │   │   ├── integrations/        # JIRA + GitHub setup
-│   │   │   ├── analytics/           # Dashboards, reports
-│   │   │   └── admin/               # Tenant, user, billing management
+│   │   ├── pages/                   # Route-based page organization
+│   │   │   ├── admin/               # Admin dashboard, audit logs
+│   │   │   ├── auth/                # Forgot/reset password flows
+│   │   │   ├── login/               # Login page
+│   │   │   ├── signup/              # Signup page
+│   │   │   ├── verify-email/        # Email verification
+│   │   │   ├── create-org/          # Organization creation
+│   │   │   ├── select-org/          # Organization selection
+│   │   │   ├── invite/accept/       # Invitation acceptance
+│   │   │   ├── projects/            # Project pages
+│   │   │   │   ├── agents/          # Agent selection & runs
+│   │   │   │   ├── artifacts/       # Artifact viewer (4-tab)
+│   │   │   │   ├── documents/       # Document management
+│   │   │   │   ├── settings/        # Project settings & team
+│   │   │   │   └── create/          # Project creation
+│   │   │   └── settings/            # User/org settings
+│   │   │       ├── profile/         # User profile
+│   │   │       ├── security/        # MFA, sessions
+│   │   │       ├── notifications/   # Notification preferences
+│   │   │       ├── organization/    # Org settings, export, delete
+│   │   │       └── team/            # Team members management
 │   │   ├── components/              # shadcn/ui + custom components
-│   │   │   ├── ui/                  # shadcn/ui primitives
-│   │   │   ├── layouts/             # Page layouts (6 personas)
-│   │   │   └── charts/              # Data visualization
+│   │   │   ├── ui/                  # shadcn/ui primitives (button, input, label)
+│   │   │   ├── layout/              # AppHeader
+│   │   │   └── admin/               # Admin-specific (MetricCard)
 │   │   ├── lib/
-│   │   │   ├── api/                 # OpenAPI-generated client
-│   │   │   ├── auth/                # OAuth + SAML client logic
-│   │   │   └── utils/               # Shared utilities
-│   │   ├── hooks/                   # React hooks (useSSE, useTenant)
-│   │   ├── stores/                  # Zustand stores (per-feature)
-│   │   └── types/                   # Shared TypeScript types
-│   ├── public/
+│   │   │   ├── api.ts               # Axios API client + React Query helpers
+│   │   │   └── utils.ts             # Shared utilities
+│   │   └── test/                    # Test setup
 │   ├── vite.config.ts
-│   ├── tailwind.config.js
 │   └── package.json
 │
 ├── backend/                         # Python FastAPI services
 │   ├── src/
-│   │   ├── api/                     # API Gateway (FastAPI app)
-│   │   │   ├── main.py              # App entry point
-│   │   │   ├── routers/             # Route definitions
-│   │   │   │   ├── auth.py          # OAuth 2.0 + SAML endpoints
-│   │   │   │   ├── tests.py         # Test CRUD + execution
-│   │   │   │   ├── agents.py        # AI agent invocation
-│   │   │   │   ├── healing.py       # Self-healing APIs
-│   │   │   │   ├── integrations.py  # JIRA + GitHub webhooks
-│   │   │   │   └── admin.py         # Tenant management
-│   │   │   ├── middleware/
-│   │   │   │   ├── tenant_context.py # Schema routing
-│   │   │   │   ├── auth.py          # JWT validation
-│   │   │   │   └── rate_limit.py    # Per-tenant rate limiting
-│   │   │   └── dependencies.py      # Shared dependencies (DB, Redis)
-│   │   │
+│   │   ├── main.py                  # FastAPI app entry point
+│   │   ├── config.py                # Settings (env vars)
+│   │   ├── db.py                    # Database session management
+│   │   ├── cache.py                 # Redis cache utilities
+│   │   ├── logger.py                # Structured logging (structlog)
+│   │   ├── metrics.py               # Prometheus metrics
+│   │   ├── health.py                # Health check endpoint
+│   │   ├── api/
+│   │   │   ├── dependencies/        # Shared dependencies (project_access)
+│   │   │   └── v1/                  # Versioned REST API routers
+│   │   │       ├── auth/            # Auth + MFA endpoints
+│   │   │       ├── orgs/            # Org CRUD + export
+│   │   │       ├── invitations/     # Team invitations
+│   │   │       ├── members/         # Member management
+│   │   │       ├── projects/        # Project CRUD + members
+│   │   │       ├── users/           # User management
+│   │   │       ├── admin/           # Admin dashboard
+│   │   │       ├── documents/       # Document upload/parsing
+│   │   │       ├── github/          # GitHub repo connections
+│   │   │       ├── crawls/          # DOM crawling sessions
+│   │   │       ├── agent_runs/      # Agent pipeline runs
+│   │   │       ├── artifacts/       # Test artifact CRUD + versions
+│   │   │       └── events/          # SSE event streaming
+│   │   ├── middleware/
+│   │   │   ├── rbac.py              # Role-based access control
+│   │   │   ├── rate_limit.py        # Atomic Lua rate limiting
+│   │   │   └── tenant_context.py    # ContextVar schema routing
+│   │   ├── patterns/                # Reusable integration patterns
+│   │   │   ├── llm_pattern.py       # LLM provider abstraction
+│   │   │   ├── pgvector_pattern.py  # Vector embedding operations
+│   │   │   ├── sse_pattern.py       # Server-Sent Events
+│   │   │   └── playwright_pattern.py # Browser automation
 │   │   ├── services/                # Business logic services
-│   │   │   ├── self_healing/        # Self-Healing Engine
-│   │   │   │   ├── engine.py        # Core healing orchestrator
-│   │   │   │   ├── dom_analyzer.py  # Playwright DOM inspection
-│   │   │   │   ├── confidence_scorer.py # Healing confidence (0-1)
-│   │   │   │   ├── llm_suggestor.py # LLM-powered fixes
-│   │   │   │   └── auto_applier.py  # Auto-apply (>0.8 confidence)
 │   │   │   ├── agents/              # AI Agent Orchestration
-│   │   │   │   ├── orchestrator.py  # LangChain wrapper (abstraction)
-│   │   │   │   ├── test_generator.py # Agent 1: Test generation
-│   │   │   │   ├── assertion_generator.py # Agent 2: Assertions
-│   │   │   │   ├── bug_reporter.py  # Agent 3: Bug filing
-│   │   │   │   └── accessibility_auditor.py # Agent 4: A11y
-│   │   │   ├── test_execution/      # Test Runner Service
-│   │   │   │   ├── runner.py        # BullMQ consumer
-│   │   │   │   ├── playwright_pool.py # Pre-warmed containers
-│   │   │   │   └── result_processor.py # Screenshot + log parsing
-│   │   │   ├── integrations/        # Integration Gateway
-│   │   │   │   ├── jira_client.py   # JIRA API wrapper
-│   │   │   │   ├── github_client.py # GitHub API wrapper
-│   │   │   │   └── webhook_handler.py # Incoming webhooks
-│   │   │   └── analytics/           # Analytics Service
-│   │   │       ├── metrics.py       # Test pass rates, healing stats
-│   │   │       └── export.py        # CSV/PDF report generation
-│   │   │
+│   │   │   │   ├── orchestrator.py  # Pipeline orchestrator (3-agent, retry, budget)
+│   │   │   │   ├── ba_consultant.py # BAConsultant (coverage matrix)
+│   │   │   │   ├── qa_consultant.py # QAConsultant (checklist + BDD)
+│   │   │   │   └── automation_consultant.py # AutomationConsultant (Playwright scripts)
+│   │   │   ├── auth/                # Auth service (JWT, OAuth, bcrypt)
+│   │   │   ├── invitation/          # Invitation service
+│   │   │   ├── notification/        # Email notification service
+│   │   │   ├── password_reset/      # Password reset flow
+│   │   │   ├── user_management/     # User CRUD
+│   │   │   ├── agent_run_service.py
+│   │   │   ├── artifact_service.py
+│   │   │   ├── analytics_service.py
+│   │   │   ├── audit_service.py
+│   │   │   ├── backup_code_service.py
+│   │   │   ├── document_service.py
+│   │   │   ├── dom_crawler_service.py
+│   │   │   ├── embedding_service.py
+│   │   │   ├── export_service.py
+│   │   │   ├── github_connector_service.py
+│   │   │   ├── notification_preferences_service.py
+│   │   │   ├── org_deletion_service.py
+│   │   │   ├── profile_service.py
+│   │   │   ├── project_service.py
+│   │   │   ├── project_member_service.py
+│   │   │   ├── source_code_analyzer_service.py
+│   │   │   ├── sse_manager.py
+│   │   │   ├── tenant_provisioning.py
+│   │   │   ├── token_service.py
+│   │   │   ├── token_budget_service.py
+│   │   │   └── totp_service.py
 │   │   ├── models/                  # SQLAlchemy ORM models
+│   │   │   ├── base.py              # Declarative base
+│   │   │   ├── user.py              # User accounts
 │   │   │   ├── tenant.py            # Tenant metadata (shared schema)
-│   │   │   ├── user.py              # User accounts (per-tenant schema)
-│   │   │   ├── test.py              # Test definitions
-│   │   │   ├── test_run.py          # Execution history
-│   │   │   ├── healing_record.py    # Self-healing logs
-│   │   │   └── integration.py       # Integration credentials
-│   │   │
-│   │   ├── schemas/                 # Pydantic request/response schemas
-│   │   │   ├── test_schemas.py
-│   │   │   ├── agent_schemas.py
-│   │   │   └── healing_schemas.py
-│   │   │
-│   │   ├── db/                      # Database utilities
-│   │   │   ├── session.py           # Per-tenant session management
-│   │   │   ├── migrations/          # Alembic migrations
-│   │   │   └── seed.py              # Demo data seeding
-│   │   │
-│   │   ├── core/                    # Core utilities
-│   │   │   ├── config.py            # Settings (env vars)
-│   │   │   ├── security.py          # JWT, password hashing
-│   │   │   ├── tenant_context.py    # ContextVar for tenant ID
-│   │   │   └── llm_provider.py      # Multi-provider abstraction
-│   │   │
-│   │   └── workers/                 # Background workers
-│   │       ├── test_runner_worker.py # BullMQ test execution
-│   │       ├── healing_worker.py    # Async healing processing
-│   │       └── integration_worker.py # JIRA/GitHub sync
-│   │
+│   │   │   ├── invitation.py        # Team invitations
+│   │   │   ├── password_reset.py    # Password reset tokens
+│   │   │   ├── user_backup_code.py  # MFA backup codes
+│   │   │   └── user_notification_preferences.py
+│   │   └── templates/email/         # 7 email templates
+│   │       ├── verification.html
+│   │       ├── invitation.html
+│   │       ├── role-changed.html
+│   │       ├── member-removed.html
+│   │       ├── password-reset.html
+│   │       ├── password-reset-google.html
+│   │       └── project-assignment.html
+│   ├── alembic/                     # 15 Alembic migrations (001–015)
 │   ├── tests/                       # Pytest test suite
 │   │   ├── unit/
-│   │   ├── integration/
-│   │   └── e2e/
+│   │   └── integration/
 │   ├── alembic.ini
 │   ├── pyproject.toml
 │   └── requirements.txt
 │
-├── infra/                           # Infrastructure as Code
+├── infrastructure/                  # Infrastructure as Code
 │   ├── kubernetes/
-│   │   ├── base/                    # Base Kubernetes manifests
-│   │   │   ├── api-gateway.yaml
-│   │   │   ├── self-healing-service.yaml
-│   │   │   ├── test-runner-service.yaml
-│   │   │   ├── postgres.yaml
-│   │   │   └── redis.yaml
-│   │   ├── overlays/                # Environment-specific overlays
-│   │   │   ├── dev/
-│   │   │   ├── staging/
-│   │   │   └── production/
-│   │   └── secrets/                 # External Secrets Operator configs
-│   ├── terraform/                   # Cloud infrastructure (AWS/GCP/Azure)
-│   │   ├── modules/
-│   │   │   ├── eks-cluster/
-│   │   │   ├── rds-postgres/
-│   │   │   └── elasticache-redis/
-│   │   ├── environments/
-│   │   │   ├── dev/
-│   │   │   ├── staging/
-│   │   │   └── production/
-│   │   └── main.tf
-│   ├── helm/                        # Helm charts (optional, if not using Kustomize)
-│   └── monitoring/                  # Observability stack
-│       ├── grafana/                 # Grafana dashboards
-│       ├── prometheus/              # Prometheus scrape configs
-│       └── loki/                    # Loki log aggregation
+│   │   ├── shared/                  # Shared K8s resources (namespaces, RBAC, quotas)
+│   │   ├── aws/                     # AWS-specific (EKS auth, Secrets Manager)
+│   │   ├── azure/                   # Azure-specific (Managed Identity, Key Vault)
+│   │   ├── monitoring/              # Prometheus + Grafana + alert rules
+│   │   ├── logging/                 # Fluent Bit log aggregation
+│   │   ├── staging/                 # Staging deployment + ingress
+│   │   ├── production/              # Production canary + stable deployments
+│   │   └── test-infrastructure/     # Allure reporting
+│   ├── terraform/
+│   │   ├── aws/                     # AWS root (EKS, RDS, ElastiCache, ECR, IAM, VPC)
+│   │   ├── azure/                   # Azure root (AKS, PostgreSQL, Redis, ACR, KeyVault)
+│   │   └── shared/                  # Cross-cloud outputs interface
+│   └── scripts/                     # DB init scripts
 │
-├── shared/                          # Shared code (TypeScript types, proto files)
-│   ├── openapi/
-│   │   └── api-spec.yaml            # OpenAPI 3.1 specification
-│   └── types/
-│       └── tenant.ts                # Shared TypeScript types
-│
-├── scripts/                         # DevOps scripts
-│   ├── setup-dev.sh                 # Local dev setup
-│   ├── seed-demo-data.py            # Demo tenant seeding
-│   └── generate-api-client.sh       # OpenAPI codegen
+├── e2e/                             # End-to-end test suites
+├── factories/                       # TypeScript test data factories
+├── playwright-runner/               # Playwright test runner service
+├── api/                             # API health/metrics layer (TypeScript)
+├── src/                             # Shared test utilities
+├── types/                           # Shared TypeScript types (entities.ts)
+├── tests/                           # Root-level integration tests
+├── scripts/                         # Build/seed scripts
 │
 ├── docs/                            # Project documentation
-│   ├── prd.md                       # Product Requirements Document
-│   ├── architecture.md              # This file
-│   ├── ux-design-specification.md   # UX Design
+│   ├── planning/                    # PRD, product brief, UX design, agent specs, tech specs
+│   ├── architecture/                # System architecture (this file)
 │   ├── epics/                       # Epic definitions
-│   └── stories/                     # User stories
+│   ├── stories/epic-{n}/            # Story files organised by epic
+│   ├── tech-specs/                  # Per-epic technical specifications + validation reports
+│   ├── evaluations/                 # Agent Skills architecture evaluations
+│   ├── reports/                     # Validation and readiness reports
+│   ├── research/                    # Market and competitive research
+│   └── improvements/                # Research and improvement plans
 │
 ├── .github/                         # GitHub Actions CI/CD
-│   └── workflows/
-│       ├── ci-frontend.yml
-│       ├── ci-backend.yml
-│       ├── deploy-staging.yml
-│       └── deploy-production.yml
-│
-├── docker-compose.yml               # Local development stack
+├── .bmad/                           # BMad Method v6 framework
+├── compose.yml                      # Podman Compose local dev (5 services)
 ├── .env.example
 └── README.md
 ```
 
 **Key Architecture Principles Reflected in Structure:**
 
-1. **Service Boundaries**: Each major service (API Gateway, Self-Healing, Test Runner, Integration Gateway) has dedicated modules
-2. **Multi-Tenancy**: Tenant context middleware + per-tenant database session management
-3. **Scale Adaptive**: Monorepo supports MVP simplicity while allowing Phase 2 microservice extraction
-4. **Feature-Based Frontend**: Organized by user-facing features (aligns with 6 personas)
-5. **Testability**: Separate test directories with unit/integration/e2e split
-6. **Infrastructure as Code**: Kubernetes + Terraform for reproducible deployments
+1. **Service Boundaries**: Each major domain (auth, agents, documents, crawls, artifacts) has dedicated API routers and service modules
+2. **Multi-Tenancy**: Tenant context middleware + per-tenant schema routing via ContextVar
+3. **Scale Adaptive**: Monorepo supports MVP simplicity while allowing future microservice extraction
+4. **Route-Based Frontend**: Organized by pages/routes (aligns with user navigation flows)
+5. **Testability**: Separate test directories with unit/integration split; co-located `__tests__/` in web
+6. **Infrastructure as Code**: Kubernetes + Terraform for reproducible multi-cloud deployments (AWS + Azure)
 7. **Observability**: Dedicated monitoring directory with Grafana/Prometheus/Loki configs
 
 ---
@@ -2336,7 +2339,7 @@ graph TB
 
 **Architecture**:
 ```typescript
-// frontend/src/App.tsx
+// web/src/App.tsx
 const QAManualRoutes = lazy(() => import('./features/qa-manual/routes'))
 const QAAutomationRoutes = lazy(() => import('./features/qa-automation/routes'))
 const DevRoutes = lazy(() => import('./features/developer/routes'))
@@ -3124,7 +3127,7 @@ tenants (shared)
 **Location**: `shared/openapi/api-spec.yaml`
 
 **Code Generation**:
-- Frontend client: `openapi-generator-cli generate -i api-spec.yaml -g typescript-axios -o frontend/src/lib/api`
+- Frontend client: `openapi-generator-cli generate -i api-spec.yaml -g typescript-axios -o web/src/lib/api`
 - Backend validation: FastAPI auto-generates from Pydantic schemas
 - Both must stay in sync (CI pipeline validation)
 
@@ -3734,7 +3737,7 @@ LOG_LEVEL=DEBUG
 
 **4. Frontend Setup**:
 ```bash
-cd frontend
+cd web
 
 # Install dependencies
 npm install
@@ -3767,7 +3770,7 @@ pytest tests/integration  # Integration tests
 pytest tests/e2e  # E2E tests (requires frontend running)
 
 # Frontend tests
-cd frontend
+cd web
 npm run test  # Vitest unit tests
 npm run test:e2e  # Playwright E2E tests
 ```

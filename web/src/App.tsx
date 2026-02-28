@@ -16,6 +16,7 @@ import ResetPasswordPage from '@/pages/auth/reset-password/ResetPasswordPage'
 import CreateProjectPage from '@/pages/projects/create/CreateProjectPage'
 import ProjectSettingsPage from '@/pages/projects/settings/ProjectSettingsPage'
 import ProjectListPage from '@/pages/projects/ProjectListPage'
+import ArtifactsPage from '@/pages/projects/artifacts/ArtifactsPage'
 import Dashboard from '@/pages/admin/Dashboard'
 import AuditLogs from '@/pages/admin/AuditLogs'
 
@@ -61,6 +62,9 @@ export default function App() {
         {/* Story 1.9 — Project creation & settings */}
         <Route path="/projects/new" element={<CreateProjectPage />} />
         <Route path="/projects/:projectId/settings" element={<ProjectSettingsPage />} />
+
+        {/* Story 2.10 — Test artifact viewer (AC-21 navigation target) */}
+        <Route path="/projects/:projectId/artifacts" element={<ArtifactsPage />} />
 
         {/* Story 1.11 — Project list (archive, delete, list) */}
         <Route path="/projects" element={<ProjectListPage />} />

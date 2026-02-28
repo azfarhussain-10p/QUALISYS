@@ -3,7 +3,7 @@ QUALISYS — BA Consultant Agent
 Story: 2-7-agent-pipeline-orchestration
 
 AC-17f: Builds system prompt + context, calls call_llm(), returns AgentResult.
-Artifact: requirements_matrix (JSON content_type).
+Artifact: coverage_matrix (application/json content_type).
 """
 
 from __future__ import annotations
@@ -13,8 +13,8 @@ from typing import Optional
 from src.patterns.llm_pattern import LLMResult, call_llm
 
 # AC-17g: artifact metadata
-ARTIFACT_TYPE = "requirements_matrix"
-CONTENT_TYPE  = "json"
+ARTIFACT_TYPE = "coverage_matrix"
+CONTENT_TYPE  = "application/json"
 TITLE         = "Requirements Coverage Matrix"
 
 # Budget per Story 2-7 constraint C10 — formal tier enforcement deferred to Story 2-8

@@ -3,7 +3,7 @@ QUALISYS — Automation Consultant Agent
 Story: 2-7-agent-pipeline-orchestration
 
 AC-17f: Builds system prompt + context, calls call_llm(), returns AgentResult.
-Artifact: playwright_scripts (TypeScript content_type).
+Artifact: playwright_script (text/typescript content_type).
 """
 
 from __future__ import annotations
@@ -13,8 +13,8 @@ from typing import Optional
 from src.patterns.llm_pattern import LLMResult, call_llm
 
 # AC-17g: artifact metadata
-ARTIFACT_TYPE = "playwright_scripts"
-CONTENT_TYPE  = "typescript"
+ARTIFACT_TYPE = "playwright_script"
+CONTENT_TYPE  = "text/typescript"
 TITLE         = "Playwright Test Scripts"
 
 _DAILY_BUDGET = 100_000

@@ -990,3 +990,59 @@ export const agentApi = {
       .get<AgentRunResponse>(`/api/v1/projects/${projectId}/agent-runs/${runId}`)
       .then((r) => r.data),
 }
+
+// ---------------------------------------------------------------------------
+// Artifacts — Story 2.10
+// ---------------------------------------------------------------------------
+
+export interface ArtifactSummary {
+  id: string
+  agent_type: string
+  artifact_type: string
+  title: string
+  current_version: number
+  metadata: { tokens_used?: number; [key: string]: unknown } | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ArtifactDetail extends ArtifactSummary {
+  content: string
+  content_type: string
+}
+
+export interface ArtifactVersionSummary {
+  id: string
+  version: number
+  content_type: string
+  edited_by: string | null
+  created_at: string
+}
+
+export const artifactApi = {
+  list: (projectId: string, artifactType?: string) =>
+    apiClient
+      .get<ArtifactSummary[]>(
+        `/api/v1/projects/${projectId}/artifacts${artifactType ? `?artifact_type=${artifactType}` : ''}`,
+      )
+      .then((r) => r.data),
+
+  get: (projectId: string, artifactId: string) =>
+    apiClient
+      .get<ArtifactDetail>(`/api/v1/projects/${projectId}/artifacts/${artifactId}`)
+      .then((r) => r.data),
+
+  listVersions: (projectId: string, artifactId: string) =>
+    apiClient
+      .get<ArtifactVersionSummary[]>(
+        `/api/v1/projects/${projectId}/artifacts/${artifactId}/versions`,
+      )
+      .then((r) => r.data),
+
+  getVersion: (projectId: string, artifactId: string, version: number) =>
+    apiClient
+      .get<ArtifactDetail>(
+        `/api/v1/projects/${projectId}/artifacts/${artifactId}/versions/${version}`,
+      )
+      .then((r) => r.data),
+}

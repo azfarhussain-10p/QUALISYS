@@ -274,12 +274,58 @@ class AgentOrchestrator:
             db, schema_name, project_id, run_id, agent_type, result, user_id,
         )
 
+        # AC-25: QA Consultant produces a secondary BDD artifact
+        step_tokens_total = result.tokens_used
+        step_cost_total = result.cost_usd
+        if agent_type == "qa_consultant":
+            bdd_last_error: Exception | None = None
+            bdd_result_llm: LLMResult | None = None
+            for bdd_attempt, bdd_delay in enumerate((*_RETRY_DELAYS, None), start=1):
+                try:
+                    bdd_result_llm = await agent.run_bdd(
+                        context, tenant_id, context_hash=context_hash,
+                    )
+                    bdd_last_error = None
+                    break
+                except BudgetExceededError:
+                    raise
+                except Exception as exc:  # noqa: BLE001
+                    bdd_last_error = exc
+                    logger.warning(
+                        "orchestrator: BDD LLM attempt failed",
+                        agent_type=agent_type,
+                        attempt=bdd_attempt,
+                        error=str(exc),
+                    )
+                    if bdd_delay is not None:
+                        await asyncio.sleep(bdd_delay)
+
+            if bdd_last_error is not None or bdd_result_llm is None:
+                bdd_err = str(bdd_last_error) if bdd_last_error else "BDD LLM returned no result"
+                raise RuntimeError(
+                    f"Agent {agent_type} BDD failed after {_MAX_RETRIES} retries: {bdd_err}"
+                )
+
+            bdd_result = AgentResult(
+                content=bdd_result_llm.content,
+                tokens_used=bdd_result_llm.tokens_used,
+                cost_usd=bdd_result_llm.cost_usd,
+                artifact_type=_qa.BDD_ARTIFACT_TYPE,
+                content_type=_qa.BDD_CONTENT_TYPE,
+                title=_qa.BDD_TITLE,
+            )
+            await self._create_artifact(
+                db, schema_name, project_id, run_id, agent_type, bdd_result, user_id,
+            )
+            step_tokens_total += bdd_result_llm.tokens_used
+            step_cost_total += bdd_result_llm.cost_usd
+
         # Transition step → completed (AC-17d/h)
         now = datetime.now(timezone.utc)
         await self._update_step(
             db, schema_name, step_id,
             status="completed",
-            tokens_used=result.tokens_used,
+            tokens_used=step_tokens_total,
             progress_pct=100,
             completed_at=now,
         )
@@ -287,11 +333,19 @@ class AgentOrchestrator:
         await sse_manager.publish(run_id, "complete", {
             "step_id":    step_id,
             "agent_type": agent_type,
-            "tokens_used": result.tokens_used,
+            "tokens_used": step_tokens_total,
             "artifact_id": artifact_id,
         })
 
-        return result
+        # Return result with combined tokens from primary + BDD calls
+        return AgentResult(
+            content=result.content,
+            tokens_used=step_tokens_total,
+            cost_usd=step_cost_total,
+            artifact_type=result.artifact_type,
+            content_type=result.content_type,
+            title=result.title,
+        )
 
     async def _create_artifact(
         self,
@@ -307,13 +361,18 @@ class AgentOrchestrator:
         artifact_id = str(uuid.uuid4())
         now         = datetime.now(timezone.utc)
 
+        metadata = json.dumps({
+            "tokens_used": result.tokens_used,
+            "cost_usd": result.cost_usd,
+        })
+
         await db.execute(
             text(
                 f'INSERT INTO "{schema_name}".artifacts '
                 f"(id, project_id, run_id, agent_type, artifact_type, title, "
-                f"current_version, created_by, created_at, updated_at) "
+                f"current_version, metadata, created_by, created_at, updated_at) "
                 f"VALUES (:id, :pid, :run_id, :agent_type, :artifact_type, :title, "
-                f"1, :created_by, :now, :now)"
+                f"1, :metadata, :created_by, :now, :now)"
             ),
             {
                 "id":            artifact_id,
@@ -322,6 +381,7 @@ class AgentOrchestrator:
                 "agent_type":    agent_type,
                 "artifact_type": result.artifact_type,
                 "title":         result.title,
+                "metadata":      metadata,
                 "created_by":    user_id,
                 "now":           now,
             },
