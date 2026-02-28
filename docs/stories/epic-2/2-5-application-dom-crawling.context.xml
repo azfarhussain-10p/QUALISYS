@@ -1,0 +1,349 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>5</storyId>
+    <title>Application DOM Crawling</title>
+    <status>drafted</status>
+    <generatedAt>2026-02-27</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/epic-2/2-5-application-dom-crawling.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>QA-Automation user</asA>
+    <iWant>to start a Playwright-based DOM crawl of a target application URL</iWant>
+    <soThat>AI agents have live page structure, forms, and navigation data to improve test generation accuracy</soThat>
+    <tasks>
+      Task 1 — DOMCrawlerService (backend/src/services/dom_crawler_service.py)
+        1.1 Create DOMCrawlerService class with Fernet helpers
+        1.2 _encrypt_password / _decrypt_password (Fernet, reuse settings.github_token_encryption_key)
+        1.3 start_crawl(db, schema_name, project_id, user_id, target_url, auth_config) -> dict
+            - Concurrent check: SELECT id WHERE status IN ('pending','running') → 409 CRAWL_ALREADY_ACTIVE
+            - Encrypt password if auth_config provided
+            - INSERT crawl_sessions, await db.commit(), return dict
+        1.4 get_crawl(db, schema_name, project_id, crawl_id) -> dict [404 CRAWL_NOT_FOUND]
+        1.5 list_crawls(db, schema_name, project_id) -> list[dict] [ORDER BY created_at DESC LIMIT 50]
+        1.6 Module-level singleton: dom_crawler_service = DOMCrawlerService()
+
+      Task 2 — crawl_task background function
+        2.1 async def crawl_task(crawl_id, schema_name, tenant_id, target_url, auth_config_db)
+            - Opens async with AsyncSessionLocal() as db:  (same as clone_repo_task)
+        2.2 UPDATE status='running', started_at=NOW() + commit
+        2.3 Build AuthConfig from auth_config_db (decrypt password_encrypted)
+        2.4 Build CrawlConfig(target_url, max_pages=100, timeout_ms=1_800_000, page_timeout=30_000, auth_config)
+        2.5 result = await run_crawl(config)  [async — no run_in_executor needed]
+        2.6 Serialize: json.dumps([dataclasses.asdict(p) for p in result.crawl_data])
+        2.7 On success: UPDATE status='completed', counts, crawl_data=CAST(:data AS jsonb), completed_at=NOW() + commit
+        2.8 On asyncio.TimeoutError: UPDATE status='timeout', error_message='...' + commit
+        2.9 On Exception: UPDATE status='failed', error_message=str(exc)[:500] + commit
+
+      Task 3 — API Router (backend/src/api/v1/crawls/)
+        3.1 Create backend/src/api/v1/crawls/__init__.py
+        3.2 Create backend/src/api/v1/crawls/router.py
+            Schemas: StartCrawlAuthConfig, StartCrawlRequest, CrawlSessionResponse
+            POST / → start_crawl_endpoint (201)  [require_project_role("owner","admin","qa-automation")]
+            GET  / → list_crawls_endpoint (200)
+            GET  /{crawl_id} → get_crawl_endpoint (200 or 404)
+        3.3 Pydantic request/response schemas (inline in router.py)
+        3.4 Register in backend/src/main.py (Story 2.3 github_router as model)
+
+      Task 4 — Unit Tests (backend/tests/unit/services/test_dom_crawler_service.py) ≥7 tests
+      Task 5 — Integration Tests (backend/tests/integration/test_crawls.py) ≥4 tests
+      Task 6 — sprint-status.yaml: 2-5-application-dom-crawling → drafted [DONE]
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    AC-12a: POST /api/v1/projects/{project_id}/crawls accepts target_url (required) + optional auth_config.
+            Playwright BFS same-origin, max 100 pages, 30-min timeout. Returns 201 + {id, status="pending", target_url}.
+    AC-12b: 409 CRAWL_ALREADY_ACTIVE if status IN ('pending','running') exists for project.
+    AC-13:  auth_config {login_url, username_selector, password_selector, submit_selector, username, password}
+            → Playwright fills form before BFS. password encrypted at rest (password_encrypted in DB JSONB).
+            Decrypted at crawl_task time before AuthConfig construction.
+    AC-14a: GET /crawls → list (latest first, limit 50). GET /crawls/{id} → detail or 404 CRAWL_NOT_FOUND.
+    AC-14b: On completion: status='completed', pages_crawled, forms_found, links_found, crawl_data (JSONB), completed_at.
+    AC-14c: asyncio.TimeoutError → status='timeout'. Other Exception → status='failed', error_message=str(exc)[:500].
+            'running' is NEVER a terminal state.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Technical Specification — Epic 2: AI Agent Platform</title>
+        <section>§8 Acceptance Criteria (AC-12, AC-13, AC-14)</section>
+        <snippet>AC-12: DOM crawl accepts target URL and optional login credentials. Playwright crawls max 100 pages (breadth-first), timeout 30 minutes. AC-13: Crawl auth flow fills login form selectors provided by user; captures cookies. AC-14: Crawl summary displays "Crawled N pages, F forms, L links".</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Technical Specification — Epic 2</title>
+        <section>§4.2 Migration 014 — crawl_sessions DDL</section>
+        <snippet>crawl_sessions table: id UUID PK, project_id UUID FK, target_url VARCHAR(2000), auth_config JSONB, status VARCHAR(50) DEFAULT 'pending', pages_crawled INTEGER DEFAULT 0, forms_found INTEGER DEFAULT 0, links_found INTEGER DEFAULT 0, crawl_data JSONB, error_message TEXT, started_at TIMESTAMPTZ, completed_at TIMESTAMPTZ, created_by UUID FK, created_at TIMESTAMPTZ. Table already created in Migration 014 — NO new migration needed.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Technical Specification — Epic 2</title>
+        <section>§4.1 Services — DOMCrawlerService</section>
+        <snippet>DOMCrawlerService | backend/src/services/dom_crawler_service.py | Playwright headless crawl, auth flow, page structure capture. APIs: POST /crawls, GET /crawls, GET /crawls/{id}.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Technical Specification — Epic 2</title>
+        <section>§6.2 Security — Playwright isolation</section>
+        <snippet>1 concurrent crawl per project limit (enforced at API layer). Playwright subprocess isolated; 30-minute hard timeout. K8s resource quota on agent pods. Playwright crawl isolation: launched in subprocess per crawl session.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/2-4-source-code-analysis.md</path>
+        <title>Story 2-4 (done) — Source Code Analysis</title>
+        <section>Dev Agent Record — Completion Notes</section>
+        <snippet>Background task pattern: async with AsyncSessionLocal() as db: inside the task. Status contract: never leave intermediate status as terminal. 3-commit pattern: UPDATE running + commit → work → UPDATE result + commit. JSONB storage: CAST(:data AS jsonb). Error truncation: str(exc)[:500]. Fernet pattern: _encrypt_pat/_decrypt_pat via settings.github_token_encryption_key.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>backend/src/patterns/playwright_pattern.py</path>
+        <kind>pattern-spike</kind>
+        <symbol>run_crawl, CrawlConfig, CrawlResult, AuthConfig, PageData</symbol>
+        <lines>1-229</lines>
+        <reason>C2 approved pattern — MUST use run_crawl() directly. Authoritative crawl implementation. run_crawl is async (uses async_playwright). asyncio.TimeoutError raised on 30-min timeout. CrawlResult.crawl_data is list[PageData] — serialize with dataclasses.asdict().</reason>
+      </file>
+      <file>
+        <path>backend/src/services/github_connector_service.py</path>
+        <kind>service</kind>
+        <symbol>clone_repo_task, _encrypt_pat, _decrypt_pat, _get_fernet, GitHubConnectorService</symbol>
+        <lines>56-80, 311-440</lines>
+        <reason>Direct template for DOMCrawlerService. Clone task pattern (async with AsyncSessionLocal, 3-commit pattern) maps directly to crawl_task. Fernet encryption pattern (_get_fernet, _encrypt_pat, _decrypt_pat) reusable for password encryption. Note: git.Repo uses run_in_executor (sync git) — crawl task does NOT need this (run_crawl is async).</reason>
+      </file>
+      <file>
+        <path>backend/src/api/v1/github/router.py</path>
+        <kind>router</kind>
+        <symbol>connect_github_repo, get_github_connection, disconnect_github_repo</symbol>
+        <lines>1-122</lines>
+        <reason>Direct template for crawls/router.py. Shows BackgroundTasks.add_task() pattern, require_project_role() usage, schema_name extraction, response model usage, HTTPException error format.</reason>
+      </file>
+      <file>
+        <path>backend/src/main.py</path>
+        <kind>app-entry</kind>
+        <symbol>app.include_router</symbol>
+        <lines>131-137</lines>
+        <reason>Router registration pattern. Add crawls_router after github_router (line 136-137). Follow exact same import + include_router pattern.</reason>
+      </file>
+      <file>
+        <path>backend/src/config.py</path>
+        <kind>config</kind>
+        <symbol>Settings.github_token_encryption_key, get_settings</symbol>
+        <lines>65-70</lines>
+        <reason>settings.github_token_encryption_key is the Fernet key for password encryption. Same key used for GitHub PAT — no new secret needed. Dev default: "AAAA...=" (44 chars). Env var: GITHUB_TOKEN_ENCRYPTION_KEY.</reason>
+      </file>
+      <file>
+        <path>backend/src/db.py</path>
+        <kind>database</kind>
+        <symbol>AsyncSessionLocal, get_db</symbol>
+        <lines>1-30</lines>
+        <reason>AsyncSessionLocal is the async session factory used in background tasks (crawl_task opens async with AsyncSessionLocal() as db:). get_db is the FastAPI dependency for request-scoped sessions.</reason>
+      </file>
+      <file>
+        <path>backend/src/middleware/rbac.py</path>
+        <kind>middleware</kind>
+        <symbol>require_project_role</symbol>
+        <lines>1-50</lines>
+        <reason>RBAC decorator used in router: require_project_role("owner", "admin", "qa-automation"). Returns (User, TenantUser) tuple. Pattern: auth: tuple = require_project_role(...), then user, membership = auth.</reason>
+      </file>
+      <file>
+        <path>backend/src/middleware/tenant_context.py</path>
+        <kind>middleware</kind>
+        <symbol>current_tenant_slug, slug_to_schema_name</symbol>
+        <lines>1-30</lines>
+        <reason>current_tenant_slug.get() retrieves the slug from ContextVar set by TenantContextMiddleware. slug_to_schema_name() converts to schema name. Import from src.services.tenant_provisioning (as in github router).</reason>
+      </file>
+      <file>
+        <path>backend/tests/unit/services/test_github_connector_service.py</path>
+        <kind>test</kind>
+        <symbol>TestCloneRepoTask, _make_mock_db, _make_git_mock</symbol>
+        <lines>186-303</lines>
+        <reason>Template for unit tests of crawl_task. Shows mock AsyncSessionLocal context pattern, mock execute pattern, commit count assertions, and SQL string inspection pattern.</reason>
+      </file>
+      <file>
+        <path>backend/tests/integration/test_github_connections.py</path>
+        <kind>test</kind>
+        <symbol>TestGitHubConnections, _setup_db_session, _make_redis_mock, _make_token</symbol>
+        <lines>1-130</lines>
+        <reason>Template for integration tests of crawl endpoints. Shows _setup_db_session pattern, _make_redis_mock pattern, _make_token, app.dependency_overrides[get_db] pattern, and ASGITransport usage.</reason>
+      </file>
+      <file>
+        <path>backend/alembic/versions/014_create_github_connections_and_crawl_sessions.py</path>
+        <kind>migration</kind>
+        <symbol>upgrade, downgrade</symbol>
+        <lines>1-80</lines>
+        <reason>Reference for crawl_sessions table schema (already created). Confirms all columns (target_url, auth_config, status, pages_crawled, forms_found, links_found, crawl_data, error_message, started_at, completed_at, created_by, created_at). NO new migration needed.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <python>
+        <package name="fastapi" version="0.109.2">Router, APIRouter, BackgroundTasks, HTTPException, Depends, status</package>
+        <package name="sqlalchemy" version="2.0.27">AsyncSession, text() for parameterized SQL</package>
+        <package name="asyncpg" version="0.29.0">async PostgreSQL driver</package>
+        <package name="cryptography" version="42.0.4">cryptography.fernet.Fernet for password encryption at rest</package>
+        <package name="playwright" version="1.46.0">Headless browser crawling — async_playwright API. NOTE: 'playwright install chromium' must be run in container image (already in Epic 0 Dockerfile per tech spec)</package>
+        <package name="pydantic" version="2.6.3">Request/response schemas (BaseModel)</package>
+        <package name="pydantic-settings" version="2.2.1">Settings class for github_token_encryption_key</package>
+        <package name="python-jose[cryptography]" version="3.3.0">JWT (via token_service, used in integration test _make_token)</package>
+      </python>
+      <stdlib>
+        <package>asyncio — asyncio.TimeoutError detection, await run_crawl()</package>
+        <package>dataclasses — dataclasses.asdict(page_data) for crawl_data JSON serialization</package>
+        <package>json — json.dumps() for crawl_data JSONB string</package>
+        <package>uuid — uuid.UUID for path param and id generation</package>
+      </stdlib>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1">SQL injection prevention: ALL SQL via text() with :params. schema_name always double-quoted. Never concatenate user data into SQL strings. Example: text(f'SELECT ... FROM "{schema_name}".crawl_sessions WHERE project_id = :pid') with {"pid": project_id}.</constraint>
+    <constraint id="C2">Schema isolation: schema_name = slug_to_schema_name(current_tenant_slug.get()) in router. Pass schema_name as string parameter to all service methods and to crawl_task.</constraint>
+    <constraint id="C3">Concurrent crawl limit: 1 active crawl per project at a time. Check BEFORE INSERT. Status values 'pending' and 'running' both count as active. Raise HTTPException(409, {"error": "CRAWL_ALREADY_ACTIVE", "message": "..."}).</constraint>
+    <constraint id="C4">Status contract: crawl_task MUST always transition from 'running' to 'completed', 'timeout', or 'failed'. 'running' is NEVER a terminal state. Use broad try/except to guarantee this.</constraint>
+    <constraint id="C5">BackgroundTasks only (not arq): Use FastAPI BackgroundTasks.add_task(crawl_task, ...) — consistent with Stories 2-1/2-2/2-3/2-4.</constraint>
+    <constraint id="C6">Playwright pattern: call await run_crawl(config) directly — run_crawl is async. Do NOT use run_in_executor (that was needed for synchronous git clone in Story 2-3). Import from src.patterns.playwright_pattern.</constraint>
+    <constraint id="C7">Credential security: Never return auth_config (with password_encrypted) in API responses. Omit auth_config field from CrawlSessionResponse. Never log credentials.</constraint>
+    <constraint id="C8">JSONB serialization: crawl_data is list[PageData]. Serialize via json.dumps([dataclasses.asdict(p) for p in result.crawl_data]). Store via CAST(:data AS jsonb) in SQL.</constraint>
+    <constraint id="C9">Error message truncation: str(exc)[:500] for error_message column — prevents oversized payloads.</constraint>
+    <constraint id="C10">RBAC: require_project_role("owner", "admin", "qa-automation") on all three endpoints — same as document endpoints (Story 2-1).</constraint>
+    <constraint id="C11">Fernet key reuse: Use settings.github_token_encryption_key for password encryption — same key as GitHub PAT. No new settings field needed. _get_fernet() pattern from github_connector_service.py.</constraint>
+    <constraint id="C12">Test requirement: Each unit test MUST have a one-line comment stating the behaviour proved (DoD A6).</constraint>
+    <constraint id="C13">Error format: HTTPException detail must be flat dict: {"error": "CODE", "message": "..."} — NOT nested. Test assertion: resp.json()["detail"]["error"] == "CODE".</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>POST /api/v1/projects/{project_id}/crawls</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /api/v1/projects/{project_id}/crawls → 201 CrawlSessionResponse | 409 CRAWL_ALREADY_ACTIVE</signature>
+      <path>backend/src/api/v1/crawls/router.py</path>
+    </interface>
+    <interface>
+      <name>GET /api/v1/projects/{project_id}/crawls</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/v1/projects/{project_id}/crawls → 200 list[CrawlSessionResponse]</signature>
+      <path>backend/src/api/v1/crawls/router.py</path>
+    </interface>
+    <interface>
+      <name>GET /api/v1/projects/{project_id}/crawls/{crawl_id}</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/v1/projects/{project_id}/crawls/{crawl_id} → 200 CrawlSessionResponse | 404 CRAWL_NOT_FOUND</signature>
+      <path>backend/src/api/v1/crawls/router.py</path>
+    </interface>
+    <interface>
+      <name>run_crawl</name>
+      <kind>async function (C2 pattern spike)</kind>
+      <signature>async def run_crawl(config: CrawlConfig) -> CrawlResult
+  CrawlConfig(target_url: str, max_pages: int = 100, timeout_ms: int = 1_800_000, page_timeout: int = 30_000, auth_config: Optional[AuthConfig] = None)
+  CrawlResult(pages_crawled: int, forms_found: int, links_found: int, crawl_data: list[PageData], error_message: Optional[str])
+  CrawlResult.succeeded: bool  # = error_message is None
+  PageData(url: str, title: str, form_count: int, link_count: int, text_preview: str)
+  Raises: asyncio.TimeoutError (30-min timeout), RuntimeError (Playwright not installed)</signature>
+      <path>backend/src/patterns/playwright_pattern.py:104</path>
+    </interface>
+    <interface>
+      <name>AuthConfig</name>
+      <kind>dataclass (C2 pattern spike)</kind>
+      <signature>@dataclass class AuthConfig:
+  login_url: str
+  username_selector: str   # CSS selector
+  password_selector: str   # CSS selector
+  submit_selector: str     # CSS selector
+  username: str            # plaintext — caller decrypts
+  password: str            # plaintext — caller decrypts
+  post_login_url: Optional[str] = None</signature>
+      <path>backend/src/patterns/playwright_pattern.py:52</path>
+    </interface>
+    <interface>
+      <name>DOMCrawlerService.start_crawl</name>
+      <kind>async service method</kind>
+      <signature>async def start_crawl(db: AsyncSession, schema_name: str, project_id: str, user_id: str, target_url: str, auth_config: dict | None) -> dict
+  Returns: {"id": str, "project_id": str, "target_url": str, "status": "pending", "pages_crawled": 0, "forms_found": 0, "links_found": 0, "crawl_data": None, "error_message": None, "started_at": None, "completed_at": None, "created_at": datetime}
+  Raises: HTTPException(409, {"error": "CRAWL_ALREADY_ACTIVE", ...})</signature>
+      <path>backend/src/services/dom_crawler_service.py</path>
+    </interface>
+    <interface>
+      <name>crawl_task</name>
+      <kind>async background function</kind>
+      <signature>async def crawl_task(crawl_id: str, schema_name: str, tenant_id: str, target_url: str, auth_config_db: dict | None) -> None
+  Status flow: pending → running → completed | timeout | failed
+  Opens its own AsyncSessionLocal() session. Never raises — catches all exceptions.</signature>
+      <path>backend/src/services/dom_crawler_service.py</path>
+    </interface>
+    <interface>
+      <name>require_project_role</name>
+      <kind>FastAPI dependency</kind>
+      <signature>auth: tuple = require_project_role("owner", "admin", "qa-automation")
+  user, membership = auth  # user: User, membership: TenantUser
+  membership.tenant_id: UUID  # use str(membership.tenant_id) for schema/task calls</signature>
+      <path>backend/src/middleware/rbac.py</path>
+    </interface>
+    <interface>
+      <name>AsyncSessionLocal</name>
+      <kind>async session factory</kind>
+      <signature>async with AsyncSessionLocal() as db:
+    await db.execute(text(...), {...})
+    await db.commit()</signature>
+      <path>backend/src/db.py</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      pytest + pytest-asyncio for all async tests. Use @pytest.mark.asyncio decorator. Integration tests override get_db dependency via app.dependency_overrides[get_db] = get_db_override. Patch src.cache.get_redis_client and src.middleware.rate_limit.get_redis_client with _make_redis_mock() (MagicMock with pipeline, incr, expire, get, set, eval). Unit tests mock AsyncSessionLocal context manager (MagicMock with __aenter__/AsyncMock __aexit__) and mock run_crawl with AsyncMock. Each test MUST have a one-line comment stating the behaviour proved (DoD A6). No real DB, Redis, or Playwright calls in tests. Token generation: token_service.create_access_token(user_id, email, tenant_id, role, tenant_slug).
+    </standards>
+    <locations>
+      backend/tests/unit/services/test_dom_crawler_service.py  (NEW — ≥7 unit tests)
+      backend/tests/integration/test_crawls.py                 (NEW — ≥4 integration tests)
+      backend/tests/unit/services/                             (unit test directory)
+      backend/tests/integration/                               (integration test directory)
+    </locations>
+    <ideas>
+      <!-- Unit tests (test_dom_crawler_service.py) -->
+      AC-12a + service: test_start_crawl_inserts_and_returns_pending
+        — valid request, no conflict → INSERT called, status='pending' returned, commit called once
+
+      AC-12b: test_start_crawl_conflict_when_active_exists
+        — mock DB returns active row → raises HTTP 409, error='CRAWL_ALREADY_ACTIVE'
+
+      AC-14a (get): test_get_crawl_returns_session
+        — session exists in mock DB → dict with expected fields returned
+
+      AC-14a (404): test_get_crawl_raises_404_when_not_found
+        — no session in mock DB → raises HTTP 404, error='CRAWL_NOT_FOUND'
+
+      AC-14b (crawl_task success): test_crawl_task_success
+        — mock run_crawl returns CrawlResult(pages_crawled=2, forms_found=1, links_found=5, crawl_data=[PageData(...)])
+        → DB commit called twice (running + completed), 'completed' in SQL
+
+      AC-14c (timeout): test_crawl_task_timeout
+        — mock run_crawl raises asyncio.TimeoutError
+        → DB updated to status='timeout'
+
+      AC-14c (failure): test_crawl_task_failure
+        — mock run_crawl raises RuntimeError("browser crash")
+        → DB updated to status='failed', error_message contains 'browser crash'
+
+      AC-13 (encryption): test_encrypt_decrypt_roundtrip
+        — encrypt password → decrypt → original value unchanged (Fernet roundtrip)
+
+      <!-- Integration tests (test_crawls.py) — mock DB + Redis, no Playwright -->
+      AC-12a: test_start_crawl_201
+        — POST /crawls with target_url → 201, status='pending', target_url in response
+
+      AC-12b: test_start_crawl_conflict_409
+        — mock DB returns active session → 409, detail.error='CRAWL_ALREADY_ACTIVE'
+
+      AC-14a: test_list_crawls_200
+        — mock DB returns session list → GET /crawls → 200, list in response
+
+      AC-14a (404): test_get_crawl_404_when_none
+        — mock DB returns no session → GET /crawls/{id} → 404, detail.error='CRAWL_NOT_FOUND'
+    </ideas>
+  </tests>
+</story-context>

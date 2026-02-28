@@ -845,3 +845,148 @@ export const userApi = {
   changePassword: (payload: ChangePasswordPayload) =>
     apiClient.post<{ message: string }>('/api/v1/users/me/change-password', payload).then((r) => r.data),
 }
+
+// ---------------------------------------------------------------------------
+// Story 2.1 — Document Upload & Parsing types
+// ---------------------------------------------------------------------------
+
+export interface Document {
+  id: string
+  filename: string
+  file_type: string
+  file_size_bytes: number
+  parse_status: 'pending' | 'processing' | 'completed' | 'failed'
+  preview_text: string | null
+  page_count: number | null
+  chunk_count: number
+  error_message: string | null
+  created_by: string
+  created_at: string
+}
+
+export interface DocumentListItem {
+  id: string
+  filename: string
+  file_type: string
+  file_size_bytes: number
+  parse_status: 'pending' | 'processing' | 'completed' | 'failed'
+  preview_text: string | null
+  created_by: string
+  created_at: string
+}
+
+export interface PaginatedDocumentList {
+  items: DocumentListItem[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+// ---------------------------------------------------------------------------
+// Story 2.1 — documents API client
+// ---------------------------------------------------------------------------
+
+export const documentsApi = {
+  uploadDocument: (
+    projectId: string,
+    file: File,
+    onProgress?: (percent: number) => void,
+  ) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return apiClient
+      .post<Document>(`/api/v1/projects/${projectId}/documents`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (evt) => {
+          if (onProgress && evt.total) {
+            onProgress(Math.round((evt.loaded * 100) / evt.total))
+          }
+        },
+      })
+      .then((r) => r.data)
+  },
+
+  listDocuments: (projectId: string, page = 1, pageSize = 20) =>
+    apiClient
+      .get<PaginatedDocumentList>(`/api/v1/projects/${projectId}/documents`, {
+        params: { page, page_size: pageSize },
+      })
+      .then((r) => r.data),
+
+  getDocument: (projectId: string, documentId: string) =>
+    apiClient
+      .get<Document>(`/api/v1/projects/${projectId}/documents/${documentId}`)
+      .then((r) => r.data),
+
+  deleteDocument: (projectId: string, documentId: string) =>
+    apiClient
+      .delete(`/api/v1/projects/${projectId}/documents/${documentId}`)
+      .then(() => undefined),
+}
+
+// ---------------------------------------------------------------------------
+// Agent Runs — Story 2.6
+// ---------------------------------------------------------------------------
+
+export interface AgentDefinition {
+  agent_type:       string
+  name:             string
+  description:      string
+  icon:             string
+  required_inputs:  string[]
+  expected_outputs: string[]
+}
+
+export interface AgentRunStep {
+  id:             string
+  run_id:         string
+  agent_type:     string
+  status:         string
+  progress_pct:   number
+  progress_label: string | null
+  tokens_used:    number
+  started_at:     string | null
+  completed_at:   string | null
+  error_message:  string | null
+}
+
+export interface AgentRunResponse {
+  id:              string
+  project_id:      string
+  pipeline_mode:   string
+  agents_selected: string[]
+  status:          string
+  total_tokens:    number
+  total_cost_usd:  number
+  started_at:      string | null
+  completed_at:    string | null
+  error_message:   string | null
+  created_at:      string | null
+  steps?:          AgentRunStep[]
+}
+
+export const agentApi = {
+  listAgents: () =>
+    apiClient
+      .get<AgentDefinition[]>('/api/v1/agents')
+      .then((r) => r.data),
+
+  startRun: (projectId: string, agents_selected: string[], pipeline_mode = 'sequential') =>
+    apiClient
+      .post<AgentRunResponse>(`/api/v1/projects/${projectId}/agent-runs`, {
+        agents_selected,
+        pipeline_mode,
+      })
+      .then((r) => r.data),
+
+  listRuns: (projectId: string) =>
+    apiClient
+      .get<AgentRunResponse[]>(`/api/v1/projects/${projectId}/agent-runs`)
+      .then((r) => r.data),
+
+  getRun: (projectId: string, runId: string) =>
+    apiClient
+      .get<AgentRunResponse>(`/api/v1/projects/${projectId}/agent-runs/${runId}`)
+      .then((r) => r.data),
+}

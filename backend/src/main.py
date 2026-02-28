@@ -128,6 +128,27 @@ app.include_router(admin_router)
 from src.api.v1.orgs.export_router import router as export_deletion_router  # noqa: E402
 app.include_router(export_deletion_router)
 
+# Story 2.1 — Document upload, parsing
+from src.api.v1.documents.router import router as documents_router  # noqa: E402
+app.include_router(documents_router)
+
+# Story 2.3 — GitHub repository connection
+from src.api.v1.github.router import router as github_router  # noqa: E402
+app.include_router(github_router)
+
+# Story 2.5 — Application DOM crawling
+from src.api.v1.crawls.router import router as crawls_router  # noqa: E402
+app.include_router(crawls_router)
+
+# Story 2.6 — AI agent selection (catalog + project-scoped runs)
+from src.api.v1.agent_runs.router import agents_catalog_router, router as agent_runs_router  # noqa: E402
+app.include_router(agents_catalog_router)
+app.include_router(agent_runs_router)
+
+# Story 2.9 — Real-time agent progress tracking (SSE endpoint)
+from src.api.v1.events.router import router as events_router  # noqa: E402
+app.include_router(events_router)
+
 # ---------------------------------------------------------------------------
 # Startup / Shutdown
 # ---------------------------------------------------------------------------

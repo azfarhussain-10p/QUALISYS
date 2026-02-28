@@ -1,0 +1,375 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>1</storyId>
+    <title>Document Upload &amp; Parsing</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-02-26</generatedAt>
+    <generator>BMAD Story Context Workflow — SM Agent (Bob)</generator>
+    <sourceStoryPath>docs/stories/epic-2/2-1-document-upload-parsing.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>QA-Automation user</asA>
+    <iWant>upload requirement documents (PDF, Word, or Markdown) to my project</iWant>
+    <soThat>AI agents can analyze my requirements and generate test artifacts</soThat>
+    <tasks>
+      Task 1: Database Migration 013 — pgvector extension + documents, document_chunks, document_embeddings tables + all indexes
+      Task 2: DocumentService — upload_document(), parse_document() arq job, get_document(), list_documents(), delete_document()
+      Task 3: FastAPI Router — POST/GET/DELETE endpoints under /api/v1/projects/{project_id}/documents
+      Task 4: Pydantic Schemas — DocumentResponse, DocumentListItem, PaginatedDocumentListResponse, error types
+      Task 5: New Backend Dependencies — pypdf, python-docx (already added to requirements.txt in C2)
+      Task 6: React UI — DocumentsTab.tsx with upload zone, document cards, parse status polling
+      Task 7: Frontend API Client — documentsApi in web/src/lib/api.ts + TypeScript types
+      Task 8: Wire Documents Tab to Project Page
+      Task 9: Tests — unit (DocumentService), integration (/documents endpoints), security (RBAC + cross-tenant)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="AC1">POST /api/v1/projects/{project_id}/documents accepts multipart/form-data. Accepted: .pdf, .docx, .md, .txt (≤25MB → 201). Oversized → 400 FILE_TOO_LARGE. Wrong type → 400 UNSUPPORTED_FILE_TYPE.</ac>
+    <ac id="AC2">Parsing runs as arq background job. PDF → pypdf PdfReader. DOCX → python-docx paragraphs. MD/TXT → UTF-8 read. parse_status: pending → processing → completed | failed. parsed_text + preview_text stored.</ac>
+    <ac id="AC3">GET .../documents/{id} returns DocumentResponse including preview_text (first 500 chars to last word boundary), page_count (PDF), parse_status, filename, file_type, file_size_bytes, created_at.</ac>
+    <ac id="AC4">Scanned/image PDFs (empty pypdf output) → parse_status=failed, error_message="Could not extract text from this PDF. Try uploading a Markdown or Word version...". Generic parse errors → failed + truncated error (no stack traces).</ac>
+    <ac id="AC5">GET .../documents returns paginated list: id, filename, file_type, file_size_bytes, parse_status, preview_text (100 chars), created_by, created_at. Order: created_at DESC. Default page_size=20.</ac>
+    <ac id="AC6">DELETE .../documents/{id} deletes DB record + S3 object → 204. CASCADE removes document_chunks + document_embeddings. S3 delete failure → log warning, still delete DB record.</ac>
+    <ac id="AC7">All endpoints require require_project_role("owner", "admin", "qa-automation"). Viewer/QA-Manual/PM-CSM/Dev → 403. Cross-project document access → 404. Cross-tenant → 403/404.</ac>
+    <ac id="AC8">S3 key format: documents/{tenant_id}/{project_id}/{document_id}/{sanitized_filename}. Sanitization: spaces→_, strip non-ASCII. s3_key stored in documents table.</ac>
+    <ac id="AC9">Upload audit: AuditService.log_action_async(..., "document.uploaded", "document", document_id). Delete audit: AuditService.log_action_async(..., "document.deleted", "document", document_id).</ac>
+    <ac id="AC10">React DocumentsTab: file upload zone (drag-and-drop + click), progress bar, document cards (filename, type icon, size, parse status badge, preview text), polling stops when all terminal. Delete button (owner/admin only) with confirmation.</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>§4.2 Migration 013, §4.3 Document API endpoints, §5.1 Upload flow, §6.2 RBAC, §7.1 Dependencies</section>
+        <snippet>Migration 013 creates documents (upload metadata + parse state), document_chunks (1000-token segments), and document_embeddings (vector(1536)) tables per tenant schema. Indexes: idx_documents_project_id, idx_documents_parse_status, idx_document_chunks_document_id, idx_document_embeddings_vector (ivfflat vector_cosine_ops). pgvector extension enabled globally in public schema. FR16: upload PDF/DOCX/MD. FR17: parse text. FR18 (embeddings) deferred to Story 2-2.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epics.md</path>
+        <title>Epics Definition</title>
+        <section>Epic 2, Story 2.1 — Document Upload &amp; Parsing</section>
+        <snippet>FR16: users upload requirement docs. FR17: system extracts text. Acceptance criteria defining 25MB limit, supported types (PDF/DOCX/MD), parse failure handling for scanned PDFs, RBAC roles (owner/admin/qa-automation), S3 path isolation by tenant.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>System Architecture</title>
+        <section>§18.2 Data Architecture (pgvector), §Technology Stack (S3/arq), §Multi-Tenancy (schema-per-tenant)</section>
+        <snippet>pgvector extension enables ivfflat index on vector(1536) columns for cosine similarity search. S3 for document object storage (IAM role auth, boto3). arq for background parsing jobs. Schema isolation: tenant_{slug} per org. All tenant queries double-quote schema name derived from slug_to_schema_name().</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-1/1-13-data-export-org-deletion.md</path>
+        <title>Story 1-13: Data Export &amp; Org Deletion (reference)</title>
+        <section>Dev Notes — S3 pattern, arq job pattern, best-effort delete, AuditService usage</section>
+        <snippet>Establishes S3 upload (put_object) and best-effort delete (catch ClientError, log warning, continue) patterns. arq job idempotency: check status at job start, return early if already processed. AuditService.log_action_async() fire-and-forget. slug_to_schema_name() always — never inline. React polling: useQuery refetchInterval not manual setInterval (stale closure bug).</snippet>
+      </doc>
+      <doc>
+        <path>backend/src/patterns/pgvector_pattern.py</path>
+        <title>pgvector Pattern Spike (C2 — 2026-02-26)</title>
+        <section>Approved vector insert + cosine similarity pattern</section>
+        <snippet>Migration 013 document_embeddings table uses vector(1536) — MUST match spike: embedding cast via ::vector, ivfflat index with vector_cosine_ops, schema-qualified SQL with double-quoted tenant schema. insert_embedding() and similarity_search() are the approved function signatures for Story 2-2; this story only creates the table structure.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <artifact>
+        <path>backend/src/services/export_service.py</path>
+        <kind>service</kind>
+        <symbol>ExportService._run_export, ExportService._s3_upload</symbol>
+        <lines>1-140</lines>
+        <reason>REFERENCE PATTERN: S3 upload with boto3 (put_object), best-effort S3 delete (catch ClientError + log warning), arq background job structure. DocumentService.upload_document() must replicate S3 upload pattern. DocumentService.delete_document() must replicate best-effort delete pattern.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/services/audit_service.py</path>
+        <kind>service</kind>
+        <symbol>AuditService.log_action_async</symbol>
+        <lines>1-110</lines>
+        <reason>MUST USE: document.uploaded and document.deleted audit events. Use log_action_async() (fire-and-forget) for both. Signature: log_action_async(schema_name, tenant_id, actor_user_id, action, resource_type, resource_id).</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/services/project_service.py</path>
+        <kind>service</kind>
+        <symbol>ProjectService, slug_to_schema_name usage, _get_schema()</symbol>
+        <lines>1-50</lines>
+        <reason>PATTERN REFERENCE: Canonical example of schema-per-tenant SQL pattern. DocumentService must follow same structure: slug_to_schema_name(current_tenant_slug.get()), text(f'... "{schema_name}".documents ...'), named :params only (no f-string data interpolation).</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/middleware/rbac.py</path>
+        <kind>middleware</kind>
+        <symbol>require_project_role</symbol>
+        <lines>211-270</lines>
+        <reason>MUST USE: All document endpoints use require_project_role("owner", "admin", "qa-automation"). Returns (User, TenantUser) tuple. Reads tenant_id from JWT claim — do not pass org_id as path param for project-scoped endpoints.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/middleware/tenant_context.py</path>
+        <kind>middleware</kind>
+        <symbol>current_tenant_slug, current_user_id</symbol>
+        <lines>35-43</lines>
+        <reason>ContextVar source: current_tenant_slug.get() provides slug for slug_to_schema_name(). Always read via .get() inside service methods — never cache at import time.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/services/tenant_provisioning.py</path>
+        <kind>service</kind>
+        <symbol>slug_to_schema_name, validate_safe_identifier</symbol>
+        <lines>60-72</lines>
+        <reason>ALWAYS IMPORT: from src.services.tenant_provisioning import slug_to_schema_name. Never construct "tenant_" + slug inline. slug_to_schema_name("my-org") → "tenant_my_org".</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/main.py</path>
+        <kind>application</kind>
+        <symbol>app.include_router</symbol>
+        <lines>119-129</lines>
+        <reason>Task 3.8: Register documents router. Follow the existing include_router pattern with a comment "# Story 2.1 — Document upload, parsing" immediately before the import line.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/api/v1/projects/router.py</path>
+        <kind>router</kind>
+        <symbol>POST /projects, GET /projects, DELETE /projects/{id}</symbol>
+        <lines>1-70</lines>
+        <reason>PATTERN REFERENCE: Existing project router structure — APIRouter, Depends(require_project_role(...)), BackgroundTasks, error handling pattern. Documents router follows the same organisation.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/api/v1/projects/schemas.py</path>
+        <kind>schemas</kind>
+        <symbol>ProjectResponse, PaginatedProjectsResponse, PaginationMeta</symbol>
+        <lines>1-40</lines>
+        <reason>PATTERN REFERENCE: Pydantic v2 schema structure to mirror for DocumentResponse, DocumentListItem, PaginatedDocumentListResponse. Note: field_validator pattern, Optional typing, datetime serialization.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/alembic/versions/012_create_export_and_deletion_audit.py</path>
+        <kind>migration</kind>
+        <symbol>upgrade, downgrade, revision chain (down_revision="011")</symbol>
+        <lines>1-60</lines>
+        <reason>MIGRATION PATTERN: Migration 013 must set revision="013", down_revision="012". Uses op.execute(text(...)) for DDL. DO block pattern for per-tenant schema iteration NOT used here (documents tables live in tenant schemas, so the DO block IS required — see migration 009/010/011 for DO block pattern).</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/patterns/pgvector_pattern.py</path>
+        <kind>pattern-spike</kind>
+        <symbol>insert_embedding, similarity_search, ChunkMatch</symbol>
+        <lines>1-135</lines>
+        <reason>C2 GATE (DoD A5): Migration 013 document_embeddings column type MUST be vector(1536) exactly as specified in the spike. ivfflat index using vector_cosine_ops MUST be created per spike. Story 2-2 will call insert_embedding() from this file — do not change the table schema.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/cache.py</path>
+        <kind>utility</kind>
+        <symbol>get_redis_client</symbol>
+        <lines>1-33</lines>
+        <reason>If DocumentService ever needs Redis (e.g., rate limiting uploads per user), import get_redis_client() from src.cache. Not used in this story's happy path but included for reference.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/tests/unit/services/test_project_service.py</path>
+        <kind>test</kind>
+        <symbol>TestSlugifyBase, mock patterns</symbol>
+        <lines>1-40</lines>
+        <reason>TEST PATTERN: async mock pattern (AsyncMock, MagicMock, patch). Each test must have a one-line comment stating the BEHAVIOUR proved, not the code called (A6 DoD rule). Follow the same pytest class/function structure.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/tests/patterns/test_pgvector_pattern.py</path>
+        <kind>test</kind>
+        <symbol>contract tests</symbol>
+        <lines>1-145</lines>
+        <reason>CONTRACT GATE (DoD): These contract tests must pass before Story 2-1 is ready-for-dev. They verify vector(1536) dimensions and ivfflat operator — migration 013 must satisfy these contracts.</reason>
+      </artifact>
+      <artifact>
+        <path>web/src/pages/projects/ProjectListPage.tsx</path>
+        <kind>component</kind>
+        <symbol>ProjectListPage, project card structure</symbol>
+        <lines>1-30</lines>
+        <reason>REFERENCE: Existing project pages for routing context. Task 8 must find the project detail page (likely web/src/pages/projects/[id]/ or ProjectSettingsPage.tsx) and add a "Documents" tab. Match existing tab implementation pattern from ProjectSettingsPage.tsx.</reason>
+      </artifact>
+      <artifact>
+        <path>web/src/pages/projects/settings/ProjectSettingsPage.tsx</path>
+        <kind>component</kind>
+        <symbol>Tab panel pattern, projectRole prop</symbol>
+        <lines>1-30</lines>
+        <reason>TAB PATTERN: ProjectSettingsPage uses a tabbed layout — DocumentsTab.tsx follows the same pattern. Pass projectId and projectRole as props. Use @radix-ui/react-tabs (if installed) or existing tab primitive.</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <python>
+        <package version="4.3.1" scope="new-story-2-1">pypdf</package>
+        <package version="1.1.2" scope="new-story-2-1">python-docx</package>
+        <package version="0.3.3" scope="new-c2">pgvector</package>
+        <package version="1.34.50" scope="existing-story-1-13">boto3</package>
+        <package version="0.25.0" scope="existing-story-1-13">arq</package>
+        <package version="2.0.27" scope="existing">sqlalchemy</package>
+        <package version="0.109.2" scope="existing">fastapi</package>
+        <package version="2.6.3" scope="existing">pydantic</package>
+        <package version="0.29.0" scope="existing">asyncpg</package>
+        <package version="5.0.2" scope="existing">redis[hiredis]</package>
+        <package version="2.0.7" scope="existing">python-json-logger</package>
+        <note>pypdf import: from pypdf import PdfReader (NOT from PyPDF2 — that package is deprecated)</note>
+        <note>python-docx import: from docx import Document (package installed as python-docx, imported as docx)</note>
+        <note>arq worker: parse_document must be registered in arq worker functions list alongside existing jobs</note>
+      </python>
+      <frontend>
+        <package version="18.x" scope="existing">react</package>
+        <package version="5.x" scope="existing">@tanstack/react-query</package>
+        <package version="latest" scope="existing">axios</package>
+        <package version="latest" scope="existing">lucide-react</package>
+        <package version="latest" scope="existing">tailwindcss</package>
+        <package version="latest" scope="existing">zod</package>
+        <note>Polling: use refetchInterval in useQuery (e.g., refetchInterval: 3000 when pending/processing documents). Do NOT use manual setInterval — stale closure bug (see Story 1-13 review finding M3).</note>
+        <note>Upload progress: use axios with onUploadProgress callback, not fetch (fetch does not expose upload progress in browser).</note>
+      </frontend>
+      <database>
+        <extension>vector (pgvector) — CREATE EXTENSION IF NOT EXISTS vector SCHEMA public — Migration 013 Step 1.2</extension>
+        <new-tables>documents, document_chunks, document_embeddings (all in tenant_% schemas)</new-tables>
+        <revision-chain>012 → 013</revision-chain>
+      </database>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" severity="critical">
+      Schema-per-tenant: ALL document queries MUST use slug_to_schema_name(current_tenant_slug.get()). Never construct "tenant_" + slug inline. Import: from src.services.tenant_provisioning import slug_to_schema_name.
+    </constraint>
+    <constraint id="C2" severity="critical">
+      SQL injection prevention: schema name is double-quoted in f-string (e.g., f'"{schema_name}".documents'). All user-supplied values are passed as named SQLAlchemy :params. Zero f-string interpolation of user data.
+    </constraint>
+    <constraint id="C3" severity="critical">
+      pgvector contract gate (DoD A5): document_embeddings.embedding column MUST be vector(1536). ivfflat index MUST use vector_cosine_ops. These must match backend/src/patterns/pgvector_pattern.py exactly. Story 2-2 insert_embedding() calls depend on this column definition.
+    </constraint>
+    <constraint id="C4" severity="critical">
+      arq job idempotency: parse_document() MUST check parse_status at job start. If status != 'pending', return early. Prevents double-processing if job is re-queued.
+    </constraint>
+    <constraint id="C5" severity="high">
+      S3 best-effort delete: DocumentService.delete_document() MUST catch botocore.exceptions.ClientError on S3 delete, log a warning, and continue to delete the DB record. Never raise on S3 delete failure.
+    </constraint>
+    <constraint id="C6" severity="high">
+      tenant_id from JWT context only: never take tenant_id from request body or path params for data scoping. Use TenantUser.tenant_id returned from require_project_role().
+    </constraint>
+    <constraint id="C7" severity="high">
+      Preview truncation algorithm: text[:500].rsplit(' ', 1)[0]. Do not use naive text[:500] (may cut mid-word). For list view, apply same algorithm with 100 char limit.
+    </constraint>
+    <constraint id="C8" severity="high">
+      pypdf not PyPDF2: import is `from pypdf import PdfReader`. The PyPDF2 package is deprecated. Empty/whitespace-only extracted text = failed parse (scanned PDF).
+    </constraint>
+    <constraint id="C9" severity="medium">
+      DOCX parsing: from docx import Document. Extract text: '\n'.join([p.text for p in doc.paragraphs if p.text.strip()]). Empty join result = failed parse.
+    </constraint>
+    <constraint id="C10" severity="medium">
+      Test intention rule (DoD A6): every test function MUST have a one-line comment immediately after the def line stating the BEHAVIOUR proved, not the method called. Example: # Proves: file > 25MB raises FileTooLargeError before any S3 call.
+    </constraint>
+    <constraint id="C11" severity="medium">
+      Verify-task independent sign-off (DoD A8): test_cross_tenant_403 (security test) and S3 key isolation (Task 2.2) require independent reviewer confirmation before DoD is marked complete. Flag in PR description.
+    </constraint>
+    <constraint id="C12" severity="medium">
+      Rolling code review (DoD A3): story cannot be marked review until all prior open reviews from other Epic 2 stories are resolved. (Currently: no prior reviews open — story 2-1 is first.)
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>require_project_role</name>
+      <kind>FastAPI Dependency factory</kind>
+      <signature>require_project_role("owner", "admin", "qa-automation") → Depends(_check_project_role) → tuple[User, TenantUser]</signature>
+      <path>backend/src/middleware/rbac.py:211</path>
+    </interface>
+    <interface>
+      <name>AuditService.log_action_async</name>
+      <kind>service method — fire-and-forget</kind>
+      <signature>await audit_service.log_action_async(schema_name: str, tenant_id: UUID, actor_user_id: UUID, action: str, resource_type: str, resource_id: Optional[UUID] = None, details: Optional[dict] = None) → None</signature>
+      <path>backend/src/services/audit_service.py:60</path>
+    </interface>
+    <interface>
+      <name>slug_to_schema_name</name>
+      <kind>utility function</kind>
+      <signature>slug_to_schema_name(slug: str) → str  # "my-org" → "tenant_my_org"</signature>
+      <path>backend/src/services/tenant_provisioning.py:66</path>
+    </interface>
+    <interface>
+      <name>current_tenant_slug</name>
+      <kind>ContextVar[Optional[str]]</kind>
+      <signature>current_tenant_slug.get() → str | None  # reads slug set by TenantContextMiddleware from JWT</signature>
+      <path>backend/src/middleware/tenant_context.py:35</path>
+    </interface>
+    <interface>
+      <name>POST /api/v1/projects/{project_id}/documents</name>
+      <kind>REST endpoint</kind>
+      <signature>multipart/form-data; file field; returns 201 DocumentResponse | 400 FILE_TOO_LARGE | 400 UNSUPPORTED_FILE_TYPE | 403 | 401</signature>
+      <path>backend/src/api/v1/documents/router.py (to be created)</path>
+    </interface>
+    <interface>
+      <name>GET /api/v1/projects/{project_id}/documents</name>
+      <kind>REST endpoint</kind>
+      <signature>query: page=1, page_size=20; returns 200 PaginatedDocumentListResponse | 403 | 401</signature>
+      <path>backend/src/api/v1/documents/router.py (to be created)</path>
+    </interface>
+    <interface>
+      <name>GET /api/v1/projects/{project_id}/documents/{document_id}</name>
+      <kind>REST endpoint</kind>
+      <signature>returns 200 DocumentResponse | 404 | 403 | 401</signature>
+      <path>backend/src/api/v1/documents/router.py (to be created)</path>
+    </interface>
+    <interface>
+      <name>DELETE /api/v1/projects/{project_id}/documents/{document_id}</name>
+      <kind>REST endpoint</kind>
+      <signature>returns 204 | 404 | 403 | 401</signature>
+      <path>backend/src/api/v1/documents/router.py (to be created)</path>
+    </interface>
+    <interface>
+      <name>parse_document (arq job)</name>
+      <kind>arq background job function</kind>
+      <signature>async def parse_document(ctx: dict, document_id: str, schema_name: str, tenant_id: str) → None</signature>
+      <path>backend/src/services/document_service.py (to be created)</path>
+    </interface>
+    <interface>
+      <name>documentsApi (frontend)</name>
+      <kind>API client module</kind>
+      <signature>uploadDocument(projectId, file, onProgress?) | listDocuments(projectId, page?, pageSize?) | getDocument(projectId, documentId) | deleteDocument(projectId, documentId)</signature>
+      <path>web/src/lib/api.ts (to be modified)</path>
+    </interface>
+  </interfaces>
+
+  <patterns>
+    <!-- C2 — Retro 2026-02-26: Pattern spike files for reference during implementation -->
+    <pattern id="pgvector" file="backend/src/patterns/pgvector_pattern.py">
+      INSERT: insert_embedding(db, schema_name, chunk_id, embedding[1536]) using ::vector cast.
+      SEARCH: similarity_search() using &lt;=&gt; cosine distance with ivfflat index.
+      Migration 013 MUST create vector(1536) column — Story 2-2 calls insert_embedding() directly.
+    </pattern>
+    <pattern id="llm" file="backend/src/patterns/llm_pattern.py">
+      NOT used in this story (FR18 deferred to 2-2). Referenced here for awareness — Story 2-2 will call call_llm().
+    </pattern>
+    <pattern id="sse" file="backend/src/patterns/sse_pattern.py">
+      NOT used in this story. SSE streaming used from Story 2-6 (agent execution progress).
+    </pattern>
+    <pattern id="playwright" file="backend/src/patterns/playwright_pattern.py">
+      NOT used in this story. Playwright used in Story 2-4 (DOM crawl).
+    </pattern>
+  </patterns>
+
+  <tests>
+    <standards>
+      Tests use mock-based approach — no live DB, Redis, or S3 connections required. AsyncMock for async DB sessions and service methods. MagicMock for synchronous returns. Patch src.cache.get_redis_client for any Redis usage. Every test function must include a one-line comment immediately after def stating the BEHAVIOUR proved (A6 DoD rule, e.g., "# Proves: file > 25MB raises FileTooLargeError before any S3 or DB call"). pytest-asyncio for async tests. Each test is self-contained — no shared mutable state between tests.
+    </standards>
+    <locations>
+      backend/tests/unit/services/test_document_service.py — 11 unit tests for DocumentService
+      backend/tests/integration/test_documents.py — 7 integration tests for /documents endpoints
+      backend/tests/security/test_document_security.py — 4 security tests (RBAC + cross-tenant, A8 verify-tasks)
+      backend/tests/patterns/ — C2 contract tests (already committed — must pass as prerequisite)
+      web/src/pages/projects/documents/__tests__/ — React component tests for DocumentsTab
+    </locations>
+    <ideas>
+      <idea ac="AC1">test_upload_too_large_400 — POST with 26MB file → 400 FILE_TOO_LARGE, S3.put_object not called</idea>
+      <idea ac="AC1">test_upload_unsupported_type_400 — POST with .exe → 400 UNSUPPORTED_FILE_TYPE</idea>
+      <idea ac="AC1,AC8">test_upload_pdf_success_201 — valid PDF → 201, parse_status=pending, S3 key contains tenant_id/project_id/document_id</idea>
+      <idea ac="AC2">test_parse_document_pdf_completed — mock pypdf with text → parse_status=completed, preview_text populated</idea>
+      <idea ac="AC4">test_parse_document_pdf_empty_fails — mock pypdf returns empty string → parse_status=failed, specific error_message</idea>
+      <idea ac="AC2">test_parse_document_docx_success — mock python-docx paragraphs → parsed_text joined with newlines</idea>
+      <idea ac="AC2">test_parse_document_md_success — MD file bytes → parsed_text = UTF-8 decoded content</idea>
+      <idea ac="AC2">test_parse_document_exception_sets_failed — raise Exception in parser → parse_status=failed, error_message truncated to 500 chars</idea>
+      <idea ac="AC6">test_delete_document_s3_error_still_deletes_db — mock S3 ClientError → warning logged, DB record deleted, no exception raised</idea>
+      <idea ac="AC5">test_list_documents_pagination — list with page=2, page_size=5 → correct total_pages, items subset</idea>
+      <idea ac="AC3">test_get_document_wrong_project — document from project A fetched via project B → None returned (404)</idea>
+      <idea ac="AC7">test_viewer_role_403 — Viewer JWT → 403 on POST upload (security)</idea>
+      <idea ac="AC7,A8">test_cross_tenant_403 — tenant B user accesses tenant A document → 403/404 (INDEPENDENT SIGN-OFF REQUIRED per A8)</idea>
+      <idea ac="AC7">test_qa_automation_can_upload — qa-automation role → 201 on valid upload</idea>
+      <idea ac="AC8,A8">S3 key isolation — verify documents/{tenant_id}/... path enforced at service layer (INDEPENDENT SIGN-OFF REQUIRED per A8)</idea>
+    </ideas>
+  </tests>
+</story-context>

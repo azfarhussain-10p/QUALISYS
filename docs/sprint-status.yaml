@@ -7,7 +7,7 @@
 # CONFIGURATION
 # ===================================================================
 generated: "2025-12-12"
-updated: "2026-02-26"  # stories 1-6 through 1-12 → done (code review fixes applied)
+updated: "2026-02-28"  # story 2-9-real-time-agent-progress-tracking → done (code review APPROVED Pass 2)
 project: QUALISYS
 project_key: qualisys-ai-testing-platform
 tracking_system: file-system
@@ -129,17 +129,27 @@ development_status:
   # FRs Covered: FR16-31, FR32-40, FR67-71, FR78-84
   # Risk: CRITICAL (LLM costs, latency)
   # =====================================================
-  epic-2: backlog
-  2-1-document-upload-parsing: backlog
-  2-2-vector-embeddings-generation: backlog
-  2-3-github-repository-connection: backlog
-  2-4-source-code-analysis: backlog
-  2-5-application-dom-crawling: backlog
-  2-6-ai-agent-selection-ui: backlog
-  2-7-agent-pipeline-orchestration: backlog
-  2-8-agent-execution-engine: backlog
-  2-9-real-time-agent-progress-tracking: backlog
-  2-10-test-artifact-storage-viewer: backlog
+  epic-2: contexted  # docs/stories/epic-2/tech-spec-epic-2.md — generated 2026-02-26
+  epic-2-pattern-spikes: complete  # backend/src/patterns/ — C2 done 2026-02-26 (llm, pgvector, sse, playwright)
+  2-1-document-upload-parsing: done  # approved 2026-02-27, all 24 tests pass
+  2-2-vector-embeddings-generation: done  # context file generated 2026-02-27
+  2-3-github-repository-connection: done  # AI code review APPROVED 2026-02-28 — M1 cleanup fix applied; 15 tests (10 unit + 5 integration)
+  2-4-source-code-analysis: done  # approved 2026-02-27, review APPROVED — 38 tests passing
+  2-5-application-dom-crawling: done  # approved 2026-02-28, 14 tests passing (10 unit + 4 integration), APPROVED
+  # Tech-debt (LOW) from 2-5 review:
+  #   F-1: router.py auth_config.password falsy check — add Field(min_length=1) or use `is not None`
+  #   F-2: _get_fernet() creates new Fernet instance per call — cache at module level
+  #   F-3: test_list_crawls_200 missing target_url assertion — extend integration test
+  2-6-ai-agent-selection-ui: done  # approved 2026-02-28, 12 tests passing (7 unit + 5 integration), APPROVED
+  # Tech-debt (LOW) from 2-6 review:
+  #   F-1: agent_run_service.py:115 `import json` inside method — move to module-level
+  #   F-2: test_agent_runs.py __import__ for patching — use top-level `from unittest.mock import patch`
+  #   F-3: router.py:74 agents_selected: Any — change to list[str]
+  #   F-4: no integration test for empty agents_selected → 400 NO_AGENTS_SELECTED
+  2-7-agent-pipeline-orchestration: done  # code review APPROVED Pass 2 2026-02-28 — 18 tests passing
+  2-8-agent-execution-engine: done  # code review APPROVED 2026-02-28 — 28 tests passing (AC-17 budget gate, AC-18 context_hash cache key)
+  2-9-real-time-agent-progress-tracking: done  # code review APPROVED Pass 2 2026-02-28 — 26 tests passing (all M-1/L-1/L-2/L-3/L-4 findings resolved)
+  2-10-test-artifact-storage-viewer: ready-for-dev
   2-11-artifact-editing-versioning: backlog
   2-12-pm-csm-dashboard-project-health-overview: backlog
   2-13-pm-dashboard-test-coverage-metrics: backlog
@@ -852,3 +862,7 @@ changelog:
     action: "Story 1-5-login-session-management code review APPROVED — marked done"
     by: "DEV Agent (Amelia) — Senior Developer Review"
     notes: "All 10 ACs verified: AC1 (Login form + error mapping), AC2 (Google OAuth PKCE), AC3 (RS256 JWT + httpOnly cookies), AC4 (rotation + reuse detection + refresh interceptor), AC5 (remember-me 30d), AC6 (multi-org selector + switcher), AC7 (device sessions + revoke), AC8 (idempotent logout + logout-all), AC9 (rate limit 429 + lockout 423 + no enumeration), AC10 (ContextVar middleware + is_active RBAC). Tasks 1–7 complete. 2 backlog items: (1) validate ?next= redirect to relative paths only; (2) strengthen HttpOnly cookie assertions in integration tests. 128 tests passing. Status: review → done. Metrics: epic-1 done: 5, ready: 8."
+  - date: "2026-02-28"
+    action: "Story 2-9-real-time-agent-progress-tracking code review Pass 2 — APPROVED"
+    by: "DEV Agent (Amelia) — Senior Developer Review"
+    notes: "All Pass 1 findings resolved and verified: M-1 (pipeline failure SSE termination — orchestrator.py:517-525, :551-559), M-1c (frontend error path — AgentsTab.tsx:314-317), L-1 (JSON.parse guard — AgentsTab.tsx:292-299), L-2 (onerror reset — AgentsTab.tsx:334), L-3 (Queue maxsize=1000 — sse_manager.py:31), L-4 (tech-spec path corrected). New test: test_sse_pipeline_failure_terminates_stream. 30/30 AC sub-criteria IMPLEMENTED, 21/21 tasks verified, 0 false completions. 26/26 tests passing. Status: review → done."

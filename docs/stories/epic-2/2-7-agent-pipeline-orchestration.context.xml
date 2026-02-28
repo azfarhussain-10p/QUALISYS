@@ -1,0 +1,393 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>7</storyId>
+    <title>Agent Pipeline Orchestration</title>
+    <status>drafted</status>
+    <generatedAt>2026-02-28</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/epic-2/2-7-agent-pipeline-orchestration.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>QA-Automation user</asA>
+    <iWant>my selected AI agents to actually execute after I click "Run Selected Agents"</iWant>
+    <soThat>the pipeline runs automatically in the background and produces test artifacts for my project</soThat>
+    <tasks>
+      Task 1: Modify POST /agent-runs router — add BackgroundTasks dispatch + data source validation + fix 2-6 LOW findings
+      Task 2: Create agent implementations — BAConsultantAgent, QAConsultantAgent, AutomationConsultantAgent (backend/src/services/agents/)
+      Task 3: Create AgentOrchestrator — execute_pipeline, _assemble_context, _run_agent_step, _create_artifact, _update_run, _update_step
+      Task 4: Tests — 9 unit tests (test_orchestrator.py) + 4 integration tests (test_agent_pipeline.py)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="AC-17a">Data source validation: POST /agent-runs checks for at least one ready data source
+      (document parse_status='completed', github_connection status='cloned', crawl_session status='completed').
+      Returns 400 NO_DATA_SOURCES if none found. Runs before creating the agent_run row.</ac>
+    <ac id="AC-17b">Pipeline kick-off: router dispatches orchestrator.execute_pipeline as BackgroundTask
+      after create_run() INSERT. HTTP 201 returned immediately; execution is asynchronous.</ac>
+    <ac id="AC-17c">Run status lifecycle: agent_runs transitions queued → running (started_at=now) →
+      completed (total_tokens summed, completed_at=now) or failed (error_message, completed_at=now).</ac>
+    <ac id="AC-17d">Step status lifecycle: agent_run_steps per agent: queued → running (started_at=now)
+      → completed (tokens_used=N, progress_pct=100, completed_at=now) or failed (error_message).</ac>
+    <ac id="AC-17e">Context assembly: _assemble_context() loads doc chunk text (LIMIT 500, truncated at
+      40k tokens), most-recent github analysis_summary, most-recent crawl_data. Missing sources
+      omitted gracefully.</ac>
+    <ac id="AC-17f">LLM execution: each agent builds system prompt + context, calls call_llm(prompt,
+      tenant_id, daily_budget=None, agent_type=...) → LLMResult.</ac>
+    <ac id="AC-17g">Artifact creation: each agent output stored as artifacts row (artifact_type, title,
+      current_version=1) + artifact_versions row (version=1, content, content_type, diff_from_prev=null).</ac>
+    <ac id="AC-17h">Token tracking: agent_run_steps.tokens_used = LLMResult.tokens_used per step.
+      agent_runs.total_tokens = SUM steps tokens. agent_runs.total_cost_usd = SUM steps cost_usd.</ac>
+    <ac id="AC-17i">Error handling: LLM failure retried 3x (5s/10s/20s asyncio.sleep backoff).
+      After 3 failures: step failed, remaining steps stay queued, run failed. BudgetExceededError
+      treated as non-retryable (step + run immediately failed).</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Technical Specification — Epic 2</title>
+        <section>§5.3 Agent Pipeline Flow</section>
+        <snippet>POST /agent-runs → validate data source → check budget → INSERT agent_runs + steps →
+          queue execute_agent_pipeline. Background job: assemble context (doc chunks, github summary,
+          crawl data) → for each agent: update step=running → LLM call → emit SSE → consume tokens →
+          INSERT artifact → update step=completed → update run=completed.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Technical Specification — Epic 2</title>
+        <section>§4.1 Service Layer — Agent services</section>
+        <snippet>AgentOrchestrator → backend/src/services/agents/orchestrator.py; BAConsultantAgent →
+          backend/src/services/agents/ba_consultant.py; QAConsultantAgent →
+          backend/src/services/agents/qa_consultant.py; AutomationConsultantAgent →
+          backend/src/services/agents/automation_consultant.py</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Technical Specification — Epic 2</title>
+        <section>§6.2 Security — LLM prompt injection</section>
+        <snippet>Input sanitization on document content before prompt injection; max document size
+          limit enforced pre-LLM. LLM timeout: retry 3x with 5s exponential backoff; after 3rd
+          failure → AgentStepError, mark step failed.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/2-6-ai-agent-selection-ui.md</path>
+        <title>Story 2-6: AI Agent Selection UI (predecessor)</title>
+        <section>Dev Agent Record — Completion Notes + File List</section>
+        <snippet>AgentRunService fully implemented (create_run, get_run, list_runs). Migration 015
+          created agent_runs, agent_run_steps, artifacts, artifact_versions. Two routers registered:
+          agents_catalog_router (global) + agent_runs_router (project-scoped). LOW finding:
+          import json in method body (fix in 2-7); agents_selected: Any (fix in 2-7).</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <!-- FILES TO MODIFY -->
+      <file>
+        <path>backend/src/api/v1/agent_runs/router.py</path>
+        <kind>router</kind>
+        <symbol>start_run_endpoint</symbol>
+        <lines>101-120</lines>
+        <reason>MODIFY: add BackgroundTasks parameter, _check_has_data_sources guard, dispatch
+          orchestrator.execute_pipeline. Also fix AgentRunResponse.agents_selected: Any → list[str].</reason>
+      </file>
+      <file>
+        <path>backend/src/services/agent_run_service.py</path>
+        <kind>service</kind>
+        <symbol>AgentRunService.create_run</symbol>
+        <lines>78-169</lines>
+        <reason>MODIFY (minor): move `import json` from line 115 (method body) to module level.
+          Service interface unchanged — reuse as-is.</reason>
+      </file>
+
+      <!-- FILES TO REFERENCE FOR PATTERNS -->
+      <file>
+        <path>backend/src/patterns/llm_pattern.py</path>
+        <kind>pattern</kind>
+        <symbol>call_llm, LLMResult, BudgetExceededError</symbol>
+        <lines>107-213</lines>
+        <reason>PRIMARY pattern for all LLM calls. call_llm(prompt, tenant_id, daily_budget,
+          agent_type, *, system_prompt, temperature, max_tokens) → LLMResult. BudgetExceededError
+          is non-retryable — catch separately from generic Exception.</reason>
+      </file>
+      <file>
+        <path>backend/src/db.py</path>
+        <kind>config</kind>
+        <symbol>AsyncSessionLocal</symbol>
+        <lines>36-42</lines>
+        <reason>Background tasks MUST use `async with AsyncSessionLocal() as db:` to acquire a
+          new session independent of the closed request session. Import: from src.db import AsyncSessionLocal.</reason>
+      </file>
+      <file>
+        <path>backend/src/services/document_service.py</path>
+        <kind>service</kind>
+        <symbol>parse_document_task</symbol>
+        <lines>1-44</lines>
+        <reason>PATTERN REFERENCE: shows how background tasks acquire AsyncSessionLocal and handle
+          exceptions with commit on failure. Follow this session management pattern exactly.</reason>
+      </file>
+      <file>
+        <path>backend/src/services/embedding_service.py</path>
+        <kind>service</kind>
+        <symbol>EmbeddingService.generate_and_store</symbol>
+        <lines>1-60</lines>
+        <reason>PATTERN REFERENCE: shows text() SQL with :params for document_chunks queries.
+          Use same pattern for context assembly (SELECT content FROM document_chunks WHERE ...).</reason>
+      </file>
+      <file>
+        <path>backend/alembic/versions/015_create_agent_runs_and_artifacts.py</path>
+        <kind>migration</kind>
+        <symbol>artifacts, artifact_versions table schemas</symbol>
+        <lines>120-193</lines>
+        <reason>CRITICAL SCHEMA REFERENCE: artifacts columns (id, project_id, run_id, agent_type,
+          artifact_type, title, current_version, metadata, created_by, created_at, updated_at).
+          artifact_versions columns (id, artifact_id, version [not version_number], content,
+          content_type, diff_from_prev, edited_by, created_at). UNIQUE(artifact_id, version).</reason>
+      </file>
+      <file>
+        <path>backend/src/services/agent_run_service.py</path>
+        <kind>service</kind>
+        <symbol>AGENT_DEFINITIONS, VALID_AGENT_TYPES, agent_run_service</symbol>
+        <lines>28-64, 239-240</lines>
+        <reason>REUSE: VALID_AGENT_TYPES = {ba_consultant, qa_consultant, automation_consultant}.
+          agent_run_service singleton. get_run() and list_runs() fully implemented — do not recreate.</reason>
+      </file>
+
+      <!-- FILES TO CREATE -->
+      <file>
+        <path>backend/src/services/agents/__init__.py</path>
+        <kind>package</kind>
+        <symbol>N/A</symbol>
+        <lines>N/A</lines>
+        <reason>NEW: empty package init for agents sub-package.</reason>
+      </file>
+      <file>
+        <path>backend/src/services/agents/ba_consultant.py</path>
+        <kind>service</kind>
+        <symbol>BAConsultantAgent</symbol>
+        <lines>N/A</lines>
+        <reason>NEW: BA Consultant agent. ARTIFACT_TYPE="requirements_matrix", CONTENT_TYPE="json",
+          TITLE="Requirements Coverage Matrix". async run(context, tenant_id) → AgentResult.</reason>
+      </file>
+      <file>
+        <path>backend/src/services/agents/qa_consultant.py</path>
+        <kind>service</kind>
+        <symbol>QAConsultantAgent</symbol>
+        <lines>N/A</lines>
+        <reason>NEW: QA Consultant agent. ARTIFACT_TYPE="test_checklists", CONTENT_TYPE="markdown",
+          TITLE="Manual Test Checklists". async run(context, tenant_id) → AgentResult.</reason>
+      </file>
+      <file>
+        <path>backend/src/services/agents/automation_consultant.py</path>
+        <kind>service</kind>
+        <symbol>AutomationConsultantAgent</symbol>
+        <lines>N/A</lines>
+        <reason>NEW: Automation Consultant agent. ARTIFACT_TYPE="playwright_scripts",
+          CONTENT_TYPE="typescript", TITLE="Playwright Test Scripts". async run(context, tenant_id) → AgentResult.</reason>
+      </file>
+      <file>
+        <path>backend/src/services/agents/orchestrator.py</path>
+        <kind>service</kind>
+        <symbol>AgentOrchestrator, execute_pipeline</symbol>
+        <lines>N/A</lines>
+        <reason>NEW: core orchestration service. execute_pipeline(run_id, schema_name, project_id,
+          tenant_id, user_id) — top-level background function. _assemble_context, _run_agent_step,
+          _create_artifact, _update_run, _update_step helper methods.</reason>
+      </file>
+      <file>
+        <path>backend/tests/unit/services/test_orchestrator.py</path>
+        <kind>test</kind>
+        <symbol>TestAgentOrchestrator</symbol>
+        <lines>N/A</lines>
+        <reason>NEW: 9 unit tests for AgentOrchestrator (mock AsyncSession + mock call_llm).</reason>
+      </file>
+      <file>
+        <path>backend/tests/integration/test_agent_pipeline.py</path>
+        <kind>test</kind>
+        <symbol>TestAgentPipelineEndpoints</symbol>
+        <lines>N/A</lines>
+        <reason>NEW: 4 integration tests for POST /agent-runs (mock get_db + mock Redis + mock BackgroundTasks).</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <python>
+        <package name="fastapi" version="0.109.2" reason="BackgroundTasks for background dispatch"/>
+        <package name="sqlalchemy" version="2.0.27" reason="AsyncSession, text() for all SQL"/>
+        <package name="asyncpg" version="0.29.0" reason="async PostgreSQL driver"/>
+        <package name="openai" version="1.54.0" reason="GPT-4-turbo primary LLM (via llm_pattern.py)"/>
+        <package name="anthropic" version="0.34.2" reason="Claude-3-sonnet fallback LLM (via llm_pattern.py)"/>
+        <package name="langchain" version="0.2.16" reason="Available in stack; direct call_llm used in 2-7, LangChain chain assembly deferred"/>
+        <package name="langchain-openai" version="0.1.25" reason="LangChain OpenAI integration (available, not directly used in 2-7)"/>
+        <package name="tiktoken" version="0.7.0" reason="Token counting for 40k doc_text truncation (cl100k_base encoding)"/>
+        <package name="redis[hiredis]" version="5.0.2" reason="LLM cache + budget gate (inside call_llm)"/>
+        <package name="pydantic" version="2.6.3" reason="Request/response models in router"/>
+        <package name="pytest-asyncio" version="(dev)" reason="async test execution"/>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <interfaces>
+    <interface>
+      <name>call_llm</name>
+      <kind>function signature</kind>
+      <signature>async def call_llm(prompt: str, tenant_id: str, daily_budget: int, agent_type: str,
+        *, system_prompt: Optional[str] = None, temperature: float = 0.2, max_tokens: int = 4096) -> LLMResult</signature>
+      <path>backend/src/patterns/llm_pattern.py</path>
+      <notes>Raises BudgetExceededError (non-retryable) or RuntimeError (both providers failed, retryable).
+        daily_budget=None is NOT valid — pass 0 to disable gate or use tenant's tier budget.
+        Cache key = sha256(agent_type + prompt), TTL 86400s.</notes>
+    </interface>
+    <interface>
+      <name>LLMResult</name>
+      <kind>dataclass</kind>
+      <signature>@dataclass class LLMResult: content: str; tokens_used: int; cost_usd: float;
+        cached: bool; provider: str  # "openai"|"anthropic"|"cache"</signature>
+      <path>backend/src/patterns/llm_pattern.py</path>
+    </interface>
+    <interface>
+      <name>BudgetExceededError</name>
+      <kind>exception</kind>
+      <signature>class BudgetExceededError(Exception): tenant_id: str; used: int; limit: int</signature>
+      <path>backend/src/patterns/llm_pattern.py</path>
+      <notes>Catch separately from generic Exception in _run_agent_step — non-retryable.
+        Sets step.error_message = str(err), run.error_message = "Budget exceeded".</notes>
+    </interface>
+    <interface>
+      <name>AgentRunService.create_run</name>
+      <kind>async method</kind>
+      <signature>async def create_run(self, db: AsyncSession, schema_name: str, project_id: str,
+        user_id: str, agents_selected: list[str], pipeline_mode: str = "sequential") -> dict[str, Any]</signature>
+      <path>backend/src/services/agent_run_service.py</path>
+      <notes>Returns dict with id, project_id, pipeline_mode, agents_selected, status="queued",
+        total_tokens=0, total_cost_usd=0.0, started_at=None, completed_at=None, created_at.
+        Validates non-empty agents and valid agent types — raises 400 on failure.</notes>
+    </interface>
+    <interface>
+      <name>AsyncSessionLocal</name>
+      <kind>async context manager</kind>
+      <signature>AsyncSessionLocal: async_sessionmaker[AsyncSession]
+        Usage: async with AsyncSessionLocal() as db: ...</signature>
+      <path>backend/src/db.py</path>
+      <notes>MUST be used inside execute_pipeline() — the request-scoped session closes before
+        the background task runs. Do NOT inject db via Depends() into background functions.</notes>
+    </interface>
+    <interface>
+      <name>POST /api/v1/projects/{project_id}/agent-runs</name>
+      <kind>REST endpoint (modified)</kind>
+      <signature>POST /api/v1/projects/{project_id}/agent-runs
+        Body: { "agents_selected": ["ba_consultant"], "pipeline_mode": "sequential" }
+        201: AgentRunResponse (id, status="queued", agents_selected, pipeline_mode, created_at)
+        400 NO_DATA_SOURCES: { "error": "NO_DATA_SOURCES", "message": "..." }
+        400 NO_AGENTS_SELECTED: { "error": "NO_AGENTS_SELECTED", "message": "..." }
+        400 INVALID_AGENT_TYPE: { "error": "INVALID_AGENT_TYPE", "message": "..." }</signature>
+      <path>backend/src/api/v1/agent_runs/router.py</path>
+    </interface>
+    <interface>
+      <name>GET /api/v1/projects/{project_id}/agent-runs/{run_id}</name>
+      <kind>REST endpoint (existing)</kind>
+      <signature>GET /api/v1/projects/{project_id}/agent-runs/{run_id}
+        200: AgentRunResponse with steps list (id, run_id, agent_type, status, tokens_used, ...)
+        404 RUN_NOT_FOUND: { "error": "RUN_NOT_FOUND", "message": "..." }</signature>
+      <path>backend/src/api/v1/agent_runs/router.py</path>
+    </interface>
+    <interface>
+      <name>execute_pipeline (background function)</name>
+      <kind>async function</kind>
+      <signature>async def execute_pipeline(run_id: str, schema_name: str, project_id: str,
+        tenant_id: str, user_id: str) -> None</signature>
+      <path>backend/src/services/agents/orchestrator.py (NEW)</path>
+      <notes>Standalone coroutine — NOT a method on a class (passed to background_tasks.add_task).
+        Opens its own AsyncSessionLocal session. Catches all exceptions and marks run failed
+        before re-raising (to avoid orphaned running runs on crash).</notes>
+    </interface>
+    <interface>
+      <name>AgentBase.run (agent interface)</name>
+      <kind>async method (convention)</kind>
+      <signature>async def run(self, context: dict, tenant_id: str) -> AgentResult
+        context: {"doc_text": str, "github_summary": str, "crawl_data": str}
+        AgentResult = namedtuple("AgentResult", ["content", "tokens_used", "cost_usd",
+          "artifact_type", "content_type", "title"])</signature>
+      <path>backend/src/services/agents/ba_consultant.py (NEW) etc.</path>
+    </interface>
+  </interfaces>
+
+  <constraints>
+    <constraint id="C1">SQL SECURITY: All SQL via text() with :params. Schema name f-string
+      interpolated only (validated by slug_to_schema_name() upstream — safe). Never interpolate
+      user-supplied values into SQL strings.</constraint>
+    <constraint id="C2">SESSION ISOLATION: execute_pipeline must open its own AsyncSessionLocal session.
+      The FastAPI request session closes after HTTP response — before the background task runs.
+      Pattern: async with AsyncSessionLocal() as db: ... — same as parse_document_task in document_service.py.</constraint>
+    <constraint id="C3">ASYNC ONLY: Use asyncio.sleep() for retry backoff (non-blocking). Never
+      use time.sleep() in an async context. All DB operations are awaited.</constraint>
+    <constraint id="C4">BUDGET ERROR NON-RETRYABLE: BudgetExceededError must be caught separately
+      before the generic retry loop. Treat as immediate step/run failure with error_message
+      = "Token budget exceeded" (without retrying).</constraint>
+    <constraint id="C5">SCHEMA FIELD NAME: artifact_versions uses `version` (integer), NOT
+      `version_number`. Per migration 015 line 174: `version INTEGER NOT NULL`. UNIQUE(artifact_id, version).</constraint>
+    <constraint id="C6">NO NEW MIGRATION: All required tables (agent_runs, agent_run_steps,
+      artifacts, artifact_versions) already exist from Migration 015. No Alembic migration needed.</constraint>
+    <constraint id="C7">RBAC UNCHANGED: require_project_role("owner", "admin", "qa-automation")
+      stays on POST /agent-runs — do not change. tenant_id from JWT (current_tenant_slug ContextVar),
+      never from request body.</constraint>
+    <constraint id="C8">DOC TEXT TRUNCATION: Assemble doc_text from document_chunks.content,
+      truncate at 40,000 tokens using tiktoken.get_encoding("cl100k_base"). Log a warning if
+      truncated. Do not silently drop context.</constraint>
+    <constraint id="C9">LANGCHAIN DEFERRED: langchain is in requirements.txt but Story 2-7 uses
+      direct call_llm() calls. LangChain chain assembly (for chaining agent outputs) is deferred
+      to post-2-7. Do not add LangChain imports in this story.</constraint>
+    <constraint id="C10">DAILY_BUDGET PARAMETER: call_llm() requires a non-None daily_budget int.
+      For Story 2-7, pass a high default (e.g., 100_000) or load from settings. Story 2-8
+      will introduce formal per-tenant budget tier enforcement.</constraint>
+    <constraint id="C11">ERROR FORMAT: All HTTPException details must use the project standard:
+      detail={"error": "CODE", "message": "..."} — flat dict, not nested.</constraint>
+  </constraints>
+
+  <tests>
+    <standards>Tests use pytest + pytest-asyncio. All DB interactions mocked via AsyncMock (no live DB).
+      All Redis interactions mocked via MagicMock with AsyncMock execute methods (same pattern as
+      test_agent_runs.py). call_llm patched via patch("src.patterns.llm_pattern.call_llm").
+      AsyncSessionLocal patched via patch("src.services.agents.orchestrator.AsyncSessionLocal")
+      with async context manager mock. Integration tests use app.dependency_overrides[get_db].
+      Every test must have a one-line comment stating the behaviour proved (DoD A6).</standards>
+    <locations>
+      <location>backend/tests/unit/services/test_orchestrator.py</location>
+      <location>backend/tests/integration/test_agent_pipeline.py</location>
+      <location>backend/tests/unit/services/ (existing unit tests — no regressions)</location>
+      <location>backend/tests/integration/ (existing integration tests — no regressions)</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-17a">test_start_run_no_data_sources_400 — POST /agent-runs with no docs/github/crawl
+        mock → assert 400, error=NO_DATA_SOURCES</idea>
+      <idea ac="AC-17b">test_start_run_201_with_data_source — POST /agent-runs with mocked document
+        present → assert 201, status=queued, background task dispatched</idea>
+      <idea ac="AC-17b">test_start_run_dispatches_correct_pipeline_args — capture add_task call;
+        assert execute_pipeline called with correct run_id, schema_name, project_id</idea>
+      <idea ac="AC-17c">test_execute_pipeline_completes_all_steps — mock call_llm returns LLMResult;
+        assert run UPDATE called with status=completed, total_tokens=sum</idea>
+      <idea ac="AC-17c">test_execute_pipeline_marks_failed_on_step_error — 3 LLM failures;
+        assert run UPDATE called with status=failed, error_message set</idea>
+      <idea ac="AC-17d">test_run_agent_step_marks_running_then_completed — assert step UPDATEd
+        to running then completed with tokens_used and progress_pct=100</idea>
+      <idea ac="AC-17e">test_assemble_context_returns_doc_text — mock document_chunks rows;
+        assert context["doc_text"] contains chunk content</idea>
+      <idea ac="AC-17e">test_assemble_context_handles_no_sources — all queries return empty;
+        assert context = {"doc_text": "", "github_summary": "", "crawl_data": ""}</idea>
+      <idea ac="AC-17g">test_run_agent_step_creates_artifact_and_version — assert two INSERT
+        execute calls: one for artifacts, one for artifact_versions</idea>
+      <idea ac="AC-17h">test_execute_pipeline_sums_tokens_on_completion — 2 agents, 100 tokens
+        each; assert total_tokens=200 in run UPDATE</idea>
+      <idea ac="AC-17i">test_execute_pipeline_retries_llm_on_failure — call_llm raises twice then
+        succeeds; assert call_llm called 3 times total</idea>
+      <idea ac="AC-17i">test_execute_pipeline_skips_remaining_steps_on_failure — agent 1 fails;
+        assert agent 2 step never transitions to running</idea>
+      <idea ac="regression">test_start_run_empty_agents_400 — regression: POST with agents_selected=[]
+        → still 400 NO_AGENTS_SELECTED (existing validation from 2-6)</idea>
+    </ideas>
+  </tests>
+</story-context>

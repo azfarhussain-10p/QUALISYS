@@ -1,0 +1,326 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>8</storyId>
+    <title>Agent Execution Engine — Token Budget Enforcement &amp; LLM Cache</title>
+    <status>drafted</status>
+    <generatedAt>2026-02-28</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/epic-2/2-8-agent-execution-engine.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>QA-Automation user</asA>
+    <iWant>the system to check my organization's monthly token budget before starting an agent pipeline run and serve cached LLM responses for repeated inputs</iWant>
+    <soThat>AI agent costs stay within configured limits and repeated runs complete faster without re-invoking the LLM API</soThat>
+    <tasks>
+      Task 1 — Config: add monthly_token_budget (int=100_000, env MONTHLY_TOKEN_BUDGET) to backend/src/config.py
+      Task 2 — TokenBudgetService.check_budget(tenant_id, monthly_limit): reads Redis monthly key via get_monthly_usage(); logs warning at 80%; raises BudgetExceededError at 100%
+      Task 3 — Formalize LLM cache key (AC-18): update _cache_key(agent_type, context_hash) in llm_pattern.py; add context_hash param to call_llm(); add context_hash kwarg to each agent run(); compute context_hash in orchestrator._run_agent_step()
+      Task 4 — Budget gate in router: import token_budget_service + BudgetExceededError in router.py; call check_budget() before create_run(); catch BudgetExceededError → HTTP 429 BUDGET_EXCEEDED
+      Task 5 — Unit tests (≥6): 4 new tests in test_token_budget_service.py + 2 new / updated tests in test_llm_pattern.py
+      Task 6 — Integration tests (≥3): new test_budget_enforcement.py with 429 test, 201 test, cache-hit test
+      Task 7 — Update sprint-status: 2-8-agent-execution-engine → drafted (done by SM)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    AC-17 (Token budget enforcement — HTTP 429):
+      POST /api/v1/projects/{project_id}/agent-runs calls
+      await token_budget_service.check_budget(tenant_id, settings.monthly_token_budget)
+      after _check_has_data_sources() and before create_run().
+      check_budget() reads budget:{tenant_id}:monthly via get_monthly_usage().
+      usage >= monthly_limit → raises BudgetExceededError(tenant_id, usage, monthly_limit).
+      usage >= 0.8 * monthly_limit (below hard limit) → logger.warning("token_budget: 80% threshold reached", ...).
+      BudgetExceededError caught in router → HTTPException(429, {"error": "BUDGET_EXCEEDED",
+        "message": "Monthly token budget exceeded. Contact your admin."}).
+      Settings.monthly_token_budget: int = 100_000 (env: MONTHLY_TOKEN_BUDGET).
+
+    AC-18 (Redis LLM cache formal validation):
+      Cache key = llm:cache:{sha256(agent_type + context_hash)} where
+        context_hash = sha256(json.dumps(context, sort_keys=True).encode()).hexdigest()
+        computed once in orchestrator._run_agent_step() from the assembled context dict.
+      Propagation chain: orchestrator._run_agent_step() → agent.run(context, tenant_id, context_hash=context_hash)
+        → call_llm(prompt, ..., context_hash=context_hash).
+      Cache hit (Redis GET returns data): returns LLMResult(provider="cache") without LLM API call
+        and without incrementing the token budget counter.
+      Cache miss: calls LLM (OpenAI → Anthropic fallback), writes result to Redis TTL=86400s.
+      call_llm() falls back to sha256(prompt) when context_hash is None (backward compat).
+      _cache_key(agent_type, context_hash) renamed from _cache_key(agent_type, prompt) — same formula,
+        semantically different input. Existing pattern tests updated to pass context_hash string.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Technical Specification — Epic 2: AI Agent Platform</title>
+        <section>Section 4.1 Services, Section 4.5 Token Budget, Section 5.3 Pipeline Flow, Section 6.2 Security, Section 8 Acceptance Criteria (AC-17, AC-18), Section 11 Test Strategy</section>
+        <snippet>AC-17: Agent execution checks token budget before starting. If budget exceeded, returns HTTP 429 BUDGET_EXCEEDED. AC-18: LLM responses cached in Redis (TTL 24h, key=sha256(agent_type+context_hash)). Pipeline flow: check budget → assemble context → for each agent: check Redis cache → build LangChain chain → emit SSE progress → consume tokens (80%→alert, 100%→BudgetExceededError).</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/2-7-agent-pipeline-orchestration.md</path>
+        <title>Story 2.7: Agent Pipeline Orchestration (done)</title>
+        <section>Out of Scope section, AC-17a–i, Dev Notes</section>
+        <snippet>Explicitly deferred to Story 2-8: "Token budget hard-limit enforcement / HTTP 429 BUDGET_EXCEEDED" and "Redis LLM cache TTL management and AC-18 formal validation". AC-17f notes daily_budget=100_000 for enterprise tier used in call_llm().</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/2-8-agent-execution-engine.md</path>
+        <title>Story 2.8: Agent Execution Engine — Token Budget &amp; LLM Cache (THIS STORY)</title>
+        <section>All sections</section>
+        <snippet>Full story definition including acceptance criteria, tasks, Dev Notes, and file list. Budget check flow and cache key flow diagrams in Dev Notes section. Backward compat note: call_llm(context_hash=None) falls back to sha256(prompt).</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <!-- Primary modification targets -->
+      <file>
+        <path>backend/src/services/token_budget_service.py</path>
+        <kind>service</kind>
+        <symbol>TokenBudgetService</symbol>
+        <lines>50-92</lines>
+        <reason>MODIFY — add check_budget(tenant_id, monthly_limit) method. Reads current usage via get_monthly_usage(); logs warning at 80%; raises BudgetExceededError at 100%. Import BudgetExceededError from src.patterns.llm_pattern.</reason>
+      </file>
+      <file>
+        <path>backend/src/patterns/llm_pattern.py</path>
+        <kind>pattern</kind>
+        <symbol>call_llm, _cache_key, BudgetExceededError, LLMResult</symbol>
+        <lines>78-81, 107-213</lines>
+        <reason>MODIFY — rename _cache_key(agent_type, prompt) → _cache_key(agent_type, context_hash); add context_hash: Optional[str] = None to call_llm(); compute fallback context_hash = sha256(prompt) when None; use context_hash in cache key computation.</reason>
+      </file>
+      <file>
+        <path>backend/src/services/agents/orchestrator.py</path>
+        <kind>service</kind>
+        <symbol>AgentOrchestrator._run_agent_step, execute_pipeline</symbol>
+        <lines>163-259, 358-500</lines>
+        <reason>MODIFY — in _run_agent_step(): compute context_hash = sha256(json.dumps(context, sort_keys=True)); pass context_hash=context_hash to agent.run(). Import hashlib at module top (json already imported).</reason>
+      </file>
+      <file>
+        <path>backend/src/services/agents/ba_consultant.py</path>
+        <kind>service</kind>
+        <symbol>BAConsultantAgent.run</symbol>
+        <lines>43-60</lines>
+        <reason>MODIFY — add context_hash: Optional[str] = None kwarg to run(); pass context_hash=context_hash to call_llm(). Current signature: run(self, context: dict, tenant_id: str) → target: run(self, context: dict, tenant_id: str, *, context_hash: Optional[str] = None).</reason>
+      </file>
+      <file>
+        <path>backend/src/services/agents/qa_consultant.py</path>
+        <kind>service</kind>
+        <symbol>QAConsultantAgent.run</symbol>
+        <lines>47-64</lines>
+        <reason>MODIFY — same pattern as ba_consultant.py: add context_hash kwarg to run(), forward to call_llm().</reason>
+      </file>
+      <file>
+        <path>backend/src/services/agents/automation_consultant.py</path>
+        <kind>service</kind>
+        <symbol>AutomationConsultantAgent.run</symbol>
+        <lines>45-62</lines>
+        <reason>MODIFY — same pattern as ba_consultant.py: add context_hash kwarg to run(), forward to call_llm().</reason>
+      </file>
+      <file>
+        <path>backend/src/api/v1/agent_runs/router.py</path>
+        <kind>router</kind>
+        <symbol>start_run_endpoint, _check_has_data_sources</symbol>
+        <lines>93-204</lines>
+        <reason>MODIFY — in start_run_endpoint(): import get_settings, token_budget_service, BudgetExceededError; call await token_budget_service.check_budget(tenant_id, settings.monthly_token_budget) after _check_has_data_sources(); catch BudgetExceededError → HTTPException(429, {error: BUDGET_EXCEEDED}).</reason>
+      </file>
+      <file>
+        <path>backend/src/config.py</path>
+        <kind>config</kind>
+        <symbol>Settings</symbol>
+        <lines>60-99</lines>
+        <reason>MODIFY — add monthly_token_budget: int = 100_000 with comment "env: MONTHLY_TOKEN_BUDGET". Follow existing pattern (github_token_encryption_key at line 70).</reason>
+      </file>
+
+      <!-- Existing code providing context -->
+      <file>
+        <path>backend/src/services/agent_run_service.py</path>
+        <kind>service</kind>
+        <symbol>AgentRunService.create_run, VALID_AGENT_TYPES</symbol>
+        <lines>79-169</lines>
+        <reason>REFERENCE — create_run() called by router after check_budget(). No changes needed. Understand the flow: validate agents_selected → INSERT agent_runs + agent_run_steps → commit → return run dict.</reason>
+      </file>
+      <file>
+        <path>backend/src/cache.py</path>
+        <kind>utility</kind>
+        <symbol>get_redis_client</symbol>
+        <lines>1-30</lines>
+        <reason>REFERENCE — used by token_budget_service.get_monthly_usage() and llm_pattern.py. No changes needed.</reason>
+      </file>
+
+      <!-- Test files -->
+      <file>
+        <path>backend/tests/unit/services/test_token_budget_service.py</path>
+        <kind>test</kind>
+        <symbol>TestTokenBudgetService</symbol>
+        <lines>1-79</lines>
+        <reason>MODIFY — add 4 new test methods for check_budget(): within_limit, at_limit, over_limit, 80pct_logs_warning. DoD A6: each test must have a one-line comment stating behaviour proved.</reason>
+      </file>
+      <file>
+        <path>backend/tests/patterns/test_llm_pattern.py</path>
+        <kind>test</kind>
+        <symbol>test_same_agent_and_prompt_produce_identical_cache_key, test_different_prompt_produces_different_cache_key, test_different_agent_type_produces_different_cache_key</symbol>
+        <lines>208-229</lines>
+        <reason>MODIFY — update 3 existing cache-key tests to call _cache_key(agent_type, "hash_string") instead of _cache_key(agent_type, "prompt string") (signature rename only). Add 2 new tests: test_cache_key_uses_context_hash and test_call_llm_none_context_hash_falls_back_to_prompt.</reason>
+      </file>
+      <file>
+        <path>backend/tests/integration/test_budget_enforcement.py</path>
+        <kind>test</kind>
+        <symbol>NEW FILE</symbol>
+        <lines>N/A</lines>
+        <reason>CREATE — 3 integration tests: (1) POST /agent-runs with mocked BudgetExceededError → 429 BUDGET_EXCEEDED, (2) POST /agent-runs within budget → 201, (3) call_llm() cache hit with context_hash → result.cached=True, LLM not called.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <python>
+        <!-- From backend/requirements.txt — relevant to Story 2-8 -->
+        <package name="redis[hiredis]" version="5.0.2" reason="Redis client used by token_budget_service (GET monthly key) and llm_pattern (cache GET/SET)" />
+        <package name="fastapi" version="^0.109" reason="HTTPException(status_code=429) for BUDGET_EXCEEDED response" />
+        <package name="pydantic-settings" version="^2" reason="Settings class — add monthly_token_budget field" />
+        <package name="openai" version="^1" reason="Primary LLM provider called on cache miss (deferred import in llm_pattern)" />
+        <package name="anthropic" version="^0.20" reason="Fallback LLM provider (deferred import in llm_pattern)" />
+        <package name="pytest-asyncio" version="^0.23" reason="All async unit tests use @pytest.mark.asyncio" />
+        <!-- stdlib — no install needed -->
+        <package name="hashlib" version="stdlib" reason="sha256 for context_hash computation in orchestrator and _cache_key fallback in llm_pattern" />
+        <package name="json" version="stdlib" reason="json.dumps(context, sort_keys=True) for deterministic context_hash in orchestrator" />
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <!-- C1: SQL injection — no new SQL in Story 2-8; all changes are service/cache layer -->
+    <constraint id="C1">No new SQL introduced in Story 2-8. All changes are in service (TokenBudgetService.check_budget) and cache layers (llm_pattern._cache_key). SQL injection constraint is automatically satisfied.</constraint>
+
+    <!-- C2: Tenant isolation -->
+    <constraint id="C2">Budget key scoped per tenant: budget:{tenant_id}:monthly (existing pattern). Context hash is a pure hash of assembled context — no tenant data leaked across tenants.</constraint>
+
+    <!-- C3: BudgetExceededError import location -->
+    <constraint id="C3">BudgetExceededError is defined in src.patterns.llm_pattern. Import from there in token_budget_service.py and router.py. Do NOT redefine or duplicate it.</constraint>
+
+    <!-- C4: backward compat -->
+    <constraint id="C4">call_llm(context_hash=None) MUST work without error (falls back to sha256(prompt)). This preserves all existing callers including pattern spike tests and unit tests for agents that do not yet pass context_hash.</constraint>
+
+    <!-- C5: 80% alert scope -->
+    <constraint id="C5">80% threshold triggers logger.warning only (no email, no NotificationService call). Email deferred to Story 2-18. Do NOT add NotificationService import or call in Story 2-8.</constraint>
+
+    <!-- C6: monthly_token_budget = 100_000 -->
+    <constraint id="C6">Default monthly_token_budget is 100_000 tokens (enterprise tier). Overridable via MONTHLY_TOKEN_BUDGET env var. Must be added to Settings class in config.py following same pattern as github_token_encryption_key (line 70).</constraint>
+
+    <!-- C7: Test DoD -->
+    <constraint id="C7">DoD A6 (Epic 2 retrospective action): every unit test MUST have a one-line comment starting with "# Proves:" stating the behaviour proved. This is mandatory, not optional.</constraint>
+
+    <!-- C8: hashlib already in stdlib -->
+    <constraint id="C8">hashlib is Python stdlib — no requirements.txt change needed. Add "import hashlib" to orchestrator.py module top if not already present (verify: it's not currently in the import list).</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>TokenBudgetService.check_budget</name>
+      <kind>async method (NEW)</kind>
+      <signature>async def check_budget(self, tenant_id: str, monthly_limit: int) -> None</signature>
+      <path>backend/src/services/token_budget_service.py</path>
+      <notes>Raises BudgetExceededError if usage &gt;= monthly_limit. Logs warning if usage &gt;= 0.8 * monthly_limit. Returns None on success (no exception). Called before create_run() in router.</notes>
+    </interface>
+
+    <interface>
+      <name>call_llm (updated signature)</name>
+      <kind>async function (MODIFIED)</kind>
+      <signature>async def call_llm(prompt: str, tenant_id: str, daily_budget: int, agent_type: str, *, system_prompt: Optional[str] = None, temperature: float = 0.2, max_tokens: int = 4096, context_hash: Optional[str] = None) -> LLMResult</signature>
+      <path>backend/src/patterns/llm_pattern.py</path>
+      <notes>New optional param context_hash. When provided, used directly as cache key discriminator: _cache_key(agent_type, context_hash). When None, falls back to sha256(prompt.encode()).hexdigest(). All other behaviour unchanged.</notes>
+    </interface>
+
+    <interface>
+      <name>_cache_key (updated signature)</name>
+      <kind>function (MODIFIED)</kind>
+      <signature>def _cache_key(agent_type: str, context_hash: str) -> str</signature>
+      <path>backend/src/patterns/llm_pattern.py</path>
+      <notes>Renamed parameter from 'prompt' to 'context_hash'. Body identical: hashlib.sha256(f"{agent_type}{context_hash}".encode()).hexdigest() prefixed with "llm:cache:". All callers must now pass a hash string, not a raw prompt.</notes>
+    </interface>
+
+    <interface>
+      <name>Agent.run (updated signature — all 3 agents)</name>
+      <kind>async method (MODIFIED)</kind>
+      <signature>async def run(self, context: dict, tenant_id: str, *, context_hash: Optional[str] = None) -> LLMResult</signature>
+      <path>backend/src/services/agents/{ba_consultant,qa_consultant,automation_consultant}.py</path>
+      <notes>New keyword-only param context_hash forwarded to call_llm(context_hash=context_hash). When None (e.g., tests calling run() without context_hash), call_llm falls back gracefully. No other behaviour change.</notes>
+    </interface>
+
+    <interface>
+      <name>POST /api/v1/projects/{project_id}/agent-runs — budget gate (MODIFIED)</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /api/v1/projects/{project_id}/agent-runs → 201 AgentRunResponse | 429 BUDGET_EXCEEDED | 400 NO_DATA_SOURCES</signature>
+      <path>backend/src/api/v1/agent_runs/router.py</path>
+      <notes>New 429 response added. Error body: {"error": "BUDGET_EXCEEDED", "message": "Monthly token budget exceeded. Contact your admin."}. Check order: _check_has_data_sources() first, then check_budget(), then create_run(). BudgetExceededError NOT re-raised — always translated to HTTPException(429).</notes>
+    </interface>
+
+    <interface>
+      <name>BudgetExceededError</name>
+      <kind>exception class (EXISTING — import only)</kind>
+      <signature>class BudgetExceededError(Exception): tenant_id: str, used: int, limit: int</signature>
+      <path>backend/src/patterns/llm_pattern.py:62-71</path>
+      <notes>Already defined. Import in token_budget_service.py and router.py. Do not modify. Raise with correct args: BudgetExceededError(tenant_id, usage, monthly_limit).</notes>
+    </interface>
+
+    <interface>
+      <name>Settings.monthly_token_budget (NEW field)</name>
+      <kind>Pydantic Settings field</kind>
+      <signature>monthly_token_budget: int = 100_000  # env: MONTHLY_TOKEN_BUDGET</signature>
+      <path>backend/src/config.py</path>
+      <notes>Default 100_000 for enterprise tier. Accessed via get_settings().monthly_token_budget in router.py. Follow same pattern as github_token_encryption_key at line 70.</notes>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Tests use pytest + pytest-asyncio (async tests marked with @pytest.mark.asyncio). All tests are mock-based — no live Redis, DB, or LLM API connections. Every test MUST have a one-line comment starting with "# Proves:" per DoD A6 (Epic 2 retrospective mandate). Integration tests mock FastAPI dependency overrides (get_db, auth middleware) following the established pattern in test_agent_runs.py and test_github_connections.py. Patch paths always use the module where the symbol is imported/used (e.g., "src.services.token_budget_service.get_redis_client", not the definition module).
+    </standards>
+
+    <locations>
+      backend/tests/unit/services/test_token_budget_service.py  — add 4 new test methods to existing TestTokenBudgetService class
+      backend/tests/patterns/test_llm_pattern.py                 — update 3 existing cache-key tests + add 2 new tests
+      backend/tests/integration/test_budget_enforcement.py       — NEW FILE with 3 integration tests
+    </locations>
+
+    <ideas>
+      <!-- AC-17 tests -->
+      <test ac="AC-17" priority="high">
+        test_check_budget_within_limit: mock get_monthly_usage returns 5_000; check_budget(tenant, 100_000) returns None without raising. Proves: budget within limit does not block pipeline start.
+      </test>
+      <test ac="AC-17" priority="high">
+        test_check_budget_at_limit: mock get_monthly_usage returns 100_000; check_budget(tenant, 100_000) raises BudgetExceededError with used=100_000 and limit=100_000. Proves: at-limit usage triggers hard-limit enforcement.
+      </test>
+      <test ac="AC-17" priority="high">
+        test_check_budget_over_limit: mock get_monthly_usage returns 110_000; check_budget(tenant, 100_000) raises BudgetExceededError; exc.used == 110_000, exc.limit == 100_000. Proves: over-limit usage also raises with correct attributes.
+      </test>
+      <test ac="AC-17" priority="medium">
+        test_check_budget_80_percent_logs_warning: mock get_monthly_usage returns 80_000; check_budget(tenant, 100_000) succeeds (no exception); logger.warning called with tenant_id, usage=80_000, limit=100_000, pct=80.0. Proves: 80% threshold triggers structured warning without blocking.
+      </test>
+      <test ac="AC-17" priority="high">
+        test_post_agent_runs_budget_exceeded_returns_429 (integration): patch token_budget_service.check_budget to raise BudgetExceededError; POST /agent-runs → 429; resp.json()["detail"]["error"] == "BUDGET_EXCEEDED". Proves: HTTP layer surfaces budget error as 429 with correct error code.
+      </test>
+      <test ac="AC-17" priority="medium">
+        test_post_agent_runs_within_budget_returns_201 (integration): patch check_budget to return None; patch create_run to return dummy run dict; POST /agent-runs with valid body → 201. Proves: successful budget check allows pipeline to proceed.
+      </test>
+
+      <!-- AC-18 tests -->
+      <test ac="AC-18" priority="high">
+        test_cache_key_uses_context_hash: _cache_key("qa_consultant", "abc123") starts with "llm:cache:" and equals _cache_key("qa_consultant", "abc123"). Proves: cache key is deterministic for identical context_hash inputs.
+      </test>
+      <test ac="AC-18" priority="medium">
+        test_call_llm_none_context_hash_falls_back_to_prompt: call call_llm(prompt, tenant, budget, agent_type, context_hash=None) with mocked Redis miss and mocked LLM; assert result returned (no AttributeError). Proves: backward compat — None context_hash uses sha256(prompt) as fallback.
+      </test>
+      <test ac="AC-18" priority="high">
+        test_cache_hit_context_hash_skips_llm (integration): mock Redis.get to return serialised LLMResult payload; call call_llm(..., context_hash="abc123"); assert result.cached is True and result.provider == "cache"; assert _call_openai and _call_anthropic not called. Proves: cache hit with explicit context_hash skips LLM API.
+      </test>
+
+      <!-- Update existing cache-key tests (test_llm_pattern.py lines 208-229) -->
+      <test ac="AC-18" priority="low">
+        Update test_same_agent_and_prompt_produce_identical_cache_key → call _cache_key("qa_consultant", "some_hash_string") (signature changed, logic same). Proves: identical context_hash → identical key (deterministic).
+      </test>
+      <test ac="AC-18" priority="low">
+        Update test_different_prompt_produces_different_cache_key → call _cache_key("qa_consultant", "hash_a") vs _cache_key("qa_consultant", "hash_b"). Proves: different context_hash → different key (no cross-context cache pollution).
+      </test>
+    </ideas>
+  </tests>
+</story-context>

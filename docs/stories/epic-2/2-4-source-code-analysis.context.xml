@@ -1,0 +1,254 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>4</storyId>
+    <title>Source Code Analysis</title>
+    <status>drafted</status>
+    <generatedAt>2026-02-27</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/epic-2/2-4-source-code-analysis.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>the system</asA>
+    <iWant>analyse the cloned GitHub repository and extract routes, endpoints, and component structure</iWant>
+    <soThat>AI agents have structured code context to improve test generation accuracy</soThat>
+    <tasks>
+      <task id="1" title="SourceCodeAnalyzerService" status="pending">
+        <subtask id="1.1">Create backend/src/services/source_code_analyzer_service.py — SourceCodeAnalyzerService class</subtask>
+        <subtask id="1.2">detect_framework(clone_path: str) -> str — file-presence + string scan; FastAPI > Express.js > Spring Boot > "unknown"</subtask>
+        <subtask id="1.3">extract_routes(clone_path: str, framework: str) -> list[dict] — regex per framework; each dict: {method, path, file}</subtask>
+        <subtask id="1.4">extract_components(clone_path: str) -> list[dict] — scan *.tsx/*.jsx; each dict: {name, file}</subtask>
+        <subtask id="1.5">analyze(clone_path: str) -> dict — orchestrate detect → extract_routes → extract_components; build {framework, routes, components, endpoints}</subtask>
+      </task>
+      <task id="2" title="Extend clone_repo_task in github_connector_service.py" status="pending">
+        <subtask id="2.1">Import and call source_code_analyzer_service.analyze(clone_path) after the status='cloned' UPDATE (line ~356)</subtask>
+        <subtask id="2.2">On analysis success: UPDATE github_connections SET status='analyzed', routes_count, components_count, endpoints_count, analysis_summary WHERE id=:id</subtask>
+        <subtask id="2.3">On analysis exception: UPDATE github_connections SET status='failed', error_message WHERE id=:id</subtask>
+        <subtask id="2.4">Use the already-open AsyncSessionLocal() db session — no new session required</subtask>
+      </task>
+      <task id="3" title="Unit Tests" status="pending">
+        <subtask id="3.1">Create backend/tests/unit/services/test_source_code_analyzer_service.py — 8 tests using pytest tmp_path fixture (real filesystem)</subtask>
+      </task>
+      <task id="4" title="Integration Tests" status="pending">
+        <subtask id="4.1">Add test_get_connection_returns_analysis_summary to backend/tests/integration/test_github_connections.py</subtask>
+      </task>
+      <task id="5" title="Update sprint-status.yaml" status="pending">
+        <subtask id="5.1">2-4-source-code-analysis: review</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-11a">
+      <description>SourceCodeAnalyzerService.detect_framework(clone_path) correctly identifies FastAPI (*.py with FastAPI import), Express.js (package.json with express dep), Spring Boot (pom.xml/build.gradle with spring-boot), or "unknown".</description>
+      <implementation>File-presence + re.search scan. Priority: FastAPI (*.py files containing "from fastapi import" or "FastAPI()") → Express.js (root package.json "dependencies"/"devDependencies" contains "express") → Spring Boot (pom.xml or build.gradle containing "spring-boot") → "unknown". Returns lowercase string.</implementation>
+    </criterion>
+    <criterion id="AC-11b">
+      <description>extract_routes(clone_path, framework) returns list[dict] with {method, path, file} for each discovered route. file is relative to clone_path.</description>
+      <implementation>FastAPI: re.findall on r"@(?:app|router)\.(?:get|post|put|patch|delete)\([\"']([^\"']+)[\"']" across *.py. Express.js: r"router\.(?:get|post|put|patch|delete)\([\"']([^\"']+)[\"']" across *.js/*.ts. Spring Boot: r"@(?:GetMapping|PostMapping|PutMapping|DeleteMapping|RequestMapping)\([\"']?([^\"')]+)[\"']?\)" across *.java. Unknown: returns [].</implementation>
+    </criterion>
+    <criterion id="AC-11c">
+      <description>extract_components(clone_path) scans all *.tsx and *.jsx files, returning {name, file} for each file containing a React component (capital-letter function/class export or capitalised filename).</description>
+      <implementation>os.walk clone_path, filter *.tsx/*.jsx; for each file: name = Path(file).stem; include if name[0].isupper() or file contains "export default function" / "export default class". file stored as relative path from clone_path.</implementation>
+    </criterion>
+    <criterion id="AC-11d">
+      <description>After successful analysis, github_connections updated: status='analyzed', routes_count, components_count, endpoints_count populated, analysis_summary JSONB written. GET /github returns these fields.</description>
+      <implementation>After analyze() returns summary dict: UPDATE github_connections SET status='analyzed', routes_count=len(routes), components_count=len(components), endpoints_count=len(routes), analysis_summary=JSON.dumps(summary) WHERE id=:connection_id. Committed within existing AsyncSessionLocal() session in clone_repo_task.</implementation>
+    </criterion>
+    <criterion id="AC-11e">
+      <description>On any unhandled exception during analysis, github_connections.status set to 'failed' with error_message. Connection never left permanently in 'cloned' state.</description>
+      <implementation>Wrap analyze() call in try/except Exception as exc: UPDATE status='failed', error_message=str(exc)[:500]. Separate except block from the clone failure handler (lines 374-387 in github_connector_service.py) to distinguish clone failure from analysis failure.</implementation>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Technical Specification — Epic 2: AI Agent Platform</title>
+        <section>§5.2 GitHub Connection + Analysis Flow / §8 AC-11</section>
+        <snippet>AC-11: Source code analysis extracts routes/endpoints and component structure. Summary: "47 routes, 23 components, 12 API endpoints". Flow: detect framework → extract routes regex/AST → extract React components *.tsx/*.jsx scan → build analysis_summary JSON → UPDATE github_connections status='analyzed', routes_count, components_count, endpoints_count.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>QUALISYS System Architecture</title>
+        <section>Multi-Tenancy / Services Layer</section>
+        <snippet>Schema-per-tenant pattern. SourceCodeAnalyzerService operates on local filesystem (clone_path) — no DB or network calls inside the service itself. All DB updates performed in clone_repo_task which already holds the AsyncSessionLocal() context. Clone directories: tmp/tenants/{tenant_id}/repos/{connection_id}/.</snippet>
+      </doc>
+      <doc>
+        <path>docs/planning/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR20, FR21 — Source Code Analysis</section>
+        <snippet>FR20: System clones connected repositories and analyses source code structure. FR21: System maps application routes, API endpoints, and components from source code. Analysis feeds the AI agent context assembly in Stories 2-7+ alongside document_embeddings and crawl_data.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epics.md</path>
+        <title>QUALISYS Epic &amp; Story Breakdown</title>
+        <section>Story 2.4: Source Code Analysis</section>
+        <snippet>As the system, I want to analyse connected GitHub repos, so that AI agents understand app structure. AC1: Code files parsed (TypeScript, JavaScript, Python, Java). AC2: Routes/endpoints extracted (Express.js, FastAPI, Spring Boot). AC3: Component structure mapped (React). AC4: Summary shown "47 routes, 23 components, 12 API endpoints". FRs: FR20, FR21.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/2-3-github-repository-connection.md</path>
+        <title>Story 2.3 — GitHub Repository Connection (Predecessor)</title>
+        <section>Task 3.8 clone_repo_task / Architecture Constraints</section>
+        <snippet>clone_repo_task sets status='cloned' and clone_path after git clone --depth=1. Story 2-4 modifies this function to continue with analysis after the 'cloned' UPDATE. Clone directory: tmp/tenants/{tenant_id}/repos/{connection_id}/. All analysis columns (routes_count, components_count, endpoints_count, analysis_summary) already exist in github_connections from Migration 014.</snippet>
+      </doc>
+      <doc>
+        <path>docs/planning/agent-specifications.md</path>
+        <title>QUALISYS AI Agent Specifications</title>
+        <section>§3 BAConsultant / §4 QAConsultant — Context Sources</section>
+        <snippet>Agent pipeline assembles three context sources: document_chunks (text embeddings), github_connections.analysis_summary (code structure from Story 2-4), crawl_sessions.crawl_data (DOM from Story 2-5). Analysis summary provides routes/components map enabling agents to generate API-aware and component-aware test scenarios.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Technical Specification — Epic 2: Services Table</title>
+        <section>§4.1 Services, Data Models — SourceCodeAnalyzerService</section>
+        <snippet>SourceCodeAnalyzerService at backend/src/services/source_code_analyzer_service.py: Route/endpoint/component extraction, analysis summary. Operates on local clone directory. No external API calls. Pure Python stdlib (os.walk, re, json, pathlib).</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>backend/src/services/github_connector_service.py</path>
+        <kind>service</kind>
+        <symbol>clone_repo_task</symbol>
+        <lines>309-387</lines>
+        <reason>MODIFIED: Story 2-4 extends clone_repo_task to call source_code_analyzer_service.analyze() after the status='cloned' UPDATE (line ~356). Analysis UPDATE uses the same open AsyncSessionLocal() session. New try/except wraps analysis call separately from clone failure handler (lines 374-387).</reason>
+      </file>
+      <file>
+        <path>backend/src/services/source_code_analyzer_service.py</path>
+        <kind>service</kind>
+        <symbol>SourceCodeAnalyzerService, source_code_analyzer_service</symbol>
+        <lines>1-end</lines>
+        <reason>NEW: Primary implementation. detect_framework() (AC-11a), extract_routes() (AC-11b), extract_components() (AC-11c), analyze() (AC-11d/e). Module-level singleton: source_code_analyzer_service. Stdlib only — os.walk, re, json, pathlib.</reason>
+      </file>
+      <file>
+        <path>backend/alembic/versions/014_create_github_connections_and_crawl_sessions.py</path>
+        <kind>migration</kind>
+        <symbol>upgrade — github_connections table</symbol>
+        <lines>1-end</lines>
+        <reason>Already-created columns Story 2-4 writes to: routes_count INT, components_count INT, endpoints_count INT, analysis_summary JSONB. No new migration needed.</reason>
+      </file>
+      <file>
+        <path>backend/tests/unit/services/test_source_code_analyzer_service.py</path>
+        <kind>test</kind>
+        <symbol>TestDetectFramework, TestExtractRoutes, TestExtractComponents, TestAnalyze</symbol>
+        <lines>1-end</lines>
+        <reason>NEW: 8 unit tests using pytest tmp_path fixture (real filesystem operations, no mocks on the service). Tests create actual temp files to exercise regex and file-walk logic.</reason>
+      </file>
+      <file>
+        <path>backend/tests/unit/services/test_github_connector_service.py</path>
+        <kind>test</kind>
+        <symbol>TestCloneRepoTask</symbol>
+        <lines>186-254</lines>
+        <reason>EXISTING: clone_repo_task test pattern. Story 2-4 must update test_clone_repo_task_success to mock source_code_analyzer_service.analyze() and assert status='analyzed' in SQL calls (instead of stopping at 'cloned').</reason>
+      </file>
+      <file>
+        <path>backend/tests/integration/test_github_connections.py</path>
+        <kind>test</kind>
+        <symbol>TestGitHubConnections</symbol>
+        <lines>1-end</lines>
+        <reason>MODIFIED: Add test_get_connection_returns_analysis_summary — seed connection_row with status='analyzed' and populated analysis_summary; GET /github → 200 with analysis_summary fields present.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <python>
+        <package name="os (stdlib)" version="built-in" reason="os.walk for recursive directory traversal in detect_framework(), extract_routes(), extract_components()"/>
+        <package name="re (stdlib)" version="built-in" reason="Regex extraction of route decorators (FastAPI @app.get, Express router.get, Spring @GetMapping) and component detection"/>
+        <package name="json (stdlib)" version="built-in" reason="Parse package.json for Express.js detection; serialise analysis_summary for JSONB storage"/>
+        <package name="pathlib (stdlib)" version="built-in" reason="Path operations for file extension filtering and relative path construction"/>
+        <package name="sqlalchemy" version="2.0.27" reason="text() queries for UPDATE github_connections in clone_repo_task (existing dependency)"/>
+        <package name="asyncpg" version="0.29.0" reason="PostgreSQL async driver (existing dependency)"/>
+        <package name="fastapi" version="0.109.2" reason="BackgroundTasks / AsyncSessionLocal already used in clone_repo_task (existing dependency)"/>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1">SQL injection: all SQL uses text() with :params — no user data interpolated into f-strings. schema_name always double-quoted. analysis_summary passed as :summary parameter (not f-string interpolated).</constraint>
+    <constraint id="C2">Schema isolation: schema_name derived from function parameter (passed in from BackgroundTasks scheduler which reads it from JWT ContextVar at request time).</constraint>
+    <constraint id="C3">Stdlib only: SourceCodeAnalyzerService uses only os, re, json, pathlib — no new pip packages. No AST library required for MVP regex-based extraction.</constraint>
+    <constraint id="C4">Unknown framework is NOT a failure: detect_framework() returns "unknown", extract_routes() returns [], extract_components() scans for React regardless. analyze() still returns a valid summary dict → status set to 'analyzed' with zero counts.</constraint>
+    <constraint id="C5">Status contract: clone_repo_task MUST transition github_connections from 'cloned' to either 'analyzed' (success) or 'failed' (exception). A connection permanently in 'cloned' state indicates a bug — the analysis update is NOT optional.</constraint>
+    <constraint id="C6">Same DB session: analysis UPDATE uses the already-open AsyncSessionLocal() context in clone_repo_task. Do NOT open a new session for the analysis UPDATE — reuse db variable already in scope.</constraint>
+    <constraint id="C7">File paths relative: routes[].file and components[].file stored as paths relative to clone_path (not absolute filesystem paths). Use str(Path(abs_path).relative_to(clone_path)).</constraint>
+    <constraint id="C8">Unit tests use tmp_path fixture: SourceCodeAnalyzerService is pure filesystem — tests create real temp files with real content. No mocking of os.walk or re.search needed. This keeps tests simple and trustworthy.</constraint>
+    <constraint id="C9">clone_repo_task test update: existing test_clone_repo_task_success (test_github_connector_service.py:189) must be updated to patch source_code_analyzer_service.analyze and assert 3 commits (cloning + cloned + analyzed) instead of 2.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>SourceCodeAnalyzerService.detect_framework</name>
+      <kind>function signature</kind>
+      <signature>def detect_framework(self, clone_path: str) -> str  # returns "fastapi" | "express" | "spring_boot" | "unknown"</signature>
+      <path>backend/src/services/source_code_analyzer_service.py</path>
+    </interface>
+    <interface>
+      <name>SourceCodeAnalyzerService.extract_routes</name>
+      <kind>function signature</kind>
+      <signature>def extract_routes(self, clone_path: str, framework: str) -> list[dict[str, str]]  # each dict: {method: str, path: str, file: str}</signature>
+      <path>backend/src/services/source_code_analyzer_service.py</path>
+    </interface>
+    <interface>
+      <name>SourceCodeAnalyzerService.extract_components</name>
+      <kind>function signature</kind>
+      <signature>def extract_components(self, clone_path: str) -> list[dict[str, str]]  # each dict: {name: str, file: str}</signature>
+      <path>backend/src/services/source_code_analyzer_service.py</path>
+    </interface>
+    <interface>
+      <name>SourceCodeAnalyzerService.analyze</name>
+      <kind>function signature</kind>
+      <signature>def analyze(self, clone_path: str) -> dict  # returns {framework: str, routes: list, components: list, endpoints: list}</signature>
+      <path>backend/src/services/source_code_analyzer_service.py</path>
+    </interface>
+    <interface>
+      <name>clone_repo_task (modified — analysis extension)</name>
+      <kind>function signature</kind>
+      <signature>async def clone_repo_task(connection_id: str, schema_name: str, tenant_id: str, repo_url: str, pat: str) -> None  # MODIFIED: calls analyze() after cloned UPDATE; adds analyzed/failed UPDATE</signature>
+      <path>backend/src/services/github_connector_service.py:309</path>
+    </interface>
+    <interface>
+      <name>github_connections analysis UPDATE</name>
+      <kind>SQL statement</kind>
+      <signature>UPDATE "{schema}".github_connections SET status='analyzed', routes_count=:rc, components_count=:cc, endpoints_count=:ec, analysis_summary=CAST(:summary AS jsonb), updated_at=NOW() WHERE id=:id</signature>
+      <path>backend/src/services/github_connector_service.py (clone_repo_task extension)</path>
+    </interface>
+    <interface>
+      <name>GET /api/v1/projects/{project_id}/github (existing — returns analysis)</name>
+      <kind>REST endpoint</kind>
+      <signature>GET → 200 GitHubConnectionResponse {id, repo_url, status, routes_count, components_count, endpoints_count, analysis_summary, expires_at, ...} — NO CHANGES to this endpoint in Story 2-4</signature>
+      <path>backend/src/api/v1/github/router.py</path>
+    </interface>
+    <interface>
+      <name>analysis_summary JSONB schema</name>
+      <kind>data structure</kind>
+      <signature>{"framework": "fastapi"|"express"|"spring_boot"|"unknown", "routes": [{"method": str, "path": str, "file": str}], "components": [{"name": str, "file": str}], "endpoints": [{"method": str, "path": str, "file": str}]}</signature>
+      <path>backend/src/services/source_code_analyzer_service.py (analyze() return value)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>SourceCodeAnalyzerService unit tests use pytest tmp_path fixture to create real temporary directories and files — no mocking of filesystem operations. clone_repo_task integration requires patching source_code_analyzer_service.analyze to avoid real filesystem dependency. All tests include a one-line comment stating the behaviour proved (DoD A6). Frameworks: pytest + pytest-asyncio. Test runner: pytest from backend/ directory. No live DB, Redis, or network calls in any test.</standards>
+    <locations>
+      <location>backend/tests/unit/services/test_source_code_analyzer_service.py</location>
+      <location>backend/tests/unit/services/test_github_connector_service.py (update TestCloneRepoTask)</location>
+      <location>backend/tests/integration/test_github_connections.py (add analysis test)</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-11a">test_detect_fastapi_framework — tmp_path with main.py containing "from fastapi import FastAPI" → detect_framework returns "fastapi"</idea>
+      <idea ac="AC-11a">test_detect_express_framework — tmp_path with package.json {"dependencies": {"express": "^4.18"}} → returns "express"</idea>
+      <idea ac="AC-11a">test_detect_spring_boot_framework — tmp_path with pom.xml containing "spring-boot-starter" → returns "spring_boot"</idea>
+      <idea ac="AC-11a">test_detect_unknown_framework — empty tmp_path directory → returns "unknown"</idea>
+      <idea ac="AC-11b">test_extract_fastapi_routes — *.py file with @app.get("/api/users") and @router.post("/api/items") → 2 route dicts with correct method/path/file</idea>
+      <idea ac="AC-11b">test_extract_express_routes — *.js file with router.get("/api/users") → route dict extracted with method="get"</idea>
+      <idea ac="AC-11c">test_extract_react_components — UserCard.tsx with "export default function UserCard" → {name: "UserCard", file: "UserCard.tsx"} in results</idea>
+      <idea ac="AC-11d">test_analyze_returns_complete_summary — tmp_path with FastAPI *.py + UserCard.tsx → summary dict has all keys: framework, routes, components, endpoints</idea>
+      <idea ac="AC-11a">test_detect_framework_priority_fastapi_over_express — tmp_path with both main.py (FastAPI) and package.json (express) → "fastapi" wins (highest priority)</idea>
+      <idea ac="AC-11e">test_clone_repo_task_analysis_failure_marks_failed — mock analyze() to raise Exception → DB UPDATE sets status='failed' with error_message (update existing clone task test)</idea>
+      <idea ac="AC-11d">test_clone_repo_task_success_sets_analyzed — mock analyze() returns summary → DB UPDATE sets status='analyzed', routes_count, components_count (update existing clone task test)</idea>
+      <idea ac="AC-11d">test_get_connection_returns_analysis_summary — seed connection_row with status='analyzed', analysis_summary populated → GET /github 200, response.analysis_summary has "framework" key (integration)</idea>
+    </ideas>
+  </tests>
+</story-context>

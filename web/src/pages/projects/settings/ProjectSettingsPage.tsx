@@ -17,6 +17,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ApiError, ProjectSettingsResponse, projectApi } from '@/lib/api'
 import TeamMembersTab from './TeamMembersTab'
+import DocumentsTab from '../documents/DocumentsTab'
+import AgentsTab from '../agents/AgentsTab'
 
 // ---------------------------------------------------------------------------
 // Validation schema — AC3, AC4, AC7
@@ -167,8 +169,8 @@ export default function ProjectSettingsPage() {
   const [showNameConfirm, setShowNameConfirm] = useState(false)
   const [pendingSubmitValues, setPendingSubmitValues] = useState<SettingsFormValues | null>(null)
   const [originalName, setOriginalName] = useState('')
-  // AC#1 (Story 1.10): tab navigation
-  const [activeTab, setActiveTab] = useState<'general' | 'team'>('general')
+  // AC#1 (Story 1.10): tab navigation; Story 2.1 adds 'documents'; Story 2.6 adds 'agents'
+  const [activeTab, setActiveTab] = useState<'general' | 'team' | 'documents' | 'agents'>('general')
   // Story 1.10: user's org role (owner/admin controls Team Members write actions)
   const [userOrgRole, setUserOrgRole] = useState<string>('viewer')
 
@@ -319,11 +321,45 @@ export default function ProjectSettingsPage() {
         >
           Team Members
         </button>
+        <button
+          type="button"
+          className={`px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors ${
+            activeTab === 'documents'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+          onClick={() => setActiveTab('documents')}
+          data-testid="tab-documents"
+        >
+          Documents
+        </button>
+        <button
+          type="button"
+          className={`px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors ${
+            activeTab === 'agents'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+          onClick={() => setActiveTab('agents')}
+          data-testid="tab-agents"
+        >
+          Agents
+        </button>
       </div>
 
       {/* Team Members tab — AC#1 (Story 1.10) */}
       {activeTab === 'team' && projectId && (
         <TeamMembersTab projectId={projectId} userOrgRole={userOrgRole} />
+      )}
+
+      {/* Documents tab — Story 2.1 */}
+      {activeTab === 'documents' && projectId && (
+        <DocumentsTab projectId={projectId} projectRole={userOrgRole} />
+      )}
+
+      {/* Agents tab — Story 2.6 */}
+      {activeTab === 'agents' && projectId && (
+        <AgentsTab projectId={projectId} projectRole={userOrgRole} />
       )}
 
       {/* General / Advanced settings form */}

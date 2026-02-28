@@ -62,6 +62,16 @@ class Settings(BaseSettings):
     # Default is a dev-only key — MUST be overridden in production.
     mfa_encryption_key: str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="  # dev-only 32-byte base64
 
+    # GitHub PAT encryption — Story 2.3 (AC-09)
+    # Fernet symmetric key for encrypting GitHub Personal Access Tokens at rest.
+    # In production: set via GITHUB_TOKEN_ENCRYPTION_KEY env var.
+    # Must be a URL-safe base64-encoded 32-byte Fernet key (44 chars).
+    # Default is a dev-only key — MUST be overridden in production.
+    github_token_encryption_key: str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="  # dev-only
+
+    # Token budget — Story 2-8 (AC-17)
+    monthly_token_budget: int = 100_000  # env: MONTHLY_TOKEN_BUDGET
+
     # MFA rate limiting
     mfa_token_ttl_seconds: int = 300        # 5 min mfa_token validity
     mfa_setup_ttl_seconds: int = 600        # 10 min temp secret during setup

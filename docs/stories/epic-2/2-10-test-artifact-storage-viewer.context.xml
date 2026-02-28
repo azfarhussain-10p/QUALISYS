@@ -1,0 +1,504 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>10</storyId>
+    <title>Test Artifact Storage &amp; Viewer</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-03-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/epic-2/2-10-test-artifact-storage-viewer.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>QA-Automation user</asA>
+    <iWant>to view generated test artifacts organized by type</iWant>
+    <soThat>I can review all AI-generated test outputs (coverage matrix, checklists, scripts, BDD scenarios) from a single tabbed interface after a pipeline run completes</soThat>
+    <tasks>
+      Task 1 — Fix artifact_type constants in agent files (AC-22, AC-23, AC-24)
+        1.1 ba_consultant.py: ARTIFACT_TYPE "requirements_matrix" → "coverage_matrix"; CONTENT_TYPE "json" → "application/json"
+        1.2 qa_consultant.py: ARTIFACT_TYPE "test_checklists" → "manual_checklist"; CONTENT_TYPE "markdown" → "text/markdown"
+        1.3 automation_consultant.py: ARTIFACT_TYPE "playwright_scripts" → "playwright_script"; CONTENT_TYPE "typescript" → "text/typescript"
+
+      Task 2 — Add BDD scenario generation to QAConsultant (AC-25)
+        2.1 qa_consultant.py: Add BDD_ARTIFACT_TYPE="bdd_scenario", BDD_CONTENT_TYPE="text/plain", BDD_TITLE, BDD_SYSTEM_PROMPT
+        2.2 qa_consultant.py: Add run_bdd(context, tenant_id, context_hash) → LLMResult using BDD_SYSTEM_PROMPT; agent_type="qa_consultant_bdd" for cache key
+        2.3 orchestrator.py: After primary artifact for qa_consultant, call agent.run_bdd(); build secondary AgentResult; call _create_artifact() again
+        2.4 orchestrator.py: BDD artifact uses artifact_type="bdd_scenario", content_type="text/plain", same run_id+project_id
+
+      Task 3 — Implement ArtifactService
+        3.1 Create backend/src/services/artifact_service.py with ArtifactService class
+            - list_artifacts(db, schema_name, project_id, artifact_type=None) → list[dict]
+            - get_artifact(db, schema_name, project_id, artifact_id) → dict (includes content from current version)
+            - list_versions(db, schema_name, project_id, artifact_id) → list[dict]
+            - get_version(db, schema_name, project_id, artifact_id, version) → dict
+            - Singleton: artifact_service = ArtifactService()
+
+      Task 4 — Create artifacts API router
+        4.1 Create backend/src/api/v1/artifacts/__init__.py (empty)
+        4.2 Create backend/src/api/v1/artifacts/schemas.py (ArtifactVersionSummary, ArtifactSummary, ArtifactDetail)
+        4.3 Create backend/src/api/v1/artifacts/router.py with 4 GET endpoints (see interfaces)
+        4.4 backend/src/main.py: register artifacts_router under /api/v1 (Story 2.10 comment block)
+
+      Task 5 — Frontend: artifact API client
+        5.1 web/src/lib/api.ts: Add ArtifactSummary, ArtifactDetail, ArtifactVersionSummary interfaces
+        5.2 web/src/lib/api.ts: Add artifactApi namespace (list, get, listVersions, getVersion)
+
+      Task 6 — Frontend: ArtifactsTab page
+        6.1 Create web/src/pages/projects/artifacts/ArtifactsTab.tsx with 4-tab viewer
+        6.2 Register ArtifactsTab in project page routing at /projects/:projectId/artifacts
+
+      Task 7 — Unit and Integration Tests
+        7.1 backend/tests/unit/services/test_artifact_service.py (≥4 tests)
+        7.2 backend/tests/unit/services/test_orchestrator.py: test_qa_consultant_creates_two_artifacts
+        7.3 backend/tests/unit/services/test_orchestrator.py: test_artifact_type_constants_match_spec
+        7.4 backend/tests/integration/test_artifacts.py (≥4 tests)
+        7.5 docs/sprint-status.yaml: set 2-10-test-artifact-storage-viewer → drafted
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="AC-22">BAConsultant stores artifact with artifact_type='coverage_matrix' (JSON array of {requirement_id, description, source, coverage_status, notes}). Unit test: mock LLM, assert artifact_type=='coverage_matrix' and content is parseable JSON array.</ac>
+    <ac id="AC-23">QAConsultant stores artifact with artifact_type='manual_checklist' (Markdown). Unit test: mock LLM, assert artifact_type=='manual_checklist' and content contains '# Manual Test Checklists' header.</ac>
+    <ac id="AC-24">AutomationConsultant stores artifact with artifact_type='playwright_script' (TypeScript). Unit test: mock LLM, assert artifact_type=='playwright_script' and content contains 'import { test, expect }'.</ac>
+    <ac id="AC-25">QAConsultant also produces bdd_scenario artifact (plain text Gherkin). Orchestrator calls qa_consultant.run_bdd() after run(); creates second artifact row in same DB transaction. Unit test: mock LLM twice, assert two artifacts created — one manual_checklist, one bdd_scenario with 'Scenario:' in content.</ac>
+    <ac id="AC-26">GET /api/v1/projects/{project_id}/artifacts returns list with artifact_type, agent_type, title, current_version, metadata.tokens_used, created_at. GET /api/v1/projects/{project_id}/artifacts/{id} returns detail + current version content. Both require require_project_role("owner","admin","qa-automation"). Integration test: seed DB, assert list and detail responses.</ac>
+    <ac id="AC-26b">ArtifactsTab at /projects/:projectId/artifacts shows 4 tabs: Coverage Matrix, Manual Checklists, Playwright Scripts, BDD Scenarios. Each tab lists artifacts filtered by artifact_type. Each card shows: agent name, created_at (formatted), tokens_used from metadata, version badge.</ac>
+    <ac id="AC-26c">Each tab shows contextual empty state when no artifacts of that type exist.</ac>
+    <ac id="AC-26d">Coverage Matrix content rendered as HTML table from parsed JSON. All other artifact types rendered in pre/code block with font-mono styling.</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>§4.1 Services and Modules</section>
+        <snippet>ArtifactService at backend/src/services/artifact_service.py responsible for CRUD artifacts, versioning, diff computation. All agent files listed with their responsibilities.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>§4.2 Migration 015 — artifacts + artifact_versions tables</section>
+        <snippet>artifacts table: id, project_id, run_id, agent_type, artifact_type (coverage_matrix|manual_checklist|playwright_script|bdd_scenario), title, current_version, metadata JSONB, created_by. artifact_versions: id, artifact_id, version, content TEXT, content_type, diff_from_prev, edited_by.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>§4.3 API Endpoints — Artifacts</section>
+        <snippet>GET /api/v1/projects/{project_id}/artifacts (filter by type); GET /artifacts/{id}; GET /artifacts/{id}/versions; GET /artifacts/{id}/versions/{v}; PUT /artifacts/{id} (save edit — Story 2-11).</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>§8 Acceptance Criteria AC-22 through AC-26</section>
+        <snippet>AC-22: coverage_matrix. AC-23: manual_checklist. AC-24: playwright_script (syntactically valid TypeScript). AC-25: bdd_scenario (Given/When/Then). AC-26: viewer tabs with agent name, created_at, tokens_used, version per artifact.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>§9 Traceability: AC-22–25 and AC-26–29</section>
+        <snippet>AC-22–25 map to FR32–FR35 (BAConsultantAgent, QAConsultantAgent, AutomationConsultantAgent). AC-26–29 map to FR38–FR40 (ArtifactService, artifact viewer, Monaco editor — editor deferred to Story 2-11).</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>§11 Test Strategy — story mapping</section>
+        <snippet>Story 2-10: AC-22 through AC-26. Story 2-11: AC-27 through AC-29 (Monaco editor, versioning diff).</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epics.md</path>
+        <title>QUALISYS Epics</title>
+        <section>Story 2.10 definition</section>
+        <snippet>As QA-Automation user, I want to view generated test artifacts organized by type. AC1: tabs (Coverage Matrix, Manual Checklists, Playwright Scripts, BDD Scenarios). AC6: each artifact shows metadata: agent name, created_at, tokens_used, version. FRs: FR31, FR32–FR38.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/2-9-real-time-agent-progress-tracking.md</path>
+        <title>Story 2.9 — Previous story learnings</title>
+        <section>Dev Agent Record — Completion Notes + File List</section>
+        <snippet>_create_artifact() now returns artifact_id (str). No toast library in codebase — use inline state banner. Patch rule: services with module-level get_redis_client import must be patched at src.services.{service_name}.get_redis_client. All 2-9 review items resolved.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <!-- EXISTING — must MODIFY -->
+      <artifact>
+        <path>backend/src/services/agents/ba_consultant.py</path>
+        <kind>service/agent</kind>
+        <symbol>BAConsultantAgent, ARTIFACT_TYPE, CONTENT_TYPE</symbol>
+        <lines>1-18</lines>
+        <reason>ARTIFACT_TYPE must change from "requirements_matrix" → "coverage_matrix"; CONTENT_TYPE "json" → "application/json" (AC-22). Single-line constant fix.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/services/agents/qa_consultant.py</path>
+        <kind>service/agent</kind>
+        <symbol>QAConsultantAgent, ARTIFACT_TYPE, CONTENT_TYPE, run()</symbol>
+        <lines>1-20</lines>
+        <reason>ARTIFACT_TYPE "test_checklists" → "manual_checklist"; CONTENT_TYPE "markdown" → "text/markdown" (AC-23). Also add BDD_ARTIFACT_TYPE, BDD_CONTENT_TYPE, BDD_TITLE, BDD_SYSTEM_PROMPT constants and run_bdd() method (AC-25).</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/services/agents/automation_consultant.py</path>
+        <kind>service/agent</kind>
+        <symbol>AutomationConsultantAgent, ARTIFACT_TYPE, CONTENT_TYPE</symbol>
+        <lines>1-18</lines>
+        <reason>ARTIFACT_TYPE "playwright_scripts" → "playwright_script"; CONTENT_TYPE "typescript" → "text/typescript" (AC-24). Single-line constant fix.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/services/agents/orchestrator.py</path>
+        <kind>service/orchestrator</kind>
+        <symbol>AgentOrchestrator._run_agent_step, _create_artifact, AGENT_MAP</symbol>
+        <lines>39-58, 165-295, 296-346</lines>
+        <reason>Modify _run_agent_step to call agent.run_bdd() after primary artifact for qa_consultant, creating a second artifact row. _create_artifact already returns artifact_id and handles both artifacts/artifact_versions inserts. AGENT_MAP imports _qa module alias already in place.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/alembic/versions/015_create_agent_runs_and_artifacts.py</path>
+        <kind>migration</kind>
+        <symbol>artifacts table, artifact_versions table</symbol>
+        <lines>120-193</lines>
+        <reason>artifacts and artifact_versions tables already exist in all tenant_% schemas. No new migration needed for Story 2-10. Reference for column names and types.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/main.py</path>
+        <kind>application entry point</kind>
+        <symbol>app.include_router</symbol>
+        <lines>143-150</lines>
+        <reason>Pattern for registering new router. Add artifacts_router after events_router (Story 2.9 line 148). Follow same import-at-bottom pattern with noqa E402 comment.</reason>
+      </artifact>
+
+      <!-- EXISTING — use as PATTERN reference -->
+      <artifact>
+        <path>backend/src/services/document_service.py</path>
+        <kind>service</kind>
+        <symbol>DocumentService, list_documents, get_document</symbol>
+        <lines>1-80</lines>
+        <reason>Reference pattern for ArtifactService: async SQL with text() + named :params, schema_name in f-string double-quoted, singleton instantiation at module level. Follow same security model (C1/C2).</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/api/v1/documents/router.py</path>
+        <kind>router</kind>
+        <symbol>router, upload_document, list_documents</symbol>
+        <lines>1-60</lines>
+        <reason>Reference pattern for artifacts router: APIRouter prefix, require_project_role as Depends default, auth tuple unpacking (user, tenant_user), slug = current_tenant_slug.get(), schema_name = slug_to_schema_name(slug).</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/api/v1/documents/schemas.py</path>
+        <kind>schemas</kind>
+        <symbol>DocumentResponse, DocumentListItem, PaginatedDocumentListResponse</symbol>
+        <lines>1-66</lines>
+        <reason>Reference pattern for artifacts schemas.py: Pydantic BaseModel with Optional fields, no ORM — manual field mapping from SQL row dicts.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/api/v1/agent_runs/router.py</path>
+        <kind>router</kind>
+        <symbol>agents_catalog_router, router, require_project_role</symbol>
+        <lines>1-40</lines>
+        <reason>Reference for RBAC pattern on agent-scoped endpoints. Also shows how two routers are organized (global + project-scoped). Artifacts uses single project-scoped router only.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/middleware/rbac.py</path>
+        <kind>middleware</kind>
+        <symbol>require_project_role</symbol>
+        <lines>1-30</lines>
+        <reason>Returns (User, TenantUser) tuple. Use as: auth: tuple = require_project_role("owner","admin","qa-automation"). Extract user_id with user.id or str(user.id).</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/middleware/tenant_context.py</path>
+        <kind>middleware</kind>
+        <symbol>current_tenant_slug</symbol>
+        <lines>1-20</lines>
+        <reason>ContextVar set by TenantContextMiddleware from JWT. Used as: slug = current_tenant_slug.get(); schema_name = slug_to_schema_name(slug).</reason>
+      </artifact>
+
+      <!-- EXISTING — FRONTEND patterns -->
+      <artifact>
+        <path>web/src/pages/projects/agents/AgentsTab.tsx</path>
+        <kind>component</kind>
+        <symbol>AgentsTab, tab UI pattern, useQuery, inline state banner</symbol>
+        <lines>1-50</lines>
+        <reason>Reference for tab UI structure, useQuery + @tanstack/react-query v5 pattern, inline error/success banner (no toast library), lucide-react icons. ArtifactsTab follows same pattern with activeTab state driving API filter param.</reason>
+      </artifact>
+      <artifact>
+        <path>web/src/lib/api.ts</path>
+        <kind>api-client</kind>
+        <symbol>agentApi, AgentRunResponse, apiClient.get pattern</symbol>
+        <lines>930-989</lines>
+        <reason>Reference for adding artifactApi namespace. Follow same pattern: export interface types then export const artifactApi = { list: (projectId, artifactType?) => apiClient.get(...).then(r => r.data), ... }.</reason>
+      </artifact>
+
+      <!-- NEW — to be created -->
+      <artifact>
+        <path>backend/src/services/artifact_service.py</path>
+        <kind>service</kind>
+        <symbol>ArtifactService, artifact_service (singleton)</symbol>
+        <lines>NEW</lines>
+        <reason>Core service for this story. list_artifacts, get_artifact (JOIN with artifact_versions at current_version), list_versions, get_version. All methods follow document_service.py SQL pattern.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/api/v1/artifacts/__init__.py</path>
+        <kind>package</kind>
+        <symbol>—</symbol>
+        <lines>NEW</lines>
+        <reason>Empty init file to make artifacts/ a Python package.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/api/v1/artifacts/schemas.py</path>
+        <kind>schemas</kind>
+        <symbol>ArtifactSummary, ArtifactDetail, ArtifactVersionSummary</symbol>
+        <lines>NEW</lines>
+        <reason>Pydantic response models. ArtifactDetail extends ArtifactSummary with content: str and content_type: str from artifact_versions join.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/api/v1/artifacts/router.py</path>
+        <kind>router</kind>
+        <symbol>router, list_artifacts, get_artifact, list_versions, get_version</symbol>
+        <lines>NEW</lines>
+        <reason>4 GET endpoints. Prefix: /api/v1/projects/{project_id}/artifacts. RBAC: require_project_role("owner","admin","qa-automation") on all.</reason>
+      </artifact>
+      <artifact>
+        <path>web/src/pages/projects/artifacts/ArtifactsTab.tsx</path>
+        <kind>component</kind>
+        <symbol>ArtifactsTab</symbol>
+        <lines>NEW</lines>
+        <reason>Main frontend deliverable for AC-26b/c/d. Tab state drives artifact_type filter. Coverage Matrix renders as table; others as pre block. Empty state per tab.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/tests/unit/services/test_artifact_service.py</path>
+        <kind>test</kind>
+        <symbol>test_list_artifacts_returns_rows, test_get_artifact_returns_detail_with_content, test_get_artifact_raises_404_wrong_project, test_list_versions_ordered_desc</symbol>
+        <lines>NEW</lines>
+        <reason>Unit tests for ArtifactService. Mock AsyncSession.execute() to return mock rows. Each test has one-line comment stating behaviour proved (DoD A6).</reason>
+      </artifact>
+      <artifact>
+        <path>backend/tests/integration/test_artifacts.py</path>
+        <kind>test</kind>
+        <symbol>test_list_artifacts_empty, test_list_artifacts_with_type_filter, test_get_artifact_detail_includes_content, test_get_artifact_404_unknown_id</symbol>
+        <lines>NEW</lines>
+        <reason>Integration tests for artifact endpoints. Override get_db dependency with mock AsyncSession. Follow test_sse_events.py and test_crawls.py patterns.</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <python>
+        <package name="fastapi" version="0.109.2" />
+        <package name="pydantic" version="2.6.3" />
+        <package name="sqlalchemy" version="2.0.27" note="AsyncSession, text()" />
+        <package name="asyncpg" version="0.29.0" note="async PostgreSQL driver" />
+        <package name="pytest" note="in requirements-dev.txt — unit + integration tests" />
+        <package name="pytest-asyncio" note="for async test functions" />
+        <note>No new Python dependencies required for Story 2-10. ArtifactService uses only stdlib + existing SQLAlchemy/FastAPI/Pydantic stack.</note>
+      </python>
+      <frontend>
+        <package name="react" version="^18.2.0" />
+        <package name="@tanstack/react-query" version="^5.17.19" note="useQuery for data fetching" />
+        <package name="react-router-dom" version="^6.22.1" note="routing for /projects/:id/artifacts" />
+        <package name="axios" version="^1.6.7" note="apiClient via api.ts" />
+        <package name="lucide-react" version="^0.330.0" note="icons (FileText, CheckSquare, Code2, List)" />
+        <package name="tailwindcss" version="^3.4.1" note="styling, font-mono for code blocks" />
+        <package name="typescript" version="^5.3.3" />
+        <note>No new frontend dependencies. NO Monaco editor (Story 2-11). NO react-syntax-highlighter. Use pre/code blocks with font-mono class for code display.</note>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1">All SQL via SQLAlchemy text() with named :params. Schema name ONLY in f-string, always double-quoted: f'... FROM "{schema_name}".artifacts ...'. Never interpolate user-provided data into SQL strings.</constraint>
+    <constraint id="C2">schema_name always derived from validated ContextVar: slug = current_tenant_slug.get(); schema_name = slug_to_schema_name(slug). Never accept schema_name from request body or query params.</constraint>
+    <constraint id="C3">RBAC on all artifact endpoints: require_project_role("owner", "admin", "qa-automation"). 404 (not 403) for artifacts belonging to different project_id — prevents project enumeration.</constraint>
+    <constraint id="C4">artifact_type values MUST exactly match tech spec strings: "coverage_matrix", "manual_checklist", "playwright_script", "bdd_scenario". These are the filter keys used by the frontend tabs and JIRA traceability (Story 2-17).</constraint>
+    <constraint id="C5">content_type values must be valid MIME-style strings: "application/json" (coverage_matrix), "text/markdown" (manual_checklist), "text/typescript" (playwright_script), "text/plain" (bdd_scenario). Used by Story 2-11 Monaco editor for syntax highlighting selection.</constraint>
+    <constraint id="C6">BDD secondary artifact (AC-25): call agent.run_bdd() AFTER primary artifact is stored (sequential, not parallel). Both _create_artifact() calls share the same db session (same transaction). Accumulate BDD tokens_used into step totals.</constraint>
+    <constraint id="C7">No Monaco editor in this story (Story 2-11 scope). PUT /artifacts/{id} endpoint is NOT part of Story 2-10. Artifact content is read-only display only.</constraint>
+    <constraint id="C8">No new Python or frontend dependencies. ArtifactService uses existing SQLAlchemy stack. Frontend uses existing pre/code blocks — do NOT add react-syntax-highlighter, prism-react-renderer, or Monaco.</constraint>
+    <constraint id="C9">Each unit test MUST have a one-line comment stating the behaviour it proves (Epic 2 DoD requirement from Epic 1 Retrospective A6). Pattern: # Proves: list_artifacts() executes SELECT and maps rows to dicts.</constraint>
+    <constraint id="C10">Test mock pattern for integration tests: override get_db with mock AsyncSession; mock execute() to return MagicMock with fetchall()/fetchone() returning seeded dicts. Follow test_sse_events.py pattern (no real DB/Redis).</constraint>
+    <constraint id="C11">No toast library available (sonner, react-hot-toast not in package.json). Use inline useState banner for any feedback in ArtifactsTab (e.g., load errors). Same pattern as AgentsTab.tsx completionMessage state.</constraint>
+    <constraint id="C12">Artifacts router prefix: /api/v1/projects/{project_id}/artifacts. Tags: ["artifacts"]. Router file: backend/src/api/v1/artifacts/router.py. Router variable name: router (imported in main.py as artifacts_router).</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>GET /api/v1/projects/{project_id}/artifacts</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/v1/projects/{project_id}/artifacts?artifact_type={type}
+Response 200: list[ArtifactSummary]
+ArtifactSummary { id, agent_type, artifact_type, title, current_version, metadata: {tokens_used?}, created_at, updated_at }
+Query param artifact_type: Optional[str] — filter to single type (e.g., "coverage_matrix")
+RBAC: require_project_role("owner","admin","qa-automation")</signature>
+      <path>backend/src/api/v1/artifacts/router.py</path>
+    </interface>
+    <interface>
+      <name>GET /api/v1/projects/{project_id}/artifacts/{artifact_id}</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/v1/projects/{project_id}/artifacts/{artifact_id}
+Response 200: ArtifactDetail
+ArtifactDetail extends ArtifactSummary: { ...ArtifactSummary, content: str, content_type: str }
+Response 404: { "detail": { "error": "ARTIFACT_NOT_FOUND", "message": "..." } }
+JOIN artifacts + artifact_versions ON version = current_version</signature>
+      <path>backend/src/api/v1/artifacts/router.py</path>
+    </interface>
+    <interface>
+      <name>GET /api/v1/projects/{project_id}/artifacts/{artifact_id}/versions</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/v1/projects/{project_id}/artifacts/{artifact_id}/versions
+Response 200: list[ArtifactVersionSummary]
+ArtifactVersionSummary { id, version, content_type, edited_by, created_at }
+Ordered: version DESC (latest first)</signature>
+      <path>backend/src/api/v1/artifacts/router.py</path>
+    </interface>
+    <interface>
+      <name>GET /api/v1/projects/{project_id}/artifacts/{artifact_id}/versions/{version}</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/v1/projects/{project_id}/artifacts/{artifact_id}/versions/{version}
+version: int (path param)
+Response 200: ArtifactDetail (same schema as single artifact get, but for specific version)
+Response 404: { "detail": { "error": "VERSION_NOT_FOUND", "message": "..." } }</signature>
+      <path>backend/src/api/v1/artifacts/router.py</path>
+    </interface>
+    <interface>
+      <name>ArtifactService.list_artifacts</name>
+      <kind>function signature</kind>
+      <signature>async def list_artifacts(
+    self,
+    db: AsyncSession,
+    schema_name: str,
+    project_id: str,
+    artifact_type: Optional[str] = None,
+) -> list[dict]:
+    # SELECT id, agent_type, artifact_type, title, current_version, metadata,
+    #        created_by, created_at, updated_at
+    # FROM "{schema_name}".artifacts
+    # WHERE project_id = :pid [AND artifact_type = :at]
+    # ORDER BY created_at DESC</signature>
+      <path>backend/src/services/artifact_service.py</path>
+    </interface>
+    <interface>
+      <name>ArtifactService.get_artifact</name>
+      <kind>function signature</kind>
+      <signature>async def get_artifact(
+    self,
+    db: AsyncSession,
+    schema_name: str,
+    project_id: str,
+    artifact_id: str,
+) -> dict:
+    # SELECT a.*, av.content, av.content_type
+    # FROM "{schema_name}".artifacts a
+    # JOIN "{schema_name}".artifact_versions av
+    #   ON av.artifact_id = a.id AND av.version = a.current_version
+    # WHERE a.id = :aid AND a.project_id = :pid
+    # Raises HTTPException(404, {"error": "ARTIFACT_NOT_FOUND"}) if not found</signature>
+      <path>backend/src/services/artifact_service.py</path>
+    </interface>
+    <interface>
+      <name>QAConsultantAgent.run_bdd</name>
+      <kind>function signature</kind>
+      <signature>async def run_bdd(
+    self,
+    context: dict,
+    tenant_id: str,
+    *,
+    context_hash: Optional[str] = None,
+) -> LLMResult:
+    # Calls call_llm() with BDD_SYSTEM_PROMPT, agent_type="qa_consultant_bdd"
+    # Returns LLMResult with Gherkin content (Feature:/Scenario:/Given/When/Then)</signature>
+      <path>backend/src/services/agents/qa_consultant.py</path>
+    </interface>
+    <interface>
+      <name>artifactApi (TypeScript)</name>
+      <kind>API client namespace</kind>
+      <signature>export const artifactApi = {
+  list: (projectId: string, artifactType?: string) =>
+    apiClient.get&lt;ArtifactSummary[]&gt;(
+      `/api/v1/projects/${projectId}/artifacts${artifactType ? `?artifact_type=${artifactType}` : ''}`
+    ).then(r => r.data),
+
+  get: (projectId: string, artifactId: string) =>
+    apiClient.get&lt;ArtifactDetail&gt;(`/api/v1/projects/${projectId}/artifacts/${artifactId}`)
+      .then(r => r.data),
+
+  listVersions: (projectId: string, artifactId: string) =>
+    apiClient.get&lt;ArtifactVersionSummary[]&gt;(`/api/v1/projects/${projectId}/artifacts/${artifactId}/versions`)
+      .then(r => r.data),
+
+  getVersion: (projectId: string, artifactId: string, version: number) =>
+    apiClient.get&lt;ArtifactDetail&gt;(`/api/v1/projects/${projectId}/artifacts/${artifactId}/versions/${version}`)
+      .then(r => r.data),
+}</signature>
+      <path>web/src/lib/api.ts</path>
+    </interface>
+    <interface>
+      <name>ArtifactSummary / ArtifactDetail (TypeScript interfaces)</name>
+      <kind>TypeScript interface</kind>
+      <signature>export interface ArtifactSummary {
+  id: string
+  agent_type: string
+  artifact_type: string
+  title: string
+  current_version: number
+  metadata: { tokens_used?: number; [key: string]: unknown } | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ArtifactDetail extends ArtifactSummary {
+  content: string
+  content_type: string
+}
+
+export interface ArtifactVersionSummary {
+  id: string
+  version: number
+  content_type: string
+  edited_by: string | null
+  created_at: string
+}</signature>
+      <path>web/src/lib/api.ts</path>
+    </interface>
+    <interface>
+      <name>_create_artifact (orchestrator — existing, used twice for qa_consultant)</name>
+      <kind>function signature</kind>
+      <signature>async def _create_artifact(
+    self,
+    db: AsyncSession,
+    schema_name: str,
+    project_id: str,
+    run_id: str,
+    agent_type: str,
+    result: AgentResult,
+    user_id: str,
+) -> str:
+    # Already exists. INSERTs to artifacts + artifact_versions.
+    # Returns artifact_id string.
+    # Call twice for qa_consultant: once with primary result, once with BDD result.</signature>
+      <path>backend/src/services/agents/orchestrator.py</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Backend unit tests use pytest + pytest-asyncio. Each test must have a one-line comment stating the behaviour proved (DoD A6, e.g., "# Proves: list_artifacts() returns rows ordered by created_at DESC"). Mock AsyncSession.execute() using unittest.mock.AsyncMock or MagicMock. Service tests do not use real DB. Integration tests override FastAPI get_db dependency with mock session returning seeded data dicts. No real DB or Redis connections in any test. Test files follow naming convention test_{service_name}.py for unit tests and test_{feature}.py for integration tests. Frontend tests use Vitest + @testing-library/react (no frontend tests required for this story — backend coverage is sufficient).
+    </standards>
+    <locations>
+      <location>backend/tests/unit/services/test_artifact_service.py (NEW)</location>
+      <location>backend/tests/unit/services/test_orchestrator.py (MODIFIED — append 2 new tests)</location>
+      <location>backend/tests/integration/test_artifacts.py (NEW)</location>
+      <location>backend/tests/unit/services/ (existing unit tests for reference patterns)</location>
+      <location>backend/tests/integration/ (existing integration test patterns)</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-22">test_artifact_type_constants_match_spec: import ba_consultant, qa_consultant, automation_consultant; assert ARTIFACT_TYPE values are "coverage_matrix", "manual_checklist", "playwright_script" respectively. Assert CONTENT_TYPE values are "application/json", "text/markdown", "text/typescript".</idea>
+      <idea ac="AC-23">test_qa_consultant_run_returns_manual_checklist_type: mock call_llm to return LLMResult with content="# Manual Test Checklists\n..."; assert agent.run() returns LLMResult; content contains header. Validate ARTIFACT_TYPE="manual_checklist".</idea>
+      <idea ac="AC-24">test_automation_consultant_type_is_playwright_script: assert automation_consultant.ARTIFACT_TYPE == "playwright_script" and CONTENT_TYPE == "text/typescript".</idea>
+      <idea ac="AC-25">test_qa_consultant_creates_two_artifacts: mock _create_artifact (patch on AgentOrchestrator instance or spy); mock agent.run() + agent.run_bdd(); run _run_agent_step for qa_consultant; assert _create_artifact called exactly twice; first call artifact_type="manual_checklist"; second call artifact_type="bdd_scenario".</idea>
+      <idea ac="AC-25">test_run_bdd_returns_gherkin_content: mock call_llm to return "Feature: Login\n  Scenario: ...\n    Given ...\n    When ...\n    Then ..."; assert run_bdd() returns LLMResult with that content.</idea>
+      <idea ac="AC-26">test_list_artifacts_returns_rows: mock db.execute to return mock rows; call list_artifacts(db, "tenant_test", "proj-uuid"); assert returns list of dicts with expected keys (id, artifact_type, title, etc.).</idea>
+      <idea ac="AC-26">test_get_artifact_returns_detail_with_content: mock db.execute JOIN result; assert returned dict includes "content" and "content_type" from artifact_versions.</idea>
+      <idea ac="AC-26">test_get_artifact_raises_404_wrong_project: mock db.execute to return no rows (wrong project_id); assert HTTPException raised with status_code=404 and error="ARTIFACT_NOT_FOUND".</idea>
+      <idea ac="AC-26">test_list_versions_ordered_desc: mock db.execute to return 3 rows with versions [1,2,3]; assert returned list is ordered [3,2,1].</idea>
+      <idea ac="AC-26">integration test_list_artifacts_empty: GET /projects/{id}/artifacts with no seeded artifacts; assert 200 and empty list [].</idea>
+      <idea ac="AC-26">integration test_list_artifacts_with_type_filter: seed 2 artifact rows (coverage_matrix + manual_checklist); GET with ?artifact_type=coverage_matrix; assert only 1 returned with correct artifact_type.</idea>
+      <idea ac="AC-26">integration test_get_artifact_detail_includes_content: seed artifact + version rows; GET /artifacts/{id}; assert response includes "content" field from artifact_versions.</idea>
+      <idea ac="AC-26">integration test_get_artifact_404_unknown_id: GET /artifacts/{unknown-uuid}; assert 404 with ARTIFACT_NOT_FOUND error code.</idea>
+    </ideas>
+  </tests>
+
+</story-context>

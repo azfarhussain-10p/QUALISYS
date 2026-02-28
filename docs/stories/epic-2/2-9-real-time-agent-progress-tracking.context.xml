@@ -1,0 +1,444 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>9</storyId>
+    <title>Real-Time Agent Progress Tracking</title>
+    <status>drafted</status>
+    <generatedAt>2026-02-28</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/epic-2/2-9-real-time-agent-progress-tracking.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>QA-Automation user</asA>
+    <iWant>to see live per-agent status cards update in real time as my pipeline runs</iWant>
+    <soThat>I know exactly which agent is executing, how far along it is, and when results are ready — without polling or page-refreshing</soThat>
+    <tasks>
+      Task 1 — SSEManager singleton
+        1.1 Create backend/src/services/sse_manager.py with SSEManager class:
+            - get_or_create_queue(run_id) → asyncio.Queue (lazy create)
+            - remove_queue(run_id) → None
+            - publish(run_id, event_type, payload) → None (silent no-op if no subscriber)
+            - Module-level singleton: sse_manager = SSEManager()
+
+      Task 2 — Orchestrator: emit SSE events (MODIFY backend/src/services/agents/orchestrator.py)
+        2.1 Import sse_manager; add publish() calls in _run_agent_step():
+            - After status="running": publish(run_id, "running", {step_id, agent_type, progress_pct=0, progress_label})
+            - After status="completed": publish(run_id, "complete", {step_id, agent_type, tokens_used, artifact_id})
+            - In BudgetExceededError + RuntimeError failure paths: publish(run_id, "error", {step_id, agent_type, error_code="STEP_FAILED", message})
+            - In execute_pipeline() after run completed: publish(run_id, "complete", {run_id, all_done=True})
+        2.2 Update _create_artifact() return type: None → str (returns artifact_id)
+            - Capture: artifact_id = await self._create_artifact(...)
+
+      Task 3 — SSE endpoint (NEW backend/src/api/v1/events/)
+        3.1 Create backend/src/api/v1/events/__init__.py (empty)
+        3.2 Create backend/src/api/v1/events/router.py:
+            - GET /api/v1/events/agent-runs/{run_id}
+            - Validate run_id in tenant schema; 404 RUN_NOT_FOUND if absent
+            - build_sse_response(_event_generator(run_id), run_id)
+            - _event_generator: get_or_create_queue → yield SSEEvents → cleanup in finally
+        3.3 Register events_router in backend/src/main.py
+
+      Task 4 — Frontend: EventSource + status cards (MODIFY web/src/pages/projects/agents/AgentsTab.tsx)
+        4.1 After POST /agent-runs 201: open EventSource with withCredentials: true; maintain agentStatuses/agentProgress/agentLabels state
+        4.2 Render one status card per agents_selected: queued (gray)/running (blue+spinner+progress)/complete (green+checkmark)/error (red)
+        4.3 AC-21: on all_done=true → toast.success + setTimeout navigate to /projects/{id}/artifacts after 1500ms
+
+      Task 5 — Unit Tests (NEW backend/tests/unit/services/test_sse_manager.py, ≥5 tests)
+        5.1 test_get_or_create_queue_creates_new_queue
+        5.2 test_get_or_create_queue_returns_same_queue
+        5.3 test_publish_puts_event_in_queue
+        5.4 test_publish_no_op_when_no_subscriber
+        5.5 test_remove_queue_cleans_up
+        5.6 Add test_create_artifact_returns_artifact_id to orchestrator tests
+
+      Task 6 — Integration Tests (NEW backend/tests/integration/test_sse_events.py, ≥3 tests)
+        6.1 test_sse_endpoint_404_unknown_run
+        6.2 test_sse_endpoint_200_known_run (StreamingResponse, text/event-stream)
+        6.3 test_sse_endpoint_events_sequence (running → complete via mock SSEManager)
+
+      Task 7 — Sprint Status Update
+        7.1 docs/sprint-status.yaml: 2-9-real-time-agent-progress-tracking → in-progress (DEV agent sets on pickup)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    AC-19 (Backend — SSE endpoint):
+      GET /api/v1/events/agent-runs/{run_id} returns StreamingResponse with Content-Type: text/event-stream.
+      - Uses build_sse_response(event_generator, run_id) from src.patterns.sse_pattern (C2-approved)
+      - RBAC: require_project_role("owner", "admin", "qa-automation")
+      - Validates run_id in "tenant_{slug}".agent_runs; 404 RUN_NOT_FOUND if absent
+      - Event payloads:
+        * running step: {step_id, agent_type, progress_pct: 0, progress_label}
+        * complete step: {step_id, agent_type, tokens_used, artifact_id}
+        * complete run: {run_id, all_done: true}
+        * error step: {step_id, agent_type, error_code: "STEP_FAILED", message}
+      - Heartbeat every 15s of silence (automatic via build_sse_response)
+      - Generator terminates after complete+all_done or on client disconnect
+      - Headers: X-Accel-Buffering: no, Cache-Control: no-cache, Connection: keep-alive (auto)
+
+    AC-19b (Backend — Orchestrator publishes SSE events):
+      _run_agent_step() and execute_pipeline() call await sse_manager.publish(...) at every transition:
+      | step → running   | "running"  | step_id, agent_type, progress_pct=0, progress_label |
+      | step → completed | "complete" | step_id, agent_type, tokens_used, artifact_id       |
+      | step → failed    | "error"    | step_id, agent_type, error_code="STEP_FAILED", message |
+      | run  → completed | "complete" | run_id, all_done=True                               |
+      publish() is silent no-op when no subscriber queue registered.
+
+    AC-20 (Frontend — Agent status cards):
+      After POST /agent-runs → 201:
+      - Opens EventSource to /api/v1/events/agent-runs/{run_id} (withCredentials: true)
+      - Renders one status card per agents_selected:
+        * queued  — gray chip, "Queued" label, no progress bar
+        * running — blue card, spinner, animated progress bar at progress_pct%, progress_label subtitle
+        * complete — green card, checkmark icon, "Complete" label
+        * error   — red card, error icon, error message subtitle
+      - Cards update in real time as SSE events arrive (no page refresh)
+      - EventSource closed on unmount or stream complete
+
+    AC-21 (Frontend — Run completion behavior):
+      On complete event with payload.all_done === true:
+      - Show success toast: "Agent pipeline completed successfully!"
+      - Auto-navigate to Artifacts tab after 1.5s: navigate(`/projects/${projectId}/artifacts`)
+      - EventSource closed before navigation
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification — AI Agent Platform</title>
+        <section>Section 8 — Acceptance Criteria (AC-19, AC-19b, AC-20, AC-21)</section>
+        <snippet>AC-19 specifies the SSE endpoint contract: GET /api/v1/events/agent-runs/{run_id} returns StreamingResponse text/event-stream using build_sse_response() from sse_pattern.py. AC-20 specifies frontend real-time status cards. AC-21 specifies completion toast + auto-navigate.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification — AI Agent Platform</title>
+        <section>Section 3 — System Architecture Alignment (SSE / Real-Time)</section>
+        <snippet>Real-time progress via Server-Sent Events (SSE): Queued → Running → Complete status cards. SSE approved as C2 pattern spike. In-process asyncio.Queue per run for MVP; Redis pub/sub deferred to production hardening.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>QUALISYS System Architecture</title>
+        <section>Section 1.3 — High-Level System Architecture (SSE Client)</section>
+        <snippet>Architecture diagram shows SSE Client component in the frontend connecting via Server-Sent Events to the API Gateway rate limiter layer. SSE enables real-time updates without polling. Headers X-Accel-Buffering: no prevents Nginx buffering.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>QUALISYS System Architecture</title>
+        <section>Section 9 — Security Threat Model (C2: Tenant Isolation)</section>
+        <snippet>All project-scoped SSE endpoints must validate the resource (run_id) belongs to the current tenant schema before initiating the stream. The generator itself is tenant-unaware — isolation enforced at endpoint dependency level.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/2-8-agent-execution-engine.md</path>
+        <title>Story 2-8 — Agent Execution Engine (predecessor, DONE)</title>
+        <section>Dev Agent Record — Learnings / Debug Log</section>
+        <snippet>Patch target rule (CRITICAL): services with module-level get_redis_client binding must be patched at src.services.{service_name}.get_redis_client. Token budget gate now in POST /agent-runs hot path: integration tests must patch src.services.token_budget_service.get_redis_client. _create_artifact() currently returns None — Task 2.2 changes this.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <!-- EXISTING — core SSE infrastructure (C2 approved pattern) -->
+      <file>
+        <path>backend/src/patterns/sse_pattern.py</path>
+        <kind>service</kind>
+        <symbol>SSEEvent, build_sse_response, _heartbeat_aware_stream, _VALID_EVENT_TYPES</symbol>
+        <lines>1-155</lines>
+        <reason>Core SSE contract: SSEEvent dataclass with to_wire(), build_sse_response() wraps async generator in StreamingResponse with heartbeat, _VALID_EVENT_TYPES = {queued,running,complete,error,heartbeat}. MUST use this — do not duplicate.</reason>
+      </file>
+
+      <!-- EXISTING — MODIFIED: add SSE publish calls + fix _create_artifact return -->
+      <file>
+        <path>backend/src/services/agents/orchestrator.py</path>
+        <kind>service</kind>
+        <symbol>AgentOrchestrator, execute_pipeline, _run_agent_step, _create_artifact, _update_step, _update_run</symbol>
+        <lines>164-505</lines>
+        <reason>Task 2 target: add sse_manager import + publish() calls at every state transition in _run_agent_step() and execute_pipeline(). Change _create_artifact() return type from None to str. Capture artifact_id at call site in _run_agent_step().</reason>
+      </file>
+
+      <!-- EXISTING — MODIFIED: register events_router -->
+      <file>
+        <path>backend/src/main.py</path>
+        <kind>file</kind>
+        <symbol>app.include_router</symbol>
+        <lines>144-146</lines>
+        <reason>Task 3.3: add "from src.api.v1.events.router import router as events_router" and "app.include_router(events_router)" following the established pattern (Story 2.6 example at line 144).</reason>
+      </file>
+
+      <!-- EXISTING — reference for RBAC + tenant schema pattern -->
+      <file>
+        <path>backend/src/api/v1/agent_runs/router.py</path>
+        <kind>controller</kind>
+        <symbol>start_run_endpoint, get_run_endpoint, require_project_role, slug_to_schema_name</symbol>
+        <lines>163-264</lines>
+        <reason>Reference implementation: RBAC with require_project_role(), tenant schema via slug_to_schema_name(current_tenant_slug.get()), HTTPException error format {error, message}, BackgroundTasks pattern. SSE endpoint (Task 3.2) follows same patterns.</reason>
+      </file>
+
+      <!-- EXISTING — MODIFIED: add EventSource + status cards + AC-21 completion -->
+      <file>
+        <path>web/src/pages/projects/agents/AgentsTab.tsx</path>
+        <kind>component</kind>
+        <symbol>AgentsTab, AgentCard, queuedRunId state</symbol>
+        <lines>117-257</lines>
+        <reason>Task 4 target: queuedRunId state already set on 201 (line 141). Add EventSource open after 201, agentStatuses/agentProgress/agentLabels state, real-time card rendering, AC-21 completion handler. Use Tailwind classes consistent with existing palette (border-blue-500, border-green-200, etc.).</reason>
+      </file>
+
+      <!-- EXISTING — reference for integration test mock patterns -->
+      <file>
+        <path>backend/tests/unit/services/test_orchestrator.py</path>
+        <kind>test</kind>
+        <symbol>test_orchestrator (unit test file)</symbol>
+        <lines>1-999</lines>
+        <reason>Add test_create_artifact_returns_artifact_id to this file (Task 5.6): proves _create_artifact() now returns non-empty UUID string after Task 2.2 change.</reason>
+      </file>
+
+      <!-- EXISTING — DO NOT duplicate (11 contract tests already cover SSE wire format) -->
+      <file>
+        <path>backend/tests/patterns/test_sse_pattern.py</path>
+        <kind>test</kind>
+        <symbol>SSE contract tests (11 tests)</symbol>
+        <lines>1-999</lines>
+        <reason>REFERENCE ONLY — 11 existing contract tests cover SSEEvent.to_wire() format, build_sse_response() headers, heartbeat emission. DO NOT duplicate any of these in new test files.</reason>
+      </file>
+
+      <!-- NEW FILES -->
+      <file>
+        <path>backend/src/services/sse_manager.py</path>
+        <kind>service</kind>
+        <symbol>SSEManager (NEW)</symbol>
+        <lines>NEW</lines>
+        <reason>Task 1: In-process asyncio.Queue registry. Module-level singleton sse_manager. get_or_create_queue() / remove_queue() / publish() (best-effort). Does NOT use Redis — no get_redis_client patch needed in tests.</reason>
+      </file>
+
+      <file>
+        <path>backend/src/api/v1/events/__init__.py</path>
+        <kind>file</kind>
+        <symbol>package init (NEW, empty)</symbol>
+        <lines>NEW</lines>
+        <reason>Task 3.1: Python package init file for events API module.</reason>
+      </file>
+
+      <file>
+        <path>backend/src/api/v1/events/router.py</path>
+        <kind>controller</kind>
+        <symbol>agent_run_sse_endpoint, _event_generator (NEW)</symbol>
+        <lines>NEW</lines>
+        <reason>Task 3.2: GET /api/v1/events/agent-runs/{run_id}. Validates run_id in tenant schema, calls build_sse_response(_event_generator(str(run_id)), run_id). _event_generator reads from SSEManager queue, yields SSEEvents, removes queue in finally block.</reason>
+      </file>
+
+      <file>
+        <path>backend/tests/unit/services/test_sse_manager.py</path>
+        <kind>test</kind>
+        <symbol>test_sse_manager (NEW, ≥5 tests)</symbol>
+        <lines>NEW</lines>
+        <reason>Task 5.1: Unit tests for SSEManager. Tests: get_or_create_queue creates/returns same queue, publish enqueues event, publish no-op without subscriber, remove_queue cleans up.</reason>
+      </file>
+
+      <file>
+        <path>backend/tests/integration/test_sse_events.py</path>
+        <kind>test</kind>
+        <symbol>test_sse_events (NEW, ≥3 tests)</symbol>
+        <lines>NEW</lines>
+        <reason>Task 6.1: Integration tests for SSE endpoint. Tests: 404 RUN_NOT_FOUND on unknown run, 200 StreamingResponse with text/event-stream on known run, event sequence (running then complete via mock SSEManager).</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <backend>
+        <package name="fastapi" version="0.109.2">StreamingResponse, APIRouter, HTTPException, BackgroundTasks, Depends</package>
+        <package name="sqlalchemy" version="2.0.27">AsyncSession, text() for tenant-scoped SQL queries</package>
+        <package name="asyncpg" version="0.29.0">PostgreSQL async driver</package>
+        <package name="redis[hiredis]" version="5.0.2">Used by token_budget_service (patch required in integration tests that call POST /agent-runs)</package>
+        <package name="openai" version="1.54.0">LLM primary provider (used via llm_pattern.py)</package>
+        <package name="anthropic" version="0.34.2">LLM fallback provider (used via llm_pattern.py)</package>
+        <package name="tiktoken" version="0.7.0">Token counting for context assembly</package>
+        <package name="langchain" version="0.2.16">Agent chain execution (BAConsultant, QAConsultant, AutomationConsultant)</package>
+        <package name="cryptography" version="42.0.4">Fernet encryption (GitHub PAT, crawl credentials)</package>
+        <note>No new backend dependencies required for Story 2-9. asyncio is stdlib — SSEManager uses only stdlib asyncio.Queue.</note>
+      </backend>
+      <frontend>
+        <package name="react" version="^18.2.0">EventSource API (native browser API, no extra library)</package>
+        <package name="react-router-dom" version="^6.22.1">useNavigate for AC-21 auto-navigate to Artifacts tab</package>
+        <package name="@tanstack/react-query" version="^5.17.19">Existing mutation pattern (already used for startRun)</package>
+        <package name="lucide-react" version="^0.330.0">Icons: Loader2 (spinner), CheckCircle, AlertCircle, XCircle for status cards</package>
+        <package name="tailwindcss" version="^3.4.1">Status card visual states (animate-spin, border-blue-500, bg-green-50, etc.)</package>
+        <note>Toast library for AC-21: package.json does not have sonner or react-hot-toast. Check web/src for existing toast usage or add sonner^1.4.0. Native toast alternative: a temporary div with useEffect cleanup.</note>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1">SSE endpoint MUST use build_sse_response() from src.patterns.sse_pattern — no custom StreamingResponse construction.</constraint>
+    <constraint id="C2">Event types MUST be drawn from _VALID_EVENT_TYPES = {queued, running, complete, error, heartbeat}. SSEEvent.to_wire() raises ValueError on unknown types.</constraint>
+    <constraint id="C3">Heartbeat handled automatically by build_sse_response / _heartbeat_aware_stream (15s). Do NOT add manual heartbeat code in sse_manager.py or events/router.py.</constraint>
+    <constraint id="C4">SSEManager.publish() MUST be best-effort / silent no-op when no subscriber queue registered for run_id. Never raise on missing queue.</constraint>
+    <constraint id="C5">Tenant isolation: SSE endpoint validates run_id exists in "tenant_{slug}".agent_runs BEFORE calling build_sse_response(). Generator itself is tenant-unaware.</constraint>
+    <constraint id="C6">RBAC: SSE endpoint uses require_project_role("owner", "admin", "qa-automation") — same roles as agent_runs router.</constraint>
+    <constraint id="C7">HTTPException error format: detail={"error": "CODE", "message": "..."} (flat dict). Test assertion: resp.json()["detail"]["error"] == "RUN_NOT_FOUND".</constraint>
+    <constraint id="C8">_create_artifact() return type change (None → str): update the single call site in _run_agent_step() to capture artifact_id = await self._create_artifact(...). Do not break existing call path.</constraint>
+    <constraint id="C9">Test patch target: sse_manager.py does NOT use Redis. Do NOT patch get_redis_client in sse_manager tests. Integration tests that also call POST /agent-runs MUST patch src.services.token_budget_service.get_redis_client.</constraint>
+    <constraint id="C10">Do NOT duplicate SSE pattern contract tests. backend/tests/patterns/test_sse_pattern.py has 11 tests covering SSEEvent.to_wire() format, headers, heartbeat. New tests cover SSEManager and endpoint behaviour only.</constraint>
+    <constraint id="C11">SSEManager queue lifecycle: queue CREATED by SSE generator (get_or_create_queue), REMOVED in generator finally block (remove_queue). Orchestrator publishes to queue only if it exists — no pre-creation by orchestrator.</constraint>
+    <constraint id="C12">execute_pipeline() opens its own AsyncSessionLocal session (C2 in orchestrator.py). SSE publish calls in execute_pipeline are best-effort and do not depend on DB session state.</constraint>
+    <constraint id="C13">Frontend EventSource: use native browser EventSource API (no library). withCredentials: true required (auth uses httpOnly cookies). Cleanup: eventSource.close() on unmount and on stream complete.</constraint>
+    <constraint id="C14">Epic 2 DoD: Unit tests must have one-line comment stating behaviour proved (A6 retrospective action). Pattern: "# Proves: [behaviour]".</constraint>
+    <constraint id="C15">All SQL queries use text(f'... "{schema_name}".table ...') with :params — schema name only in f-string (validated upstream). No ORM models for Epic 2.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>SSE Endpoint — Agent Run Events</name>
+      <kind>REST endpoint (streaming)</kind>
+      <signature>GET /api/v1/events/agent-runs/{run_id} → StreamingResponse (text/event-stream)</signature>
+      <path>backend/src/api/v1/events/router.py</path>
+    </interface>
+    <interface>
+      <name>SSE Wire Format</name>
+      <kind>SSE protocol</kind>
+      <signature>data: {"type":"running"|"complete"|"error"|"heartbeat", "run_id":"&lt;uuid&gt;", "payload":{...}}\n\n</signature>
+      <path>backend/src/patterns/sse_pattern.py:66-77</path>
+    </interface>
+    <interface>
+      <name>build_sse_response()</name>
+      <kind>function signature</kind>
+      <signature>def build_sse_response(event_generator: AsyncGenerator[SSEEvent, None], run_id: Optional[uuid.UUID] = None, heartbeat_interval: float = 15.0) -> StreamingResponse</signature>
+      <path>backend/src/patterns/sse_pattern.py:119-155</path>
+    </interface>
+    <interface>
+      <name>SSEEvent dataclass</name>
+      <kind>dataclass</kind>
+      <signature>@dataclass class SSEEvent: type: str; run_id: uuid.UUID; payload: dict[str, Any] = field(default_factory=dict). Method: to_wire() -> str</signature>
+      <path>backend/src/patterns/sse_pattern.py:57-77</path>
+    </interface>
+    <interface>
+      <name>SSEManager.publish()</name>
+      <kind>async function signature (NEW)</kind>
+      <signature>async def publish(self, run_id: str, event_type: str, payload: dict) -> None — best-effort, silent no-op if no subscriber</signature>
+      <path>backend/src/services/sse_manager.py (NEW)</path>
+    </interface>
+    <interface>
+      <name>SSEManager.get_or_create_queue()</name>
+      <kind>function signature (NEW)</kind>
+      <signature>def get_or_create_queue(self, run_id: str) -> asyncio.Queue — creates queue on first call; returns same instance on subsequent calls</signature>
+      <path>backend/src/services/sse_manager.py (NEW)</path>
+    </interface>
+    <interface>
+      <name>SSEManager.remove_queue()</name>
+      <kind>function signature (NEW)</kind>
+      <signature>def remove_queue(self, run_id: str) -> None — removes queue from registry; no-op if not found (pop with default)</signature>
+      <path>backend/src/services/sse_manager.py (NEW)</path>
+    </interface>
+    <interface>
+      <name>_create_artifact() — MODIFIED return type</name>
+      <kind>async method signature</kind>
+      <signature>async def _create_artifact(self, db, schema_name, project_id, run_id, agent_type, result, user_id) -> str — returns artifact_id (previously None)</signature>
+      <path>backend/src/services/agents/orchestrator.py:267-315</path>
+    </interface>
+    <interface>
+      <name>_run_agent_step() SSE publish calls</name>
+      <kind>SSE event payloads (MODIFIED)</kind>
+      <signature>
+        running:  await sse_manager.publish(run_id, "running",  {"step_id": step_id, "agent_type": agent_type, "progress_pct": 0, "progress_label": f"Agent {agent_type} is analyzing your project..."})
+        complete: await sse_manager.publish(run_id, "complete", {"step_id": step_id, "agent_type": agent_type, "tokens_used": result.tokens_used, "artifact_id": artifact_id})
+        error:    await sse_manager.publish(run_id, "error",    {"step_id": step_id, "agent_type": agent_type, "error_code": "STEP_FAILED", "message": error_msg})
+        all_done: await sse_manager.publish(run_id, "complete", {"run_id": run_id, "all_done": True})
+      </signature>
+      <path>backend/src/services/agents/orchestrator.py:164-265 (MODIFIED)</path>
+    </interface>
+    <interface>
+      <name>Frontend EventSource</name>
+      <kind>browser API</kind>
+      <signature>new EventSource(`/api/v1/events/agent-runs/${runId}`, { withCredentials: true }) — onmessage, onerror handlers; close() on unmount/complete</signature>
+      <path>web/src/pages/projects/agents/AgentsTab.tsx (MODIFIED)</path>
+    </interface>
+    <interface>
+      <name>Frontend AgentStatus state types</name>
+      <kind>TypeScript type</kind>
+      <signature>
+        type AgentStatus = "queued" | "running" | "complete" | "error"
+        const [agentStatuses, setAgentStatuses] = useState&lt;Record&lt;string, AgentStatus&gt;&gt;({})
+        const [agentProgress, setAgentProgress] = useState&lt;Record&lt;string, number&gt;&gt;({})
+        const [agentLabels, setAgentLabels] = useState&lt;Record&lt;string, string&gt;&gt;({})
+      </signature>
+      <path>web/src/pages/projects/agents/AgentsTab.tsx (NEW state — MODIFIED)</path>
+    </interface>
+    <interface>
+      <name>DB Schema — agent_runs (existing)</name>
+      <kind>SQL table (tenant-scoped)</kind>
+      <signature>SELECT id FROM "{schema_name}".agent_runs WHERE id = :run_id — used for run_id validation in SSE endpoint</signature>
+      <path>backend/alembic/versions/015_create_agent_runs_and_artifacts.py</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Backend tests use pytest with async support (pytest-asyncio). Integration tests mock get_db dependency via FastAPI dependency_overrides and use mock AsyncSession — no real DB or Redis required. Each test MUST have a one-line comment starting with "# Proves:" stating the behaviour verified (A6 retrospective action). Unit tests for SSEManager are pure asyncio (no HTTP client needed). Do NOT duplicate the 11 SSE contract tests in backend/tests/patterns/test_sse_pattern.py.
+    </standards>
+    <locations>
+      backend/tests/unit/services/          — Python unit tests (service layer, no HTTP)
+      backend/tests/integration/            — Python integration tests (HTTP endpoints, mocked DB)
+      backend/tests/patterns/               — C2 pattern contract tests (DO NOT add SSE tests here)
+      web/src/                              — Frontend tests (Vitest + @testing-library/react)
+    </locations>
+    <ideas>
+      <!-- AC-19: SSE endpoint -->
+      <idea ac="AC-19">
+        test_sse_endpoint_404_unknown_run — GET /events/agent-runs/{uuid4()} with no DB row → 404 {"error": "RUN_NOT_FOUND"}
+      </idea>
+      <idea ac="AC-19">
+        test_sse_endpoint_200_known_run — GET /events/agent-runs/{known_id} with mocked DB row → 200, Content-Type: text/event-stream
+      </idea>
+      <idea ac="AC-19">
+        test_sse_endpoint_events_sequence — mock SSEManager to pre-populate queue with running then complete(all_done) events; consume stream; assert order and payload fields
+      </idea>
+
+      <!-- AC-19b: Orchestrator SSE publish -->
+      <idea ac="AC-19b">
+        test_run_agent_step_publishes_running_event — mock sse_manager.publish; call _run_agent_step; assert publish called with ("running", {step_id, agent_type, progress_pct=0})
+      </idea>
+      <idea ac="AC-19b">
+        test_run_agent_step_publishes_complete_event — mock sse_manager.publish; call _run_agent_step successfully; assert publish called with ("complete", {tokens_used, artifact_id})
+      </idea>
+      <idea ac="AC-19b">
+        test_run_agent_step_publishes_error_event_on_budget_exceeded — mock agent.run raising BudgetExceededError; assert publish called with ("error", {error_code: "STEP_FAILED"})
+      </idea>
+      <idea ac="AC-19b">
+        test_execute_pipeline_publishes_all_done — mock all agent steps; call execute_pipeline; assert final publish call has all_done=True
+      </idea>
+      <idea ac="AC-19b">
+        test_create_artifact_returns_artifact_id — call _create_artifact with mocked db; assert return value is non-empty UUID string (Task 5.6)
+      </idea>
+
+      <!-- SSEManager unit tests -->
+      <idea ac="Task-5">
+        test_get_or_create_queue_creates_new_queue — SSEManager(); q = get_or_create_queue("r1"); assert isinstance(q, asyncio.Queue) and q is not None
+      </idea>
+      <idea ac="Task-5">
+        test_get_or_create_queue_returns_same_queue — two calls with same run_id return identical queue instance (q1 is q2)
+      </idea>
+      <idea ac="Task-5">
+        test_publish_puts_event_in_queue — create queue first; await publish("r1", "running", {"a": 1}); assert q.get_nowait() == {"type": "running", "payload": {"a": 1}}
+      </idea>
+      <idea ac="Task-5">
+        test_publish_no_op_when_no_subscriber — await publish("unknown_run", "running", {}); no exception raised (silent no-op)
+      </idea>
+      <idea ac="Task-5">
+        test_remove_queue_cleans_up — get_or_create_queue("r1"); remove_queue("r1"); assert "r1" not in manager._queues
+      </idea>
+
+      <!-- AC-20 / AC-21: Frontend -->
+      <idea ac="AC-20">
+        test_agent_status_cards_render_queued_state — render AgentsTab with agents_selected; before any SSE events; all cards show "Queued" (gray)
+      </idea>
+      <idea ac="AC-20">
+        test_agent_status_card_updates_to_running — mock EventSource; dispatch "running" event; card for agent_type shows spinner + progress bar
+      </idea>
+      <idea ac="AC-20">
+        test_agent_status_card_updates_to_complete — dispatch "complete" event without all_done; card shows green checkmark
+      </idea>
+      <idea ac="AC-21">
+        test_completion_closes_event_source_and_navigates — dispatch complete event with all_done=true; assert EventSource.close() called; assert navigate called after 1500ms
+      </idea>
+    </ideas>
+  </tests>
+</story-context>

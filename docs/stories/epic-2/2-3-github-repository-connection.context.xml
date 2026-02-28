@@ -1,0 +1,288 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>3</storyId>
+    <title>GitHub Repository Connection</title>
+    <status>review</status>
+    <generatedAt>2026-02-27</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/epic-2/2-3-github-repository-connection.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>QA-Automation user</asA>
+    <iWant>connect a GitHub repository to my project using a Personal Access Token</iWant>
+    <soThat>AI agents can analyse the source code as additional context for test generation</soThat>
+    <tasks>
+      <task id="1" title="Migration 014 (github_connections + crawl_sessions)" status="done">
+        <subtask id="1.1">Create backend/alembic/versions/014_create_github_connections_and_crawl_sessions.py</subtask>
+        <subtask id="1.2">PL/pgSQL DO block iterates all tenant_% schemas (idempotent IF NOT EXISTS)</subtask>
+        <subtask id="1.3">github_connections table: id, project_id, repo_url, encrypted_token, clone_path, status (default 'pending'), routes_count, components_count, endpoints_count, analysis_summary (JSONB), error_message, expires_at, created_by, created_at, updated_at</subtask>
+        <subtask id="1.4">crawl_sessions table: id, project_id, target_url, auth_config (JSONB), status, pages_crawled, forms_found, links_found, crawl_data (JSONB), error_message, started_at, completed_at, created_by, created_at</subtask>
+        <subtask id="1.5">Indexes: idx_github_connections_project_id, idx_crawl_sessions_project_id</subtask>
+      </task>
+      <task id="2" title="Config addition" status="done">
+        <subtask id="2.1">Add github_token_encryption_key: str to backend/src/config.py — env var GITHUB_TOKEN_ENCRYPTION_KEY, default dev key (32 zero bytes Fernet key)</subtask>
+      </task>
+      <task id="3" title="GitHubConnectorService" status="done">
+        <subtask id="3.1">Create backend/src/services/github_connector_service.py</subtask>
+        <subtask id="3.2">_encrypt_pat(pat) → Fernet encrypted string</subtask>
+        <subtask id="3.3">_decrypt_pat(encrypted) → original PAT string</subtask>
+        <subtask id="3.4">_validate_pat(repo_url, pat) → None; httpx GET https://api.github.com/repos/{owner}/{repo}; raises INVALID_TOKEN (401/403/404) or INVALID_REPO_URL (malformed URL)</subtask>
+        <subtask id="3.5">connect_repo(db, schema_name, project_id, user_id, repo_url, pat) → dict; validate PAT, check 409 CONNECTION_EXISTS, INSERT status='pending', schedule clone_repo_task</subtask>
+        <subtask id="3.6">get_connection(db, schema_name, project_id) → dict | None; SELECT most-recent row</subtask>
+        <subtask id="3.7">disconnect(db, schema_name, project_id) → None; delete clone dir, DELETE row</subtask>
+        <subtask id="3.8">clone_repo_task(connection_id, schema_name, tenant_id, repo_url, pat) → None; UPDATE cloning → clone → UPDATE cloned + expires_at or failed</subtask>
+      </task>
+      <task id="4" title="Schemas" status="done">
+        <subtask id="4.1">backend/src/api/v1/github/schemas.py — GitHubConnectRequest (repo_url, pat), GitHubConnectionResponse (id, project_id, repo_url, status, routes_count, components_count, endpoints_count, analysis_summary, error_message, expires_at, created_at, updated_at)</subtask>
+      </task>
+      <task id="5" title="Router" status="done">
+        <subtask id="5.1">backend/src/api/v1/github/router.py — POST /github (201), GET /github (200|404), DELETE /github (204); all require_project_role("owner","admin","qa-automation")</subtask>
+        <subtask id="5.2">Register router in src/main.py</subtask>
+      </task>
+      <task id="6" title="Unit Tests" status="done">
+        <subtask id="6.1">backend/tests/unit/services/test_github_connector_service.py — 6+ tests (PAT validate success/fail, malformed URL, encrypt/decrypt roundtrip, connect_repo inserts, clone_repo_task success)</subtask>
+      </task>
+      <task id="7" title="Integration Tests" status="done">
+        <subtask id="7.1">backend/tests/integration/test_github_connections.py — 3+ tests (POST 201, POST 400 INVALID_TOKEN, GET 200)</subtask>
+      </task>
+      <task id="8" title="Update sprint-status.yaml" status="done">
+        <subtask id="8.1">2-3-github-repository-connection: review</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-09">
+      <description>GitHub connection form validates PAT via GitHub API (/repos/{owner}/{repo} → 200 OK). Invalid tokens return HTTP 400 INVALID_TOKEN.</description>
+      <implementation>GitHubConnectorService._validate_pat() uses httpx.AsyncClient to GET https://api.github.com/repos/{owner}/{repo} with Authorization: token {pat}. 200 = valid; 401/403/404 → HTTPException(400, {"error": "INVALID_TOKEN", "message": ...}). URL parsing raises INVALID_REPO_URL for malformed repo URLs. POST /api/v1/projects/{project_id}/github returns 201 with status='pending' on success.</implementation>
+    </criterion>
+    <criterion id="AC-10">
+      <description>Connected repo cloned to tenant-scoped temp directory with 7-day expiry. Directory cleaned up by scheduled arq job.</description>
+      <implementation>clone_repo_task() creates tmp/tenants/{tenant_id}/repos/{connection_id}/, calls Repo.clone_from(https://{pat}@github.com/{owner}/{repo}.git, path, depth=1) in thread pool. On success: UPDATE status='cloned', clone_path=..., expires_at=NOW()+7d. Cleanup scheduled via arq cron (Story 2-6+). On failure: UPDATE status='failed', error_message.</implementation>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Technical Specification — Epic 2: AI Agent Platform</title>
+        <section>§5.2 GitHub Connection + Analysis Flow / §8 Acceptance Criteria AC-09, AC-10</section>
+        <snippet>AC-09: GitHub connection form validates PAT via GitHub API. AC-10: Connected repo cloned to tenant-scoped temp directory with 7-day expiry. Flow: validate PAT → INSERT pending → BackgroundTask clone → UPDATE cloned/failed. Clone URL pattern: https://{pat}@github.com/{owner}/{repo}.git (depth=1).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>QUALISYS System Architecture</title>
+        <section>Multi-Tenancy / Security — GitHub clone isolation</section>
+        <snippet>GitHub clone directories: tmp/tenants/{tenant_id}/repos/{repo_slug}/ (filesystem isolation). PAT encryption: AES-256 via cryptography library. Clone directories chmod 700, tenant-scoped. 7-day auto-expiry enforced via arq scheduled job; shallow clone (--depth=1) limits download size.</snippet>
+      </doc>
+      <doc>
+        <path>docs/planning/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR19, FR20 — GitHub Repository Connection</section>
+        <snippet>FR19: System validates GitHub PAT and connects repo. FR20: System clones connected repo to analysable temp storage accessible to AI agents for source code analysis and test generation context.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epics.md</path>
+        <title>QUALISYS Epic &amp; Story Breakdown</title>
+        <section>Epic 2 — AI Agent Platform &amp; Executive Visibility</section>
+        <snippet>Story 2-3 delivers GitHub connection mechanism. Story 2-4 (source code analysis) reads the cloned directory and builds analysis_summary. Cloned repo and analysis_summary feed the agent pipeline context assembly in Stories 2-7+.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/2-1-document-upload-parsing.md</path>
+        <title>Story 2.1 — Document Upload &amp; Parsing (BackgroundTasks pattern origin)</title>
+        <section>Architecture Constraints — Background Jobs</section>
+        <snippet>BackgroundTasks pattern established in Story 2-1 (not arq): enqueue parse_document_task immediately after upload response. Story 2-3 follows the same pattern for clone_repo_task — fire-and-forget via FastAPI BackgroundTasks; arq migration deferred to Stories 2-6+.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/2-2-vector-embeddings-generation.md</path>
+        <title>Story 2.2 — Vector Embeddings (Sibling pipeline story)</title>
+        <section>Architecture Constraints — No new API endpoints</section>
+        <snippet>Story 2-2 established the pattern of extending background pipeline tasks. Story 2-3's github_connections.analysis_summary (populated in Story 2-4) feeds the agent context assembly alongside document_embeddings — both are ingested before agent pipeline execution in Story 2-7.</snippet>
+      </doc>
+      <doc>
+        <path>docs/planning/agent-specifications.md</path>
+        <title>QUALISYS AI Agent Specifications</title>
+        <section>§3 BAConsultant / §4 QAConsultant — Context Sources</section>
+        <snippet>BAConsultant and QAConsultant agents assemble project context from three sources: document_chunks (text), github_connections.analysis_summary (code structure), and crawl_sessions.crawl_data (DOM). GitHub connection (Story 2-3) provides the code structure context that improves test generation quality and coverage accuracy.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>backend/src/services/github_connector_service.py</path>
+        <kind>service</kind>
+        <symbol>GitHubConnectorService, clone_repo_task</symbol>
+        <lines>1-end</lines>
+        <reason>Primary implementation: _validate_pat() (AC-09), _encrypt_pat()/_decrypt_pat(), connect_repo(), get_connection(), disconnect(), and standalone clone_repo_task() background function (AC-10).</reason>
+      </file>
+      <file>
+        <path>backend/src/api/v1/github/router.py</path>
+        <kind>router</kind>
+        <symbol>router — POST/GET/DELETE /projects/{project_id}/github</symbol>
+        <lines>1-end</lines>
+        <reason>Three REST endpoints for GitHub connection lifecycle. All protected by require_project_role("owner","admin","qa-automation"). POST schedules clone_repo_task via BackgroundTasks.</reason>
+      </file>
+      <file>
+        <path>backend/src/api/v1/github/schemas.py</path>
+        <kind>schema</kind>
+        <symbol>GitHubConnectRequest, GitHubConnectionResponse</symbol>
+        <lines>1-end</lines>
+        <reason>Request body (repo_url, pat) and response model (id, status, routes_count, components_count, endpoints_count, analysis_summary, expires_at, etc.).</reason>
+      </file>
+      <file>
+        <path>backend/alembic/versions/014_create_github_connections_and_crawl_sessions.py</path>
+        <kind>migration</kind>
+        <symbol>upgrade</symbol>
+        <lines>1-end</lines>
+        <reason>Creates github_connections and crawl_sessions tables in all tenant_% schemas via PL/pgSQL DO block. crawl_sessions created here (Story 2-5 dependency) but only populated from Story 2-5 onwards.</reason>
+      </file>
+      <file>
+        <path>backend/src/config.py</path>
+        <kind>config</kind>
+        <symbol>Settings.github_token_encryption_key</symbol>
+        <lines>1-end</lines>
+        <reason>MODIFIED: adds github_token_encryption_key (env: GITHUB_TOKEN_ENCRYPTION_KEY). Used by GitHubConnectorService._encrypt_pat() and _decrypt_pat() via Fernet.</reason>
+      </file>
+      <file>
+        <path>backend/src/main.py</path>
+        <kind>entrypoint</kind>
+        <symbol>app — github router registration</symbol>
+        <lines>1-end</lines>
+        <reason>MODIFIED: registers the github router under /api/v1/projects/{project_id}/github prefix.</reason>
+      </file>
+      <file>
+        <path>backend/src/patterns/playwright_pattern.py</path>
+        <kind>pattern</kind>
+        <symbol>CrawlConfig, CrawlResult, run_crawl</symbol>
+        <lines>1-end</lines>
+        <reason>C2 spike contract for DOM crawling (Story 2-5). crawl_sessions table created in this story's Migration 014. Playwright pattern defines CrawlResult schema that maps to crawl_sessions columns (pages_crawled, forms_found, links_found, crawl_data).</reason>
+      </file>
+      <file>
+        <path>backend/tests/unit/services/test_github_connector_service.py</path>
+        <kind>test</kind>
+        <symbol>TestGitHubConnectorService</symbol>
+        <lines>1-end</lines>
+        <reason>6+ unit tests: PAT validation (success/401/malformed URL), Fernet roundtrip, connect_repo insert, clone_repo_task success path. git module mocked via sys.modules['git'].</reason>
+      </file>
+      <file>
+        <path>backend/tests/integration/test_github_connections.py</path>
+        <kind>test</kind>
+        <symbol>test_connect_repo_201, test_connect_repo_invalid_pat_400, test_get_connection_200</symbol>
+        <lines>1-end</lines>
+        <reason>3+ integration tests covering the full API layer: POST 201 (valid PAT mock), POST 400 INVALID_TOKEN (httpx 401 mock), GET 200 connection status.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <python>
+        <package name="cryptography" version="42.0.2" reason="Fernet symmetric encryption for PAT at rest: Fernet.generate_key(), Fernet(key).encrypt()/decrypt()"/>
+        <package name="httpx" version="0.27.0" reason="Async HTTP client for GitHub API PAT validation: AsyncClient GET https://api.github.com/repos/{owner}/{repo}"/>
+        <package name="gitpython" version="3.1.43" reason="Repo cloning: Repo.clone_from(url_with_pat, path, depth=1) in thread pool via asyncio.to_thread()"/>
+        <package name="fastapi" version="0.109.2" reason="BackgroundTasks for clone_repo_task fire-and-forget; APIRouter for github endpoints"/>
+        <package name="sqlalchemy" version="2.0.27" reason="Async DB access via text() with :params; schema-qualified queries for github_connections"/>
+        <package name="asyncpg" version="0.29.0" reason="PostgreSQL async driver"/>
+        <package name="pydantic" version="2.6.1" reason="GitHubConnectRequest / GitHubConnectionResponse schemas with field validation"/>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1">SQL injection: all SQL uses text() with :params — no user data interpolated into f-strings. schema_name always double-quoted in table references.</constraint>
+    <constraint id="C2">Schema isolation: schema_name MUST be derived from slug_to_schema_name(current_tenant_slug.get()). All table references: text(f'... "{schema_name}".github_connections ...').</constraint>
+    <constraint id="C3">PAT encryption: PAT never stored in plaintext. Fernet-encrypted immediately on receipt, stored as encrypted_token. Decrypted in-process for clone URL construction only — never logged, never returned in API responses.</constraint>
+    <constraint id="C4">Clone URL security: URL-embedded PAT pattern (https://{pat}@github.com/{owner}/{repo}.git) is constructed in-memory for clone only. Clone URL must not appear in logs, error messages, or API responses.</constraint>
+    <constraint id="C5">git module mocking in tests: gitpython may not be installed in test env. Mock via sys.modules['git'] = MagicMock() before importing github_connector_service. Tests must not attempt real git operations.</constraint>
+    <constraint id="C6">BackgroundTasks (not arq): consistent with Stories 2-1/2-2. clone_repo_task is a standalone async function, not a class method, to be compatible with FastAPI BackgroundTasks.</constraint>
+    <constraint id="C7">Error format: flat dict, not nested — detail={"error": "CODE", "message": "..."}. Test assertion: resp.json()["detail"]["error"] == "CODE". Error codes: INVALID_TOKEN, INVALID_REPO_URL, CONNECTION_EXISTS (409), CONNECTION_NOT_FOUND (404).</constraint>
+    <constraint id="C8">409 conflict guard: connect_repo() checks for existing active connection (status NOT IN ('failed','expired')) before INSERT. Raises CONNECTION_EXISTS to prevent duplicate clones per project.</constraint>
+    <constraint id="C9">crawl_sessions table created in Migration 014 (this story) for Story 2-5 dependency. No crawl logic implemented in this story — table exists but is empty until Story 2-5.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>POST /api/v1/projects/{project_id}/github</name>
+      <kind>REST endpoint</kind>
+      <signature>POST body: GitHubConnectRequest {repo_url: str, pat: str} → 201 GitHubConnectionResponse | 400 INVALID_TOKEN | 400 INVALID_REPO_URL | 409 CONNECTION_EXISTS | 403 (RBAC)</signature>
+      <path>backend/src/api/v1/github/router.py</path>
+    </interface>
+    <interface>
+      <name>GET /api/v1/projects/{project_id}/github</name>
+      <kind>REST endpoint</kind>
+      <signature>GET → 200 GitHubConnectionResponse | 404 CONNECTION_NOT_FOUND | 403 (RBAC)</signature>
+      <path>backend/src/api/v1/github/router.py</path>
+    </interface>
+    <interface>
+      <name>DELETE /api/v1/projects/{project_id}/github</name>
+      <kind>REST endpoint</kind>
+      <signature>DELETE → 204 No Content | 404 CONNECTION_NOT_FOUND | 403 (RBAC)</signature>
+      <path>backend/src/api/v1/github/router.py</path>
+    </interface>
+    <interface>
+      <name>GitHubConnectorService.connect_repo</name>
+      <kind>function signature</kind>
+      <signature>async def connect_repo(self, db: AsyncSession, schema_name: str, project_id: str, user_id: str, repo_url: str, pat: str) -> dict</signature>
+      <path>backend/src/services/github_connector_service.py</path>
+    </interface>
+    <interface>
+      <name>GitHubConnectorService.get_connection</name>
+      <kind>function signature</kind>
+      <signature>async def get_connection(self, db: AsyncSession, schema_name: str, project_id: str) -> dict | None</signature>
+      <path>backend/src/services/github_connector_service.py</path>
+    </interface>
+    <interface>
+      <name>GitHubConnectorService.disconnect</name>
+      <kind>function signature</kind>
+      <signature>async def disconnect(self, db: AsyncSession, schema_name: str, project_id: str) -> None</signature>
+      <path>backend/src/services/github_connector_service.py</path>
+    </interface>
+    <interface>
+      <name>clone_repo_task (background function)</name>
+      <kind>function signature</kind>
+      <signature>async def clone_repo_task(connection_id: str, schema_name: str, tenant_id: str, repo_url: str, pat: str) -> None</signature>
+      <path>backend/src/services/github_connector_service.py</path>
+    </interface>
+    <interface>
+      <name>github_connections table</name>
+      <kind>SQL table schema</kind>
+      <signature>"{schema}".github_connections (id UUID PK, project_id UUID FK→projects, repo_url VARCHAR(500), encrypted_token TEXT, clone_path TEXT, status VARCHAR(50) DEFAULT 'pending', routes_count INT, components_count INT, endpoints_count INT, analysis_summary JSONB, error_message TEXT, expires_at TIMESTAMPTZ, created_by UUID, created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ)</signature>
+      <path>backend/alembic/versions/014_create_github_connections_and_crawl_sessions.py</path>
+    </interface>
+    <interface>
+      <name>crawl_sessions table (created here, used in Story 2-5)</name>
+      <kind>SQL table schema</kind>
+      <signature>"{schema}".crawl_sessions (id UUID PK, project_id UUID FK→projects, target_url VARCHAR, auth_config JSONB, status VARCHAR, pages_crawled INT, forms_found INT, links_found INT, crawl_data JSONB, error_message TEXT, started_at TIMESTAMPTZ, completed_at TIMESTAMPTZ, created_by UUID, created_at TIMESTAMPTZ)</signature>
+      <path>backend/alembic/versions/014_create_github_connections_and_crawl_sessions.py</path>
+    </interface>
+    <interface>
+      <name>Settings.github_token_encryption_key</name>
+      <kind>config field</kind>
+      <signature>github_token_encryption_key: str — env var GITHUB_TOKEN_ENCRYPTION_KEY; used as Fernet(key.encode()) for PAT encryption/decryption</signature>
+      <path>backend/src/config.py</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Tests use mock-based approach with no live DB, Redis, or external network calls. get_db dependency overridden via app.dependency_overrides. httpx mocked via unittest.mock.patch on httpx.AsyncClient. git module mocked via sys.modules['git'] = MagicMock() before service import (gitpython may not be installed in test env). All tests include a one-line comment stating the behaviour proved (DoD A6). Frameworks: pytest + pytest-asyncio + httpx AsyncClient (ASGITransport). Test runner: pytest from backend/ directory.</standards>
+    <locations>
+      <location>backend/tests/unit/services/test_github_connector_service.py</location>
+      <location>backend/tests/integration/test_github_connections.py</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-09">test_validate_pat_success — mock httpx 200 → _validate_pat raises no exception</idea>
+      <idea ac="AC-09">test_validate_pat_invalid_token — mock httpx 401 → HTTPException 400 INVALID_TOKEN</idea>
+      <idea ac="AC-09">test_validate_pat_malformed_url — non-github URL or missing owner/repo → HTTPException 400 INVALID_REPO_URL</idea>
+      <idea ac="AC-09">test_encrypt_decrypt_roundtrip — Fernet encrypt then decrypt returns original PAT string exactly</idea>
+      <idea ac="AC-09">test_connect_repo_inserts_and_returns — mock httpx 200 + mock DB execute → INSERT called, dict with status='pending' returned</idea>
+      <idea ac="AC-09">test_connect_repo_409_if_exists — existing active connection in DB → HTTPException 409 CONNECTION_EXISTS</idea>
+      <idea ac="AC-09">test_connect_repo_201 — POST /projects/{id}/github with mocked valid PAT → 201, body.status == 'pending' (integration)</idea>
+      <idea ac="AC-09">test_connect_repo_invalid_pat_400 — POST with mocked httpx 401 → 400, body.detail.error == 'INVALID_TOKEN' (integration)</idea>
+      <idea ac="AC-09">test_get_connection_200 — GET /projects/{id}/github with seeded connection → 200, body fields present (integration)</idea>
+      <idea ac="AC-10">test_clone_repo_task_success — mock Repo.clone_from → DB UPDATE called with status='cloned', clone_path set, expires_at = approx NOW()+7d</idea>
+      <idea ac="AC-10">test_clone_repo_task_failure — mock Repo.clone_from raises exception → DB UPDATE status='failed', error_message set</idea>
+      <idea ac="AC-10">test_disconnect_deletes_clone_dir — mock os.path.exists + shutil.rmtree → rmtree called with correct path, DB DELETE executed</idea>
+    </ideas>
+  </tests>
+</story-context>

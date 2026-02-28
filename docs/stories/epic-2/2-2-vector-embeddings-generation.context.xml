@@ -1,0 +1,269 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2</storyId>
+    <title>Vector Embeddings Generation</title>
+    <status>done</status>
+    <generatedAt>2026-02-27</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/epic-2/2-2-vector-embeddings-generation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>QA-Automation user</asA>
+    <iWant>uploaded documents to be automatically chunked and embedded after parsing</iWant>
+    <soThat>AI agents can perform semantic similarity search over my requirements</soThat>
+    <tasks>
+      <task id="1" title="Chunk Text Algorithm (EmbeddingService._chunk_text)" status="done">
+        <subtask id="1.1">Implement _chunk_text(text, chunk_size=1000, overlap=200) in embedding_service.py — tiktoken cl100k_base sliding window, each dict: {content, token_count, chunk_index}</subtask>
+        <subtask id="1.2">Edge cases: single chunk (text ≤ 1000 tokens), empty text returns []</subtask>
+      </task>
+      <task id="2" title="Token Budget Service (TokenBudgetService)" status="done">
+        <subtask id="2.1">Create backend/src/services/token_budget_service.py</subtask>
+        <subtask id="2.2">consume_tokens(tenant_id, tokens) → atomic Lua INCRBY, key budget:{tenant_id}:monthly, TTL 2592000s on first write</subtask>
+        <subtask id="2.3">get_monthly_usage(tenant_id) → GET from Redis, returns 0 if missing</subtask>
+      </task>
+      <task id="3" title="OpenAI Embedding Calls (EmbeddingService.generate_and_store)" status="done">
+        <subtask id="3.1">generate_and_store(db, schema_name, tenant_id, document_id, parsed_text) → int (chunk_count); idempotency: skip if COUNT(*) document_chunks > 0</subtask>
+        <subtask id="3.2">Chunk text with _chunk_text(parsed_text, 1000, 200)</subtask>
+        <subtask id="3.3">Batch INSERT all chunks into "{schema}".document_chunks</subtask>
+        <subtask id="3.4">Batch OpenAI calls ≤ 100 chunks per embeddings.create(); progress log per batch</subtask>
+        <subtask id="3.5">Insert document_embeddings rows with CAST(:embedding AS vector)</subtask>
+        <subtask id="3.6">Call token_budget_service.consume_tokens(tenant_id, tokens_used) after each batch</subtask>
+      </task>
+      <task id="4" title="Extend parse_document in document_service.py" status="done">
+        <subtask id="4.1">After text extraction: call embedding_service.generate_and_store()</subtask>
+        <subtask id="4.2">After embedding: UPDATE documents SET chunk_count=:count, parse_status='completed'</subtask>
+        <subtask id="4.3">On embedding failure: set parse_status='failed', error_message</subtask>
+        <subtask id="4.4">Same DB session across parse + embed (single AsyncSessionLocal() context)</subtask>
+      </task>
+      <task id="5" title="Unit Tests" status="done">
+        <subtask id="5.1">backend/tests/unit/services/test_embedding_service.py — 9 tests (chunking, idempotency, batching, OpenAI mock)</subtask>
+        <subtask id="5.2">backend/tests/unit/services/test_token_budget_service.py — 5 tests (consume, TTL, get_monthly_usage)</subtask>
+      </task>
+      <task id="6" title="Integration Tests" status="done">
+        <subtask id="6.1">backend/tests/integration/test_document_embedding.py — 3 tests (parse triggers embedding, OpenAI failure → failed, GET shows chunk_count)</subtask>
+      </task>
+      <task id="7" title="Update sprint-status.yaml" status="done">
+        <subtask id="7.1">2-2-vector-embeddings-generation: done</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-05">
+      <description>Uploaded document text is split into 1000-token segments with 200-token overlap and stored in document_chunks table</description>
+      <implementation>EmbeddingService._chunk_text() using tiktoken cl100k_base encoding; sliding window step=800; INSERT INTO "{schema}".document_chunks (id, document_id, chunk_index, content, token_count)</implementation>
+    </criterion>
+    <criterion id="AC-06">
+      <description>OpenAI text-embedding-ada-002 (1536-dim) vectors stored in document_embeddings via pgvector</description>
+      <implementation>EmbeddingService._call_openai_embeddings() → AsyncOpenAI().embeddings.create(model="text-embedding-ada-002"); INSERT with CAST(:embedding AS vector)</implementation>
+    </criterion>
+    <criterion id="AC-07">
+      <description>Progress log emitted per batch: "Processing chunk {n} of {total}"</description>
+      <implementation>logger.info(f"Processing chunk {batch_start + 1} of {total_chunks}", ...) inside generate_and_store() batch loop</implementation>
+    </criterion>
+    <criterion id="AC-08">
+      <description>Token usage counted against tenant's monthly budget in Redis after each batch</description>
+      <implementation>token_budget_service.consume_tokens(tenant_id, tokens_used) called after each batch; key budget:{tenant_id}:monthly; atomic Lua INCRBY + EXPIRE-once</implementation>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Technical Specification — Epic 2: AI Agent Platform</title>
+        <section>§5.1 Document Chunking Strategy</section>
+        <snippet>Chunk size: 1000 tokens, overlap: 200 tokens. Model: text-embedding-ada-002 (1536-dim). Token counting via tiktoken cl100k_base. Batch size: up to 100 chunks per OpenAI call.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture.md</path>
+        <title>QUALISYS System Architecture</title>
+        <section>§18 Data Architecture / pgvector</section>
+        <snippet>Schema-per-tenant with pgvector extension in public schema. document_chunks and document_embeddings live in tenant_{slug} schemas. ivfflat index with vector_cosine_ops for cosine similarity.</snippet>
+      </doc>
+      <doc>
+        <path>docs/planning/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR18 — Vector Embeddings</section>
+        <snippet>FR18: System generates vector embeddings for uploaded document text. Embeddings enable semantic similarity search for AI agents in the test generation pipeline.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epics.md</path>
+        <title>QUALISYS Epic &amp; Story Breakdown</title>
+        <section>Epic 2 — AI Agent Platform &amp; Executive Visibility</section>
+        <snippet>Epic 2 covers Stories 2-1 through 2-18. Story 2-2 extends the document ingestion pipeline from 2-1 by adding chunking and vector embedding generation. Embeddings are consumed by agent pipeline in Stories 2-7+.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/2-1-document-upload-parsing.md</path>
+        <title>Story 2.1 — Document Upload &amp; Parsing (Predecessor)</title>
+        <section>Architecture Constraints / Task 2: DocumentService</section>
+        <snippet>parse_document arq job: update parse_status='processing', download from S3, extract text, write to documents.parsed_text. Migration 013 creates documents, document_chunks, and document_embeddings tables (chunks/embeddings used in Story 2-2). Story 2-2 extends parse_document_task() by appending embedding generation after text extraction.</snippet>
+      </doc>
+      <doc>
+        <path>docs/planning/agent-specifications.md</path>
+        <title>QUALISYS AI Agent Specifications &amp; Workflow Architecture</title>
+        <section>§3 BAConsultant AI Agent / §4 QAConsultant AI Agent — Embedding Consumers</section>
+        <snippet>BAConsultant and QAConsultant agents perform semantic similarity search over document_embeddings to retrieve relevant requirement chunks before generating user stories and test cases. Embeddings produced in Story 2-2 are the primary context source for all MVP agents (Epics 2-3 through 2-9).</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>backend/src/services/embedding_service.py</path>
+        <kind>service</kind>
+        <symbol>EmbeddingService</symbol>
+        <lines>1-243</lines>
+        <reason>Primary implementation: _chunk_text() (AC-05), generate_and_store() (AC-06/07/08), _call_openai_embeddings(). Module-level singleton: embedding_service.</reason>
+      </file>
+      <file>
+        <path>backend/src/services/token_budget_service.py</path>
+        <kind>service</kind>
+        <symbol>TokenBudgetService</symbol>
+        <lines>1-93</lines>
+        <reason>Tracks per-tenant monthly token usage in Redis. Atomic Lua INCRBY pattern. consume_tokens() / get_monthly_usage(). Singleton: token_budget_service.</reason>
+      </file>
+      <file>
+        <path>backend/src/services/document_service.py</path>
+        <kind>service</kind>
+        <symbol>DocumentService.parse_document</symbol>
+        <lines>256-420</lines>
+        <reason>parse_document() background task calls embedding_service.generate_and_store() after text extraction; updates chunk_count and parse_status='completed'; handles failure → parse_status='failed'.</reason>
+      </file>
+      <file>
+        <path>backend/src/patterns/pgvector_pattern.py</path>
+        <kind>pattern</kind>
+        <symbol>insert_embedding, similarity_search, ChunkMatch</symbol>
+        <lines>1-175</lines>
+        <reason>C2 spike contract for all vector operations in Epic 2. Defines the CAST(:embedding AS vector) insert pattern and cosine similarity search with &lt;=&gt; operator. embedding_service.py follows this contract.</reason>
+      </file>
+      <file>
+        <path>backend/alembic/versions/013_enable_pgvector_and_create_documents.py</path>
+        <kind>migration</kind>
+        <symbol>upgrade</symbol>
+        <lines>1-232</lines>
+        <reason>Creates documents, document_chunks, document_embeddings tables in all tenant_% schemas. Enables pgvector extension. Creates ivfflat index on vector(1536) column.</reason>
+      </file>
+      <file>
+        <path>backend/tests/unit/services/test_embedding_service.py</path>
+        <kind>test</kind>
+        <symbol>TestChunkText, TestGenerateAndStore</symbol>
+        <lines>1-end</lines>
+        <reason>9 unit tests covering chunking algorithm, idempotency gate, OpenAI batching. All mock openai.AsyncOpenAI and Redis.</reason>
+      </file>
+      <file>
+        <path>backend/tests/unit/services/test_token_budget_service.py</path>
+        <kind>test</kind>
+        <symbol>TestTokenBudgetService</symbol>
+        <lines>1-end</lines>
+        <reason>5 unit tests for TokenBudgetService: consume_tokens atomicity, TTL-on-first-write, get_monthly_usage returns 0 when missing.</reason>
+      </file>
+      <file>
+        <path>backend/tests/integration/test_document_embedding.py</path>
+        <kind>test</kind>
+        <symbol>test_parse_triggers_embedding, test_parse_failure_on_openai_error, test_get_document_shows_chunk_count</symbol>
+        <lines>1-end</lines>
+        <reason>3 integration tests: upload triggers parse+embed pipeline, OpenAI failure sets parse_status='failed', GET /documents/{id} returns chunk_count &gt; 0.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <python>
+        <package name="openai" version="1.54.0" reason="Primary embedding provider: AsyncOpenAI().embeddings.create(model='text-embedding-ada-002')"/>
+        <package name="tiktoken" version="0.7.0" reason="Token counting with cl100k_base encoding for 1000-token sliding window chunking"/>
+        <package name="pgvector" version="0.3.3" reason="vector(1536) column type in PostgreSQL; ivfflat index for cosine similarity"/>
+        <package name="sqlalchemy" version="2.0.27" reason="Async DB access via text() with named params; schema-qualified queries"/>
+        <package name="redis[hiredis]" version="5.0.2" reason="Monthly token budget counter: atomic Lua INCRBY with 30-day TTL"/>
+        <package name="fastapi" version="0.109.2" reason="BackgroundTasks for parse_document_task invocation"/>
+        <package name="asyncpg" version="0.29.0" reason="PostgreSQL async driver; requires CAST(:embedding AS vector) — cannot serialize Python lists natively"/>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1">SQL injection: all SQL uses text() with :params — no user data interpolated into f-strings. schema_name always double-quoted.</constraint>
+    <constraint id="C2">Schema isolation: schema_name MUST be derived from slug_to_schema_name(current_tenant_slug.get()). All table references use "{schema_name}".table_name pattern.</constraint>
+    <constraint id="C3">Idempotency: generate_and_store() checks COUNT(*) from document_chunks before inserting. If existing_count &gt; 0, skip and return existing count.</constraint>
+    <constraint id="C4">Token counting: use tiktoken cl100k_base (not whitespace split) for accurate 1000-token windows. This is the same encoding as text-embedding-ada-002.</constraint>
+    <constraint id="C5">Batch embeddings: up to 100 chunks per OpenAI API call to bound memory and allow progress logs between batches.</constraint>
+    <constraint id="C6">No OpenAI in test env: use deferred import (import openai inside _call_openai_embeddings). Tests mock EmbeddingService._call_openai_embeddings via patch.</constraint>
+    <constraint id="C7">Orphaned chunks risk (M2 from review): document_chunks committed before embedding calls. If OpenAI fails on batch N&gt;1, prior batches are committed. Idempotency gate will see chunk_count &gt; 0 on retry. No cleanup in MVP; deferred to arq migration (Stories 2-6+).</constraint>
+    <constraint id="C8">No hard budget enforcement here. consume_tokens() increments the monthly counter; 429 enforcement is deferred to Story 2-18.</constraint>
+    <constraint id="C9">No new API endpoints in this story. Embedding is triggered inside parse_document_task() after parse completes. RBAC unchanged.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>EmbeddingService.generate_and_store</name>
+      <kind>function signature</kind>
+      <signature>async def generate_and_store(self, db: AsyncSession, schema_name: str, tenant_id: str, document_id: str, parsed_text: str) -> int</signature>
+      <path>backend/src/services/embedding_service.py:99</path>
+    </interface>
+    <interface>
+      <name>EmbeddingService._chunk_text</name>
+      <kind>function signature</kind>
+      <signature>def _chunk_text(self, text: str, chunk_size: int = 1000, overlap: int = 200) -> list[dict[str, Any]]</signature>
+      <path>backend/src/services/embedding_service.py:56</path>
+    </interface>
+    <interface>
+      <name>TokenBudgetService.consume_tokens</name>
+      <kind>function signature</kind>
+      <signature>async def consume_tokens(self, tenant_id: str, tokens: int) -> int</signature>
+      <path>backend/src/services/token_budget_service.py:56</path>
+    </interface>
+    <interface>
+      <name>TokenBudgetService.get_monthly_usage</name>
+      <kind>function signature</kind>
+      <signature>async def get_monthly_usage(self, tenant_id: str) -> int</signature>
+      <path>backend/src/services/token_budget_service.py:84</path>
+    </interface>
+    <interface>
+      <name>Redis Budget Key</name>
+      <kind>Redis key schema</kind>
+      <signature>budget:{tenant_id}:monthly → int (monthly token total), TTL 2592000s (30 days)</signature>
+      <path>backend/src/services/token_budget_service.py:42</path>
+    </interface>
+    <interface>
+      <name>document_chunks table</name>
+      <kind>SQL table schema</kind>
+      <signature>"{schema}".document_chunks (id UUID PK, document_id UUID FK→documents, chunk_index INT, content TEXT, token_count INT, created_at TIMESTAMPTZ)</signature>
+      <path>backend/alembic/versions/013_enable_pgvector_and_create_documents.py:95</path>
+    </interface>
+    <interface>
+      <name>document_embeddings table</name>
+      <kind>SQL table schema</kind>
+      <signature>"{schema}".document_embeddings (id UUID PK, chunk_id UUID FK→document_chunks ON DELETE CASCADE, embedding public.vector(1536), created_at TIMESTAMPTZ) — ivfflat index vector_cosine_ops</signature>
+      <path>backend/alembic/versions/013_enable_pgvector_and_create_documents.py:117</path>
+    </interface>
+    <interface>
+      <name>parse_document_task (background entry point)</name>
+      <kind>function signature</kind>
+      <signature>async def parse_document_task(document_id: str, schema_name: str, tenant_id: str) -> None</signature>
+      <path>backend/src/services/document_service.py:657</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Tests use mock-based approach with no live DB or Redis. get_db dependency overridden via app.dependency_overrides. Redis mocked via patch('src.cache.get_redis_client'). OpenAI client mocked via patch.object(EmbeddingService, '_call_openai_embeddings'). All tests must include a one-line comment stating the behaviour proved (DoD A6). Frameworks: pytest + pytest-asyncio + httpx AsyncClient (ASGITransport). Test runner: pytest from backend/ directory.</standards>
+    <locations>
+      <location>backend/tests/unit/services/test_embedding_service.py</location>
+      <location>backend/tests/unit/services/test_token_budget_service.py</location>
+      <location>backend/tests/integration/test_document_embedding.py</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-05">test_chunk_text_splits_correctly — 2500-token text → multiple chunks each ≤ 1000 tokens</idea>
+      <idea ac="AC-05">test_chunk_text_overlap_correct — consecutive chunks share 200-token overlap (step=800)</idea>
+      <idea ac="AC-05">test_chunk_text_short_text — text &lt; 1000 tokens → single chunk</idea>
+      <idea ac="AC-05">test_chunk_text_empty — empty string → empty list []</idea>
+      <idea ac="AC-06">test_generate_and_store_inserts_chunks — mock OpenAI, verify db.execute called for chunk INSERT + embedding INSERT</idea>
+      <idea ac="AC-06">test_generate_and_store_idempotent — existing COUNT(*) &gt; 0 → skip, return existing count, no OpenAI call</idea>
+      <idea ac="AC-06">test_generate_and_store_batches_correctly — 150 chunks → 2 OpenAI calls (100 + 50)</idea>
+      <idea ac="AC-07">test_progress_log_emitted_per_batch — patch logger.info, verify "Processing chunk N of total" logged once per batch</idea>
+      <idea ac="AC-08">test_token_budget_consume_increments_redis — atomic INCRBY called with correct key and token count</idea>
+      <idea ac="AC-08">test_parse_triggers_embedding — POST /documents → background parse → chunk_count updated (integration)</idea>
+      <idea ac="AC-06">test_parse_failure_on_openai_error — mock _call_openai_embeddings to raise → parse_status='failed' (integration)</idea>
+      <idea ac="AC-06">test_get_document_shows_chunk_count — GET /documents/{id} returns chunk_count &gt; 0 after parse completes</idea>
+    </ideas>
+  </tests>
+</story-context>
