@@ -26,6 +26,7 @@
   <a href="#-competitive-advantage">Advantage</a> &bull;
   <a href="#-business-impact--roi">ROI</a> &bull;
   <a href="#-technology-architecture">Architecture</a> &bull;
+  <a href="#ui-mockups--designs">Mockups</a> &bull;
   <a href="#-roadmap">Roadmap</a> &bull;
   <a href="#-getting-started">Getting Started</a>
 </p>
@@ -772,6 +773,8 @@ QUALISYS/
 │   ├── epics/                  # 8 epics with 132 stories
 │   ├── tech-specs/             # Per-epic technical specifications + validation reports
 │   ├── stories/epic-{n}/       # Story files organised by epic (epic-0, epic-1, epic-2...)
+│   ├── designs/                # UI mockups and design files
+│   │   └── mockups/           # 8 workflow screen mockups (PNG)
 │   ├── evaluations/            # Agent Skills architecture evaluations
 │   ├── reports/                # Validation and readiness reports
 │   └── research/               # Market and competitive research
@@ -807,6 +810,23 @@ QUALISYS/
 | [Epic 1 Tech Spec](./docs/tech-specs/tech-spec-epic-1.md) | Foundation & Administration specification (validated 11/11) |
 | [Epic 1 Tech Spec Validation](./docs/tech-specs/validation-report-tech-spec-epic-1-20260221.md) | Tech spec validation report — 9/11 PASS, 2/11 PARTIAL (remediated) |
 | [Test Design System](./docs/planning/test-design-system.md) | Test strategy, patterns, and quality framework |
+
+### UI Mockups & Designs
+
+Visual mockups for the 8 core user workflows, located in [`docs/designs/mockups/`](./docs/designs/mockups):
+
+| # | Screen | Preview |
+|---|--------|---------|
+| 1 | [Project Setup](./docs/designs/mockups/1%20-%20Project%20Setup.png) | Organization creation, project configuration, team assignment |
+| 2 | [Upload & Connect](./docs/designs/mockups/2%20-%20Upload%20%26%20Connect.png) | Document upload (PRD/SRS), GitHub repo connection, app URL crawling |
+| 3 | [Agent Selection](./docs/designs/mockups/3%20-%20Agent%20Selection.png) | AI agent pipeline configuration, agent cards, run creation |
+| 4 | [Agent Execution](./docs/designs/mockups/4%20-%20Agent%20Execution.png) | Real-time agent progress tracking, SSE streaming, live status |
+| 5 | [Coverage Matrix](./docs/designs/mockups/5%20-%20Coverage%20Matrix.png) | Test coverage visualization, requirement-to-test traceability |
+| 6 | [Manual Testing](./docs/designs/mockups/6%20-%20Manual%20Testing.png) | Guided manual test execution, evidence capture, checklist runner |
+| 7 | [Self-Healing](./docs/designs/mockups/7%20-%20Self-Healing.png) | Self-healing engine dashboard, confidence scoring, fix approvals |
+| 8 | [Executive Dashboard](./docs/designs/mockups/8%20-%20Executive%20Dashboard.png) | PM/CSM dashboard, project health KPIs, SLA monitoring |
+
+> **Design Source:** The full interactive design file is available at [`docs/designs/qualisys-ui-workflow.pen`](./docs/designs/qualisys-ui-workflow.pen).
 
 ### Research & Validation
 
@@ -883,5 +903,5 @@ Conceptualized the "AI System Quality Assurance" category and architected the mu
 <p align="center">
   <strong>QUALISYS</strong> — Defining the Future of AI System Quality Assurance
   <br>
-  <sub>Built by <a href="https://10pearls.com">10Pearls</a> | Version 0.1.0 | Last Updated: 2026-02-22</sub>
+  <sub>Built by <a href="https://10pearls.com">10Pearls</a> | Version 0.1.0 | Last Updated: 2026-03-01</sub>
 </p>
