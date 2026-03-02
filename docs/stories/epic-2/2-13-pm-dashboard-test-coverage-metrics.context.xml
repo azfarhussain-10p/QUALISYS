@@ -1,0 +1,569 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>epic-2</epicId>
+    <storyId>2.13</storyId>
+    <title>PM Dashboard — Test Coverage Metrics</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-03-02</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/epic-2/2-13-pm-dashboard-test-coverage-metrics.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>PM/CSM</asA>
+    <iWant>to see test coverage metrics with a week-over-week trend indicator, a drill-down into which requirements lack tests, and a multi-project health grid</iWant>
+    <soThat>I can measure testing completeness, identify coverage gaps, and monitor all projects at a glance</soThat>
+    <tasks>
+      Task 1: Extend PMDashboardService — add _compute_week_over_week(), get_coverage_matrix(), get_all_projects_health(), extend get_coverage_trend()
+      Task 2: Extend dashboard schemas — DashboardCoverageResponse + new RequirementCoverageItem, CoverageMatrixResponse, ProjectHealthItem, ProjectsHealthResponse
+      Task 3: Add GET /dashboard/coverage/matrix endpoint to existing router; create org_router.py for GET /api/v1/orgs/{org_id}/dashboard/projects
+      Task 4: Register org_router in main.py
+      Task 5: Extend api.ts — DashboardCoverage interface + new types + getCoverageMatrix + getProjectsHealth
+      Task 6: Extend DashboardPage.tsx — TrendBadge component + showMatrix state + CoverageMatrixPanel integration
+      Task 7: Create CoverageMatrixPanel.tsx component
+      Task 8: Create ProjectsGridPage.tsx + register route in App.tsx
+      Task 9: Add 4 unit tests (test_pm_dashboard_service.py) + 7 integration tests (test_dashboard.py)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="AC-1">
+      Week-over-week trend indicator. GET /api/v1/projects/{project_id}/dashboard/coverage adds
+      week_over_week_pct (float|null, signed, rounded 1dp) and week_over_week_direction
+      ("up"|"down"|"flat"|"no_data"). Frontend: TrendBadge renders green "↑ +X%" / red "↓ -X%" /
+      gray "→ No change" / gray "No trend data yet". Unit tests: _compute_week_over_week(80.0,75.0)
+      → (+5.0,"up"), (70.0,75.0) → (-5.0,"down"), (75.0,75.0) → (0.0,"flat"), (None,75.0) → (None,"no_data").
+    </ac>
+    <ac id="AC-2">
+      Coverage matrix drill-down. New GET /api/v1/projects/{project_id}/dashboard/coverage/matrix
+      returns {artifact_id, artifact_title, requirements:[{name,covered,test_count}], generated_at,
+      fallback_url}. Frontend: "View Details →" link expands CoverageMatrixPanel showing requirement
+      table (Covered/Missing badges). Empty state: "No coverage data yet — run AI agents..." with
+      fallback link. Integration tests: 200 with requirements list; 401 without auth.
+    </ac>
+    <ac id="AC-3">
+      Multi-project health grid. New GET /api/v1/orgs/{org_id}/dashboard/projects (tenant-level,
+      require_role not require_project_role) returns {projects:[{project_id,project_name,health_status,
+      coverage_pct,artifact_count,last_run_at}]}. Redis cache key dashboard:projects:{tenant_id} TTL 60s.
+      Frontend: ProjectsGridPage at /orgs/:orgId/pm-dashboard — responsive card grid reusing HealthDot,
+      links to /projects/:projectId/dashboard. Integration tests: 200 with projects list; 401 without auth.
+    </ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>§2 PM/CSM Dashboard scope</section>
+        <snippet>Coverage widget: requirements covered vs total, trend line chart (Recharts), configurable target, drill-down to coverage matrix. Auto-refresh via SSE (30-second interval).</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>§4 PM Dashboard API definitions</section>
+        <snippet>GET /api/v1/projects/{project_id}/dashboard/overview, GET /dashboard/coverage, GET /api/v1/dashboard/projects (multi-project health grid, PM/CSM). SSE: GET /api/v1/events/dashboard/{project_id}.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>§8 Acceptance Criteria AC-30–33 traceability</section>
+        <snippet>AC-30–33 mapped to stories 2-12 through 2-14. AC-30: health overview, AC-31: coverage widget + trend line, AC-32: SSE refresh, AC-33: placeholder widgets. FR67–FR71 coverage.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epics.md</path>
+        <title>Project Epics</title>
+        <section>Story 2.13 definition (line 662)</section>
+        <snippet>As a PM/CSM, I want to see test coverage % by requirements. AC4: Trend indicator "↑ +5% from last week". AC5: Click widget → drill down to coverage matrix (see which requirements lack tests). FRs Covered: FR68.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/2-12-pm-csm-dashboard-project-health-overview.md</path>
+        <title>Story 2-12 (predecessor — done)</title>
+        <section>Out of Scope + Completion Notes</section>
+        <snippet>Multi-project health grid (GET /api/v1/dashboard/projects) deferred to Story 2-13. recharts ^2.15.4 already in web/package.json. _compute_health @staticmethod directly testable. Dead variable anti-pattern at pm_dashboard_service.py:129-137 — do NOT replicate.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <!-- ── BACKEND — MODIFY ─────────────────────────────────────────── -->
+      <artifact>
+        <path>backend/src/services/pm_dashboard_service.py</path>
+        <kind>service</kind>
+        <symbol>PMDashboardService</symbol>
+        <lines>1-259</lines>
+        <reason>
+          Base service to extend. Add _compute_week_over_week() @staticmethod (AC-1),
+          extend get_coverage_trend() to include week-over-week fields (AC-1),
+          add get_coverage_matrix() (AC-2), add get_all_projects_health() (AC-3).
+          Singleton pm_dashboard_service at line 259.
+        </reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/services/pm_dashboard_service.py</path>
+        <kind>service</kind>
+        <symbol>PMDashboardService._compute_health</symbol>
+        <lines>239-255</lines>
+        <reason>
+          Existing @staticmethod pattern — mirror exactly for _compute_week_over_week().
+          Returns str directly with boundary logic. No instance needed.
+        </reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/services/pm_dashboard_service.py</path>
+        <kind>service</kind>
+        <symbol>PMDashboardService.get_coverage_trend</symbol>
+        <lines>84-172</lines>
+        <reason>
+          Extend this method to add week-over-week query after the lifetime totals query.
+          IMPORTANT: Do NOT accumulate dead variables. Only assign what is returned.
+          Add last_week_pct secondary query: same coverage_matrix filter but
+          AND created_at &lt; NOW() - INTERVAL '7 days'. Then call _compute_week_over_week().
+          Add week_over_week_pct and week_over_week_direction to return dict.
+        </reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/services/pm_dashboard_service.py</path>
+        <kind>service</kind>
+        <symbol>PMDashboardService._compute_overview</symbol>
+        <lines>178-237</lines>
+        <reason>
+          Internal helper used by get_all_projects_health() — call this per-project
+          in a loop or refactor to accept project_id list. Reuse the aggregation SQL pattern.
+        </reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/api/v1/dashboard/router.py</path>
+        <kind>controller</kind>
+        <symbol>get_dashboard_coverage</symbol>
+        <lines>43-55</lines>
+        <reason>
+          Existing coverage endpoint. DashboardCoverageResponse schema upgrade (Task 2)
+          automatically propagates new fields — no router logic change needed for AC-1.
+          Add new GET /dashboard/coverage/matrix endpoint for AC-2 after this function.
+        </reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/api/v1/dashboard/router.py</path>
+        <kind>controller</kind>
+        <symbol>_DASHBOARD_ROLES</symbol>
+        <lines>25-25</lines>
+        <reason>
+          Reuse _DASHBOARD_ROLES = require_project_role("owner","admin","qa-automation","pm-csm")
+          for the new coverage/matrix endpoint. Do NOT use "pm" — role string is "pm-csm".
+        </reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/api/v1/dashboard/schemas.py</path>
+        <kind>schema</kind>
+        <symbol>DashboardCoverageResponse</symbol>
+        <lines>27-31</lines>
+        <reason>
+          Extend with week_over_week_pct: Optional[float] and week_over_week_direction: str.
+          Add RequirementCoverageItem, CoverageMatrixResponse, ProjectHealthItem, ProjectsHealthResponse.
+        </reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/main.py</path>
+        <kind>file</kind>
+        <symbol>app.include_router</symbol>
+        <lines>156-158</lines>
+        <reason>
+          Add org_router registration after existing dashboard_router block (lines 156-158).
+          Pattern: from src.api.v1.dashboard.org_router import org_router as pm_org_dashboard_router.
+        </reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/middleware/rbac.py</path>
+        <kind>middleware</kind>
+        <symbol>require_role</symbol>
+        <lines>115-202</lines>
+        <reason>
+          Use require_role("owner","admin","pm-csm") for org-level endpoint in org_router.py.
+          Requires org_id as path parameter. Returns (User, TenantUser) tuple.
+          Extract tenant_id from auth[1].tenant_id.
+        </reason>
+      </artifact>
+
+      <!-- ── BACKEND — NEW FILES ─────────────────────────────────────── -->
+      <artifact>
+        <path>backend/src/api/v1/dashboard/org_router.py</path>
+        <kind>controller</kind>
+        <symbol>org_router (new file)</symbol>
+        <lines>new</lines>
+        <reason>
+          New router for GET /api/v1/orgs/{org_id}/dashboard/projects (AC-3).
+          Use APIRouter(prefix="/api/v1/orgs/{org_id}", tags=["PM Dashboard"]).
+          Import: slug_to_schema_name, current_tenant_slug, require_role, get_db,
+          pm_dashboard_service, ProjectsHealthResponse.
+        </reason>
+      </artifact>
+
+      <!-- ── BACKEND — TESTS ─────────────────────────────────────────── -->
+      <artifact>
+        <path>backend/tests/unit/services/test_pm_dashboard_service.py</path>
+        <kind>test</kind>
+        <symbol>TestComputeHealth</symbol>
+        <lines>23-78</lines>
+        <reason>
+          Existing unit test file. Add TestComputeWeekOverWeek class with 4 tests
+          (up/down/flat/no_data) after TestGetOverviewCached class. Follow same pattern:
+          direct @staticmethod call, no fixtures needed.
+        </reason>
+      </artifact>
+      <artifact>
+        <path>backend/tests/integration/test_dashboard.py</path>
+        <kind>test</kind>
+        <symbol>_setup_db_session, TestDashboardCoverage</symbol>
+        <lines>49-120</lines>
+        <reason>
+          Extend _setup_db_session() to handle new SQL patterns:
+          - coverage/matrix: artifact JOIN artifact_versions query
+          - org projects grid: SELECT id, name FROM projects + per-project aggregation
+          Add 7 new tests: trend week-over-week fields, matrix 200/no-artifact/401,
+          projects grid 200/401. Follow existing class/method patterns exactly.
+          CRITICAL: always use try/finally with app.dependency_overrides.pop(get_db, None).
+        </reason>
+      </artifact>
+
+      <!-- ── FRONTEND — MODIFY ───────────────────────────────────────── -->
+      <artifact>
+        <path>web/src/lib/api.ts</path>
+        <kind>service</kind>
+        <symbol>DashboardCoverage, dashboardApi</symbol>
+        <lines>1058-1090</lines>
+        <reason>
+          Extend DashboardCoverage interface with week_over_week_pct and week_over_week_direction.
+          Add RequirementCoverageItem, CoverageMatrixData, ProjectHealthItem, ProjectsHealthData interfaces.
+          Add dashboardApi.getCoverageMatrix() and dashboardApi.getProjectsHealth() functions.
+          Do NOT create a new namespace — extend the existing dashboardApi object.
+        </reason>
+      </artifact>
+      <artifact>
+        <path>web/src/pages/projects/dashboard/DashboardPage.tsx</path>
+        <kind>component</kind>
+        <symbol>DashboardPage, HealthDot</symbol>
+        <lines>1-267</lines>
+        <reason>
+          Add TrendBadge helper component (AC-1). Add showMatrix state + lazy useQuery for
+          coverage matrix (enabled: showMatrix). Add "View Details →" button and conditional
+          CoverageMatrixPanel render in coverage section (AC-2). HealthDot is defined here —
+          can be imported directly by ProjectsGridPage or extracted to shared component.
+        </reason>
+      </artifact>
+      <artifact>
+        <path>web/src/App.tsx</path>
+        <kind>file</kind>
+        <symbol>Route registrations</symbol>
+        <lines>1-80</lines>
+        <reason>
+          Add import for ProjectsGridPage and Route path="/orgs/:orgId/pm-dashboard"
+          after the existing /projects/:projectId/dashboard route (added in 2-12).
+        </reason>
+      </artifact>
+
+      <!-- ── FRONTEND — NEW FILES ────────────────────────────────────── -->
+      <artifact>
+        <path>web/src/pages/projects/dashboard/CoverageMatrixPanel.tsx</path>
+        <kind>component</kind>
+        <symbol>CoverageMatrixPanel (new file)</symbol>
+        <lines>new</lines>
+        <reason>
+          New component for AC-2 drill-down. Props: {data: CoverageMatrixData|undefined, projectId: string}.
+          Renders requirement table with Covered/Missing badges. Empty state + fallback_url link.
+        </reason>
+      </artifact>
+      <artifact>
+        <path>web/src/pages/dashboard/ProjectsGridPage.tsx</path>
+        <kind>component</kind>
+        <symbol>ProjectsGridPage (new file)</symbol>
+        <lines>new</lines>
+        <reason>
+          New page for AC-3 multi-project grid. useQuery for dashboardApi.getProjectsHealth(orgId).
+          Responsive card grid (grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4).
+          Each card: HealthDot, project_name, coverage_pct, last_run_at, Link to /projects/:id/dashboard.
+          Loading: skeleton cards. Empty state: "No projects found".
+        </reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <python>
+        <package name="fastapi" version="0.109.2" />
+        <package name="pydantic" version="2.6.3" />
+        <package name="sqlalchemy" version="2.0.27" />
+        <package name="asyncpg" version="0.29.0" />
+        <package name="redis[hiredis]" version="5.0.2" />
+        <package name="httpx" version="0.27.0" />
+        <package name="pytest" version="8.0.2" />
+        <package name="pytest-asyncio" version="0.23.5" />
+      </python>
+      <node>
+        <package name="recharts" version="^2.15.4" note="ALREADY INSTALLED — no npm install needed" />
+        <package name="@tanstack/react-query" version="^5.17.19" />
+        <package name="react-router-dom" version="^6.22.1" />
+        <package name="axios" version="^1.6.7" />
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1">
+      ALL SQL must use text(f'SELECT ... FROM "{schema_name}".table WHERE ...') with named
+      bound parameters (:param_name). Never interpolate user-supplied values into the SQL string.
+      schema_name always derived from slug_to_schema_name(current_tenant_slug.get()).
+    </constraint>
+    <constraint id="C2">
+      RBAC per-project endpoints: _DASHBOARD_ROLES = require_project_role("owner","admin","qa-automation","pm-csm").
+      Org-level endpoint (org_router): require_role("owner","admin","pm-csm") with org_id path param.
+      DO NOT use "pm" — the correct role string is "pm-csm" (rbac.py line 21 comment).
+    </constraint>
+    <constraint id="C3">
+      Redis cache pattern — always wrap in try/except for resilience:
+        try:
+            cached = await redis.get(key)
+            if cached: return json.loads(cached)
+        except Exception as exc:
+            logger.warning("cache read failed", exc=str(exc))
+        # ... compute ...
+        try:
+            await redis.set(key, json.dumps(result, default=str), ex=60)
+        except Exception as exc:
+            logger.warning("cache write failed", exc=str(exc))
+      Cache keys: dashboard:{project_id} (per-project, TTL 60s), dashboard:projects:{tenant_id} (multi-project, TTL 60s).
+    </constraint>
+    <constraint id="C4">
+      Dead variable anti-pattern (from Story 2-12 review L-1): do NOT accumulate loop variables
+      that are subsequently overridden by a separate query. Only assign variables you actually return.
+      In get_coverage_trend(), the dead total_covered/total_reqs variables at lines 129-137 are
+      a known issue — do not replicate this pattern in new methods.
+    </constraint>
+    <constraint id="C5">
+      No new DB migration required. All data sourced from existing tables in Migration 015:
+      artifacts (artifact_type, metadata JSONB), artifact_versions (content TEXT),
+      agent_runs (project_id, created_at), projects (id, name).
+    </constraint>
+    <constraint id="C6">
+      recharts ^2.15.4 is ALREADY installed in web/package.json — do NOT run npm install recharts.
+      LineChart, BarChart, ResponsiveContainer, ReferenceLine all available.
+    </constraint>
+    <constraint id="C7">
+      Integration test cleanup pattern: ALWAYS use try/finally to pop dependency override:
+        app.dependency_overrides[get_db] = get_db_override
+        try:
+            ...
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+    </constraint>
+    <constraint id="C8">
+      Pre-existing unrelated test failures: test_backup_code_service.py and test_profile_service.py
+      fail due to Epic 1 issues unrelated to Epic 2. Do not investigate; ignore.
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <!-- ── NEW BACKEND ENDPOINTS ────────────────────────────────────── -->
+    <interface>
+      <name>GET /api/v1/projects/{project_id}/dashboard/coverage (extended)</name>
+      <kind>REST endpoint</kind>
+      <signature>
+        Response: DashboardCoverageResponse (extended)
+        {
+          requirements_covered: int,
+          total_requirements: int,
+          coverage_pct: float | None,
+          trend: [{"date": "YYYY-MM-DD", "coverage_pct": float | None}],  // 30 items
+          week_over_week_pct: float | None,       // NEW — signed, rounded 1dp
+          week_over_week_direction: str           // NEW — "up"|"down"|"flat"|"no_data"
+        }
+        RBAC: require_project_role("owner","admin","qa-automation","pm-csm")
+      </signature>
+      <path>backend/src/api/v1/dashboard/router.py</path>
+    </interface>
+    <interface>
+      <name>GET /api/v1/projects/{project_id}/dashboard/coverage/matrix</name>
+      <kind>REST endpoint (new)</kind>
+      <signature>
+        Response: CoverageMatrixResponse
+        {
+          artifact_id: str | None,
+          artifact_title: str | None,
+          requirements: [{"name": str, "covered": bool, "test_count": int}],
+          generated_at: str | None,      // ISO8601
+          fallback_url: str | None       // "/projects/{id}/artifacts?type=coverage_matrix" if no parseable requirements
+        }
+        RBAC: require_project_role("owner","admin","qa-automation","pm-csm")
+      </signature>
+      <path>backend/src/api/v1/dashboard/router.py (new endpoint)</path>
+    </interface>
+    <interface>
+      <name>GET /api/v1/orgs/{org_id}/dashboard/projects</name>
+      <kind>REST endpoint (new)</kind>
+      <signature>
+        Response: ProjectsHealthResponse
+        {
+          projects: [{
+            project_id: str,
+            project_name: str,
+            health_status: "green"|"yellow"|"red"|"no_data",
+            coverage_pct: float | None,
+            artifact_count: int,
+            last_run_at: str | None
+          }]
+        }
+        RBAC: require_role("owner","admin","pm-csm")  // org_id path param required
+      </signature>
+      <path>backend/src/api/v1/dashboard/org_router.py (new file)</path>
+    </interface>
+
+    <!-- ── NEW SERVICE METHODS ───────────────────────────────────────── -->
+    <interface>
+      <name>PMDashboardService._compute_week_over_week</name>
+      <kind>static method</kind>
+      <signature>
+        @staticmethod
+        def _compute_week_over_week(
+            current_pct: float | None,
+            last_week_pct: float | None
+        ) -> tuple[float | None, str]:
+            # Returns (delta_rounded_1dp, direction)
+            # direction: "up" | "down" | "flat" | "no_data"
+            # Returns (None, "no_data") if either arg is None
+      </signature>
+      <path>backend/src/services/pm_dashboard_service.py</path>
+    </interface>
+    <interface>
+      <name>PMDashboardService.get_coverage_matrix</name>
+      <kind>async method</kind>
+      <signature>
+        async def get_coverage_matrix(
+            self,
+            db: AsyncSession,
+            schema_name: str,
+            project_id: str,
+        ) -> dict[str, Any]:
+            # Finds latest coverage_matrix artifact, joins artifact_versions.content,
+            # parses JSON for "requirements" list.
+            # Returns: {artifact_id, artifact_title, requirements, generated_at, fallback_url}
+            # Wrap JSON parse in try/except (json.JSONDecodeError, KeyError, TypeError)
+      </signature>
+      <path>backend/src/services/pm_dashboard_service.py</path>
+    </interface>
+    <interface>
+      <name>PMDashboardService.get_all_projects_health</name>
+      <kind>async method</kind>
+      <signature>
+        async def get_all_projects_health(
+            self,
+            db: AsyncSession,
+            schema_name: str,
+            tenant_id: str,
+        ) -> dict[str, Any]:
+            # Redis cache key: dashboard:projects:{tenant_id}, TTL 60s
+            # On miss: SELECT id, name FROM "{schema_name}".projects ORDER BY name
+            # For each project: run _compute_overview() aggregation
+            # Returns: {"projects": [{project_id, project_name, health_status, coverage_pct, artifact_count, last_run_at}]}
+      </signature>
+      <path>backend/src/services/pm_dashboard_service.py</path>
+    </interface>
+
+    <!-- ── FRONTEND COMPONENTS ───────────────────────────────────────── -->
+    <interface>
+      <name>TrendBadge component</name>
+      <kind>React component</kind>
+      <signature>
+        function TrendBadge({ direction, pct }: {
+          direction: string   // "up"|"down"|"flat"|"no_data"
+          pct: number | null
+        }): JSX.Element
+        // Render: green "↑ +X.X% from last week" | red "↓ -X.X% from last week"
+        //         gray "→ No change from last week" | gray "No trend data yet"
+        // Use Math.abs(pct).toFixed(1) for display value
+      </signature>
+      <path>web/src/pages/projects/dashboard/DashboardPage.tsx (inline helper)</path>
+    </interface>
+    <interface>
+      <name>CoverageMatrixPanel component</name>
+      <kind>React component (new file)</kind>
+      <signature>
+        interface Props {
+          data: CoverageMatrixData | undefined
+          projectId: string
+        }
+        export function CoverageMatrixPanel({ data, projectId }: Props): JSX.Element | null
+        // Returns null if data is undefined
+        // Empty requirements → empty state with fallback_url link
+        // Otherwise → table: Requirement | Status (✅/❌) | Tests
+      </signature>
+      <path>web/src/pages/projects/dashboard/CoverageMatrixPanel.tsx (new file)</path>
+    </interface>
+    <interface>
+      <name>ProjectsGridPage component</name>
+      <kind>React page component (new file)</kind>
+      <signature>
+        export default function ProjectsGridPage(): JSX.Element
+        // useParams: { orgId: string }
+        // useQuery: dashboardApi.getProjectsHealth(orgId), staleTime: 60_000
+        // Grid: grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4
+        // Card: HealthDot + project_name + coverage_pct + last_run relative time + Link
+      </signature>
+      <path>web/src/pages/dashboard/ProjectsGridPage.tsx (new file)</path>
+    </interface>
+
+    <!-- ── EXISTING PATTERNS TO REUSE ───────────────────────────────── -->
+    <interface>
+      <name>HealthDot (existing)</name>
+      <kind>React component (already in DashboardPage.tsx)</kind>
+      <signature>
+        function HealthDot({ status }: { status: DashboardOverview['health_status'] }): JSX.Element
+        // Colours: green→bg-green-500, yellow→bg-yellow-400, red→bg-red-500, no_data→bg-gray-300
+        // Can be imported from DashboardPage.tsx or extracted to shared component
+      </signature>
+      <path>web/src/pages/projects/dashboard/DashboardPage.tsx:31-39</path>
+    </interface>
+    <interface>
+      <name>formatRelative (existing)</name>
+      <kind>utility function (already in DashboardPage.tsx)</kind>
+      <signature>
+        function formatRelative(isoStr: string): string
+        // Returns "just now" | "X minutes ago" | "X hours ago" | "X days ago"
+      </signature>
+      <path>web/src/pages/projects/dashboard/DashboardPage.tsx:48-57</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Backend: pytest 8.0.2 + pytest-asyncio 0.23.5. All async tests use @pytest.mark.asyncio.
+      Integration tests mock DB via app.dependency_overrides[get_db] = get_db_override (ALWAYS cleaned
+      up in try/finally block). Redis mocked via patch("src.services.pm_dashboard_service.get_redis_client",
+      return_value=_no_cache()). Auth via token_service.create_access_token() with cookies={"access_token": token}.
+      RBAC lookups routed by str(stmt).lower() content matching in mock_execute().
+      Each test has a one-line comment stating the behaviour proved (DoD requirement).
+    </standards>
+    <locations>
+      backend/tests/unit/services/test_pm_dashboard_service.py  (add 4 tests — unit, no DB/Redis)
+      backend/tests/integration/test_dashboard.py               (add 7 tests — mock DB + Redis)
+    </locations>
+    <ideas>
+      <!-- AC-1 unit tests (4) -->
+      <idea ac="AC-1">test_compute_week_over_week_up — _compute_week_over_week(80.0, 75.0) → (5.0, "up")</idea>
+      <idea ac="AC-1">test_compute_week_over_week_down — _compute_week_over_week(70.0, 75.0) → (-5.0, "down")</idea>
+      <idea ac="AC-1">test_compute_week_over_week_flat — _compute_week_over_week(75.0, 75.0) → (0.0, "flat")</idea>
+      <idea ac="AC-1">test_compute_week_over_week_no_data — _compute_week_over_week(None, 75.0) → (None, "no_data")</idea>
+
+      <!-- AC-1 integration tests (2) -->
+      <idea ac="AC-1">test_get_coverage_trend_includes_week_over_week_200 — seed recent + 8-day-old artifacts; GET coverage → 200; assert response has "week_over_week_pct" and "week_over_week_direction" keys.</idea>
+      <idea ac="AC-1">test_get_coverage_trend_no_data_direction — no artifacts older than 7 days; GET coverage → 200; assert week_over_week_direction == "no_data".</idea>
+
+      <!-- AC-2 integration tests (3) -->
+      <idea ac="AC-2">test_get_coverage_matrix_200 — seed coverage_matrix artifact with content {"requirements":[{"name":"REQ-001","covered":true,"test_count":3}]}; GET coverage/matrix → 200; assert requirements[0]["name"] == "REQ-001".</idea>
+      <idea ac="AC-2">test_get_coverage_matrix_no_artifact_200 — no artifacts; GET coverage/matrix → 200; assert requirements == [] and fallback_url is not None.</idea>
+      <idea ac="AC-2">test_get_coverage_matrix_rbac_401 — no auth; GET coverage/matrix → 401.</idea>
+
+      <!-- AC-3 integration tests (2) -->
+      <idea ac="AC-3">test_get_projects_health_200 — GET /api/v1/orgs/{org_id}/dashboard/projects with valid owner auth → 200; assert response has "projects" key (list).</idea>
+      <idea ac="AC-3">test_get_projects_health_rbac_401 — no auth; GET projects health → 401.</idea>
+    </ideas>
+  </tests>
+
+</story-context>

@@ -1,14 +1,17 @@
 """
 QUALISYS — Artifact API Router
-Story: 2-10-test-artifact-storage-viewer
+Story: 2-10-test-artifact-storage-viewer (GET endpoints)
+       2-11-artifact-editing-versioning (PUT endpoint, AC-28)
 AC-26: GET endpoints for artifact list (with type filter), detail, versions, and specific version.
+AC-28: PUT endpoint to save edited content as a new artifact version.
        RBAC: require_project_role("owner", "admin", "qa-automation") on all endpoints.
 
 Endpoints (mounted under /api/v1/projects/{project_id}):
-  GET /artifacts                               — List artifacts (optional ?artifact_type filter)
-  GET /artifacts/{artifact_id}                 — Artifact detail + current version content
-  GET /artifacts/{artifact_id}/versions        — List all versions
-  GET /artifacts/{artifact_id}/versions/{ver}  — Specific version detail + content
+  GET  /artifacts                               — List artifacts (optional ?artifact_type filter)
+  GET  /artifacts/{artifact_id}                 — Artifact detail + current version content
+  PUT  /artifacts/{artifact_id}                 — Save edit as new version (AC-28)
+  GET  /artifacts/{artifact_id}/versions        — List all versions
+  GET  /artifacts/{artifact_id}/versions/{ver}  — Specific version detail + content
 """
 
 from typing import List, Optional
@@ -16,7 +19,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.v1.artifacts.schemas import ArtifactDetail, ArtifactSummary, ArtifactVersionSummary
+from src.api.v1.artifacts.schemas import ArtifactDetail, ArtifactSummary, ArtifactUpdateRequest, ArtifactVersionSummary
 from src.db import get_db
 from src.middleware.rbac import require_project_role
 from src.middleware.tenant_context import current_tenant_slug
@@ -63,6 +66,29 @@ async def get_artifact(
         schema_name=schema_name,
         project_id=project_id,
         artifact_id=artifact_id,
+    )
+    return ArtifactDetail(**row)
+
+
+@router.put("/{artifact_id}", response_model=ArtifactDetail)
+async def update_artifact(
+    project_id: str,
+    artifact_id: str,
+    body: ArtifactUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    auth: tuple = require_project_role("owner", "admin", "qa-automation"),
+) -> ArtifactDetail:
+    """Save edited content as a new artifact version (AC-28)."""
+    slug = current_tenant_slug.get()
+    schema_name = slug_to_schema_name(slug)
+    edited_by = str(auth[0].id)
+    row = await artifact_service.update_artifact(
+        db=db,
+        schema_name=schema_name,
+        project_id=project_id,
+        artifact_id=artifact_id,
+        content=body.content,
+        edited_by=edited_by,
     )
     return ArtifactDetail(**row)
 

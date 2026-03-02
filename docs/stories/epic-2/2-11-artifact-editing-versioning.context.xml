@@ -1,0 +1,426 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>epic-2</epicId>
+    <storyId>11</storyId>
+    <title>Artifact Editing &amp; Versioning</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-03-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/epic-2/2-11-artifact-editing-versioning.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>QA-Automation user</asA>
+    <iWant>edit AI-generated test artifacts in a Monaco editor and view version history with unified diffs</iWant>
+    <soThat>I can refine generated tests and track all changes over time</soThat>
+    <tasks>
+      Task 1 — Backend: update_artifact() in ArtifactService (AC-28)
+        1.1 Add import difflib at top of artifact_service.py
+        1.2 Add async update_artifact(db, schema_name, project_id, artifact_id, content, edited_by) → dict:
+            - Call get_artifact() to verify exists and get current content + version
+            - Compute diff_from_prev via difflib.unified_diff(old.splitlines(), new.splitlines(), lineterm='')
+            - new_version = current_version + 1
+            - INSERT into artifact_versions (artifact_id, version, content, content_type, diff_from_prev, edited_by)
+            - UPDATE artifacts SET current_version = new_version, updated_at = NOW() WHERE id = artifact_id
+            - await db.commit()
+            - Return await self.get_artifact(db, schema_name, project_id, artifact_id)
+
+      Task 2 — Backend: PUT endpoint + request schema (AC-28)
+        2.1 schemas.py: Add ArtifactUpdateRequest(BaseModel) with content: str
+        2.2 router.py: Add PUT /{artifact_id} endpoint → body ArtifactUpdateRequest, response ArtifactDetail
+            - Resolve schema_name, extract edited_by = str(auth[0].id)
+            - Call artifact_service.update_artifact(...)
+        2.3 Add docstring to PUT endpoint
+
+      Task 3 — Frontend: artifactApi.update() in api.ts (AC-28)
+        3.1 Add ArtifactUpdateRequest type: { content: string }
+        3.2 Add artifactApi.update(projectId, artifactId, content) → PUT /projects/{id}/artifacts/{aid}
+
+      Task 4 — Frontend: Monaco editor in ArtifactCard (AC-27, AC-28)
+        4.1 Install @monaco-editor/react: cd web &amp;&amp; npm install @monaco-editor/react
+        4.2 Add imports: Editor from @monaco-editor/react, useQueryClient + useMutation from @tanstack/react-query, Edit2 + Save + X from lucide-react
+        4.3 Add state: editing, editContent, saveError
+        4.4 Add monacoLanguage() helper: playwright_script→typescript, manual_checklist→markdown, coverage_matrix→json, bdd_scenario→plaintext
+        4.5 Add useMutation for save: invalidate ['artifact-detail',...], ['artifacts',...], ['artifact-versions',...] on success
+        4.6 Render Monaco Editor when editing; Edit/Save/Cancel buttons; inline error banner
+
+      Task 5 — Frontend: Version history dropdown (AC-28)
+        5.1 Add selectedVersion state (null = current)
+        5.2 useQuery for versions list (enabled: expanded &amp;&amp; current_version > 1)
+        5.3 useQuery for historical version content (enabled: selectedVersion !== null)
+        5.4 Render version select dropdown when current_version > 1 and versions loaded
+        5.5 Historical version content shown read-only; Edit button hidden for historical versions
+
+      Task 6 — Frontend: Diff view with Monaco DiffEditor (AC-29)
+        6.1 Add import DiffEditor from @monaco-editor/react
+        6.2 Add diffMode, diffVersionA, diffVersionB state
+        6.3 Initialize diffVersionA = current_version - 1, diffVersionB = current_version when entering diff mode
+        6.4 Two useQuery calls for diffOriginal and diffModified content
+        6.5 Render DiffEditor with original/modified props; two select dropdowns for version selection; Close Diff button
+        6.6 Compare Versions button shown when current_version > 1 and !editing and !diffMode
+
+      Task 7 — Tests (AC-27 through AC-29)
+        7.1 test_artifact_service.py: 3 new unit tests
+            - test_update_artifact_creates_new_version
+            - test_update_artifact_computes_diff
+            - test_update_artifact_raises_404_if_not_found
+        7.2 test_artifacts.py: 3 new integration tests
+            - test_put_artifact_creates_new_version
+            - test_put_artifact_get_returns_new_content
+            - test_put_artifact_404_unknown_id
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    AC-27: "Edit" button on expanded ArtifactCard opens Monaco Editor inline with content from detail.content.
+           Language: playwright_script→typescript, bdd_scenario→plaintext, manual_checklist→markdown, coverage_matrix→json.
+           "Cancel" closes editor without API call. Edit button only shown when !editing and !diffMode and selectedVersion===null.
+
+    AC-28: "Save" calls PUT /api/v1/projects/{project_id}/artifacts/{artifact_id} with {content}.
+           Backend: verifies artifact exists, computes diff_from_prev (difflib.unified_diff), INSERTs new artifact_versions
+           row (version = current_version + 1), UPDATEs artifacts.current_version + updated_at, commits, returns ArtifactDetail.
+           Frontend: exits edit mode, invalidates ['artifact-detail',...], ['artifacts',...], ['artifact-versions',...] queries.
+           Version badge on card header updates. Version history select dropdown visible when current_version > 1.
+           Integration test: PUT → current_version == 2, GET returns new content.
+
+    AC-29: "Compare Versions" toggle (visible when current_version > 1, !editing, !diffMode) opens Monaco DiffEditor.
+           Two select dropdowns default to (current_version - 1) as original and (current_version) as modified.
+           Content loaded via GET /artifacts/{id}/versions/{ver} (existing endpoint).
+           Monaco DiffEditor shows side-by-side with green (+) and red (-) line highlights.
+           "Close Diff" restores content view. No additional diff library required.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>8 — Acceptance Criteria (AC-27, AC-28, AC-29)</section>
+        <snippet>AC-27: Monaco editor opens on "Edit" button with syntax highlighting for TypeScript (Playwright), Gherkin (BDD), Markdown (checklists). AC-28: Saving edits creates new artifact version (version incremented); version history dropdown. AC-29: Diff view shows unified diff between any two artifact versions. Story 2-11 covers AC-27 through AC-29.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>6 — API Design (PUT /artifacts/{id})</section>
+        <snippet>PUT /api/v1/projects/{project_id}/artifacts/{id} — Save edit (creates new version). Listed alongside GET endpoints for artifact list, detail, versions, and specific version.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/epic-2/2-10-test-artifact-storage-viewer.md</path>
+        <title>Story 2-10 (predecessor — done)</title>
+        <section>Dev Agent Record — Completion Notes + File List</section>
+        <snippet>ArtifactService is read-only (add update_artifact() in this story). ArtifactCard now uses useQuery with enabled:expanded (L-5 fix). No toast library — use inline useState banners. artifactApi namespace has list/get/listVersions/getVersion. artifact_versions.diff_from_prev TEXT column already exists in migration 015.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epics.md</path>
+        <title>QUALISYS Epic &amp; Story Breakdown</title>
+        <section>Story 2.11</section>
+        <snippet>As a QA-Automation user, I want to edit generated artifacts and track versions, so that I can refine tests. AC1: Monaco editor. AC2: Syntax highlighting for TypeScript/Gherkin. AC3: Save → new version. AC4: Version history dropdown with timestamps. AC5: Diff view (green/red).</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <!-- BACKEND — Modify these files -->
+      <artifact>
+        <path>backend/src/services/artifact_service.py</path>
+        <kind>service</kind>
+        <symbol>ArtifactService</symbol>
+        <lines>1-179</lines>
+        <reason>PRIMARY: Add update_artifact() method. Current class is read-only (docstring says "Write operations live in orchestrator" — update this too). import difflib at top. Transaction: INSERT artifact_versions + UPDATE artifacts + commit. Re-use get_artifact() for existence check and for return value.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/api/v1/artifacts/router.py</path>
+        <kind>controller</kind>
+        <symbol>router</symbol>
+        <lines>1-107</lines>
+        <reason>PRIMARY: Add PUT /{artifact_id} endpoint. Extract edited_by = str(auth[0].id). Follow existing GET endpoint pattern: resolve schema_name, call service, return Pydantic model. RBAC: require_project_role("owner", "admin", "qa-automation") — same as GET endpoints.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/api/v1/artifacts/schemas.py</path>
+        <kind>schema</kind>
+        <symbol>ArtifactUpdateRequest</symbol>
+        <lines>1-39</lines>
+        <reason>PRIMARY: Add ArtifactUpdateRequest(BaseModel) with content: str. Existing models: ArtifactSummary, ArtifactDetail(ArtifactSummary), ArtifactVersionSummary.</reason>
+      </artifact>
+      <!-- FRONTEND — Modify these files -->
+      <artifact>
+        <path>web/src/pages/projects/artifacts/ArtifactsTab.tsx</path>
+        <kind>component</kind>
+        <symbol>ArtifactCard</symbol>
+        <lines>165-238</lines>
+        <reason>PRIMARY: Add editing state + Monaco Editor + Save/Cancel buttons + version history dropdown + diff view. ArtifactCard already has: expanded state, useQuery for detail (enabled:expanded, staleTime:5min), handleToggle. Add: editing/editContent/saveError/selectedVersion/diffMode/diffVersionA/diffVersionB state; monacoLanguage() helper; useMutation for save; three useQuery calls for versions/historical/diffVersions.</reason>
+      </artifact>
+      <artifact>
+        <path>web/src/lib/api.ts</path>
+        <kind>service</kind>
+        <symbol>artifactApi</symbol>
+        <lines>995-1047</lines>
+        <reason>PRIMARY: Add ArtifactUpdateRequest type and artifactApi.update() method. Existing methods: list(), get(), listVersions(), getVersion(). Pattern: apiClient.put(...).then((r) =&gt; r.data).</reason>
+      </artifact>
+      <!-- DB SCHEMA REFERENCE — Read only -->
+      <artifact>
+        <path>backend/alembic/versions/015_create_agent_runs_and_artifacts.py</path>
+        <kind>migration</kind>
+        <symbol>artifact_versions table</symbol>
+        <lines>164-193</lines>
+        <reason>REFERENCE: artifact_versions schema confirms: id UUID, artifact_id UUID, version INTEGER, content TEXT, content_type VARCHAR(50), diff_from_prev TEXT (nullable), edited_by UUID (nullable), created_at TIMESTAMPTZ. artifacts schema: updated_at TIMESTAMPTZ DEFAULT NOW() already present.</reason>
+      </artifact>
+      <!-- TESTS — Extend these files -->
+      <artifact>
+        <path>backend/tests/unit/services/test_artifact_service.py</path>
+        <kind>test</kind>
+        <symbol>ArtifactService unit tests</symbol>
+        <lines>1-196</lines>
+        <reason>EXTEND: Add 3 new tests for update_artifact(). Re-use _make_detail_row() and _make_artifact_row() helpers. Pattern: mock_db.execute = AsyncMock(side_effect=[...]) for multi-call sequences (SELECT for get_artifact, INSERT, UPDATE, SELECT again). DoD A6: one-line comment per test.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/tests/integration/test_artifacts.py</path>
+        <kind>test</kind>
+        <symbol>TestArtifactEndpoints</symbol>
+        <lines>1-380</lines>
+        <reason>EXTEND: Add 3 new PUT integration tests to TestArtifactEndpoints. Extend _setup_db_session() mock_execute to handle PUT path (INSERT + UPDATE calls). Pattern: use existing _make_detail_row() / _make_artifact_row() helpers, app.dependency_overrides[get_db], AsyncClient with cookie token. DoD A6: one-line comment per test.</reason>
+      </artifact>
+      <!-- ORCHESTRATOR REFERENCE — context only -->
+      <artifact>
+        <path>backend/src/services/agents/orchestrator.py</path>
+        <kind>service</kind>
+        <symbol>_create_artifact</symbol>
+        <lines>337-395</lines>
+        <reason>REFERENCE: Pattern for INSERT into artifact_versions + UPDATE artifacts within same AsyncSession + commit. update_artifact() should follow this exact transaction style.</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <python>
+        <!-- Standard library — no install needed -->
+        <package name="difflib" version="stdlib" note="unified_diff for diff_from_prev computation — no pip install required"/>
+        <!-- Already installed -->
+        <package name="fastapi" version="0.109.2"/>
+        <package name="sqlalchemy" version="2.0.27" note="text() for raw SQL, AsyncSession"/>
+        <package name="pydantic" version="2.6.3" note="ArtifactUpdateRequest BaseModel"/>
+        <package name="asyncpg" version="0.29.0" note="async PostgreSQL driver"/>
+        <!-- Test dependencies (requirements-dev.txt) -->
+        <package name="pytest" version="8.0.2"/>
+        <package name="pytest-asyncio" version="0.23.5" note="asyncio_mode=auto in pyproject.toml"/>
+        <package name="httpx" version="0.27.0" note="AsyncClient for integration tests"/>
+      </python>
+      <node>
+        <!-- MUST INSTALL — not in package.json yet -->
+        <package name="@monaco-editor/react" version="^4.6.0" install="cd web &amp;&amp; npm install @monaco-editor/react" note="Exports both Editor and DiffEditor. ~3MB. Required for AC-27 and AC-29."/>
+        <!-- Already installed -->
+        <package name="@tanstack/react-query" version="^5.17.19" note="useQuery, useMutation, useQueryClient"/>
+        <package name="axios" version="^1.6.7" note="apiClient for PUT request"/>
+        <package name="react" version="^18.2.0"/>
+        <package name="lucide-react" version="^0.330.0" note="Edit2, Save, X, ChevronDown, ChevronUp icons (Edit2 + Save + X are NEW — verify they exist in v0.330.0; fallback: Pencil, Check, XCircle)"/>
+        <!-- Test dependencies -->
+        <package name="vitest" version="^1.2.2"/>
+        <package name="@testing-library/react" version="^14.2.1" note="Monaco not testable in JSDOM — frontend unit tests for editor are deferred"/>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" priority="CRITICAL">
+      SQL injection prevention: All queries use SQLAlchemy text() with named :params.
+      Schema name ONLY in f-string with double-quotes: f'... "{schema_name}".artifacts ...'.
+      Schema name always from slug_to_schema_name(current_tenant_slug.get()) — never from user input.
+    </constraint>
+    <constraint id="C2" priority="CRITICAL">
+      RBAC: PUT /{artifact_id} must have require_project_role("owner", "admin", "qa-automation") dependency.
+      Same as all existing artifact GET endpoints. Extract edited_by = str(auth[0].id) from the tuple.
+    </constraint>
+    <constraint id="C3" priority="HIGH">
+      Transaction integrity: INSERT into artifact_versions and UPDATE artifacts.current_version must run
+      in the same AsyncSession before await db.commit(). Do NOT commit between INSERT and UPDATE.
+    </constraint>
+    <constraint id="C4" priority="HIGH">
+      No new toast library: use inline useState banner (saveError: string | null) for save success/error
+      in ArtifactCard. Pattern established in Story 2-10 — no sonner, react-hot-toast, etc.
+    </constraint>
+    <constraint id="C5" priority="HIGH">
+      React Query cache invalidation on save success (useMutation onSuccess):
+      - ['artifact-detail', projectId, artifact.id] — refresh content view
+      - ['artifacts', projectId] — refresh version badge in card header
+      - ['artifact-versions', projectId, artifact.id] — refresh version history dropdown
+      Use queryClient.invalidateQueries({ queryKey: [...] }) with partial-match keys.
+    </constraint>
+    <constraint id="C6" priority="MEDIUM">
+      Edit button availability: only shown when ALL of these are true:
+        expanded == true, detail loaded (not loading/error), editing == false,
+        diffMode == false, selectedVersion === null (viewing current version).
+    </constraint>
+    <constraint id="C7" priority="MEDIUM">
+      Monaco language for bdd_scenario: Monaco has no built-in 'gherkin' language.
+      Use 'plaintext' — consistent with content_type="text/plain" stored in artifact_versions.
+    </constraint>
+    <constraint id="C8" priority="MEDIUM">
+      @monaco-editor/react must be installed before implementation: cd web &amp;&amp; npm install @monaco-editor/react.
+      Both Editor and DiffEditor are exported from this package — no separate @monaco-editor/react-diff-editor needed.
+    </constraint>
+    <constraint id="C9" priority="LOW">
+      DoD A6 (test quality): every test function must have a one-line comment starting with "# Proves:"
+      stating the behaviour verified. Pattern from test_artifact_service.py and test_artifacts.py.
+    </constraint>
+    <constraint id="C10" priority="LOW">
+      ArtifactService class docstring update: Remove "Write operations live in orchestrator" from line 19.
+      Update to reflect that update_artifact() is now in ArtifactService.
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>PUT /api/v1/projects/{project_id}/artifacts/{artifact_id}</name>
+      <kind>REST endpoint</kind>
+      <signature>PUT /api/v1/projects/{project_id}/artifacts/{artifact_id}
+Request body: { "content": "string" }
+Response: ArtifactDetail (200) | { "detail": { "error": "ARTIFACT_NOT_FOUND", "message": "..." } } (404)
+RBAC: require_project_role("owner", "admin", "qa-automation")
+Auth: JWT cookie → current_tenant_slug ContextVar → slug_to_schema_name()</signature>
+      <path>backend/src/api/v1/artifacts/router.py</path>
+    </interface>
+
+    <interface>
+      <name>ArtifactService.update_artifact()</name>
+      <kind>async Python method</kind>
+      <signature>async def update_artifact(
+    self,
+    db: AsyncSession,
+    schema_name: str,
+    project_id: str,
+    artifact_id: str,
+    content: str,
+    edited_by: str,
+) -> dict:
+    """Save edited content as new artifact version (AC-28).
+    Raises HTTPException(404, ARTIFACT_NOT_FOUND) if artifact/project mismatch."""</signature>
+      <path>backend/src/services/artifact_service.py</path>
+    </interface>
+
+    <interface>
+      <name>ArtifactUpdateRequest</name>
+      <kind>Pydantic request model</kind>
+      <signature>class ArtifactUpdateRequest(BaseModel):
+    content: str</signature>
+      <path>backend/src/api/v1/artifacts/schemas.py</path>
+    </interface>
+
+    <interface>
+      <name>artifactApi.update()</name>
+      <kind>TypeScript API client method</kind>
+      <signature>update: (projectId: string, artifactId: string, content: string): Promise&lt;ArtifactDetail&gt; =>
+  apiClient.put(`/api/v1/projects/${projectId}/artifacts/${artifactId}`, { content }).then((r) => r.data)</signature>
+      <path>web/src/lib/api.ts</path>
+    </interface>
+
+    <interface>
+      <name>monacoLanguage() helper</name>
+      <kind>TypeScript function</kind>
+      <signature>function monacoLanguage(artifactType: ArtifactType): string {
+  switch (artifactType) {
+    case 'playwright_script': return 'typescript'
+    case 'manual_checklist': return 'markdown'
+    case 'coverage_matrix': return 'json'
+    default: return 'plaintext'  // bdd_scenario
+  }
+}</signature>
+      <path>web/src/pages/projects/artifacts/ArtifactsTab.tsx</path>
+    </interface>
+
+    <interface>
+      <name>diff_from_prev computation</name>
+      <kind>Python stdlib pattern</kind>
+      <signature>import difflib
+diff_lines = list(difflib.unified_diff(
+    current_content.splitlines(),
+    new_content.splitlines(),
+    lineterm='',
+))
+diff_from_prev = '\n'.join(diff_lines)
+# Store as TEXT in artifact_versions.diff_from_prev</signature>
+      <path>backend/src/services/artifact_service.py</path>
+    </interface>
+
+    <interface>
+      <name>Existing: GET /api/v1/projects/{project_id}/artifacts/{artifact_id}/versions/{version}</name>
+      <kind>REST endpoint (existing — Story 2-10)</kind>
+      <signature>GET /api/v1/projects/{project_id}/artifacts/{artifact_id}/versions/{version}
+Response: ArtifactDetail (content + content_type of that specific version)
+Used by: diffOriginal/diffModified queries in DiffEditor (AC-29), historicalDetail query (AC-28)</signature>
+      <path>backend/src/api/v1/artifacts/router.py (lines 89-107)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Backend: pytest 8.0.2 with pytest-asyncio 0.23.5 (asyncio_mode="auto" in pyproject.toml).
+      All tests use AsyncMock for db sessions — no real PostgreSQL required.
+      Integration tests use httpx.AsyncClient with ASGITransport(app=app) and app.dependency_overrides[get_db].
+      DoD A6: every test function must have a one-line "# Proves:" comment.
+      Error format assertion: resp.json()["detail"]["error"] == "CODE" (flat dict, not nested).
+      Frontend: vitest 1.2.2 with @testing-library/react. Monaco Editor not testable in JSDOM — AC-27 UI tests deferred.
+    </standards>
+
+    <locations>
+      backend/tests/unit/services/test_artifact_service.py    # extend with 3 new tests
+      backend/tests/integration/test_artifacts.py             # extend with 3 new tests
+      web/src/  (vitest — no new frontend tests for Monaco in this story)
+    </locations>
+
+    <ideas>
+      <!-- Backend unit tests (test_artifact_service.py) -->
+      <idea ac="AC-28">
+        test_update_artifact_creates_new_version:
+        Mock db.execute with side_effect=[detail_result, insert_result, update_result, detail_result_v2].
+        detail_result: mappings().fetchone() returns _make_detail_row(current_version=1, content="old").
+        insert_result + update_result: AsyncMock returns (no return value needed for INSERT/UPDATE).
+        detail_result_v2: mappings().fetchone() returns _make_detail_row(current_version=2, content="new").
+        Call update_artifact(..., content="new content", edited_by=str(uuid4())).
+        Assert returned dict["current_version"] == 2 and dict["content"] == "new content".
+      </idea>
+      <idea ac="AC-28">
+        test_update_artifact_computes_diff:
+        Provide old content = "line1\nline2" and new content = "line1\nline3".
+        Capture INSERT call args from mock_db.execute.call_args_list[1].
+        Assert "diff" param in the INSERT call contains "-line2" and "+line3".
+      </idea>
+      <idea ac="AC-28">
+        test_update_artifact_raises_404_if_not_found:
+        First db.execute call (get_artifact SELECT) returns None from mappings().fetchone().
+        Call update_artifact(...) → assert raises HTTPException with status_code=404
+        and detail["error"] == "ARTIFACT_NOT_FOUND".
+        Verify no further db.execute calls (no INSERT/UPDATE on not-found).
+      </idea>
+
+      <!-- Backend integration tests (test_artifacts.py) -->
+      <idea ac="AC-28">
+        test_put_artifact_creates_new_version:
+        Extend _setup_db_session() to handle "insert into" and "update" SQL patterns:
+          - INSERT → return AsyncMock (no return value)
+          - UPDATE → return AsyncMock (no return value)
+          - Second SELECT+JOIN (get_artifact after commit) → return detail_row with current_version=2
+        PUT /projects/{pid}/artifacts/{aid} with {"content": "updated content"} → 200.
+        Assert resp.json()["current_version"] == 2.
+      </idea>
+      <idea ac="AC-28">
+        test_put_artifact_get_returns_new_content:
+        Seed _setup_db_session with detail_row content="updated content", current_version=2.
+        GET /artifacts/{aid} → 200, resp.json()["content"] == "updated content".
+        (Validates that after a PUT the GET endpoint returns the new content.)
+      </idea>
+      <idea ac="AC-28">
+        test_put_artifact_404_unknown_id:
+        Setup db with detail_row=None (artifact not found).
+        PUT /projects/{pid}/artifacts/{unknown-uuid} with {"content": "x"} → 404.
+        Assert resp.json()["detail"]["error"] == "ARTIFACT_NOT_FOUND".
+      </idea>
+
+      <!-- Frontend (deferred — Monaco not testable in JSDOM) -->
+      <idea ac="AC-27">
+        Monaco Editor JSDOM limitation: @monaco-editor/react cannot be rendered in jsdom environment
+        (relies on browser APIs not available in vitest/jsdom). UI integration tests for Monaco editor
+        (edit mode toggle, language prop, save/cancel behaviour) are deferred to E2E tests (Playwright).
+        Consider adding a simple unit test that mocks the Editor component and asserts it receives
+        the correct language prop when editing=true.
+      </idea>
+    </ideas>
+  </tests>
+</story-context>

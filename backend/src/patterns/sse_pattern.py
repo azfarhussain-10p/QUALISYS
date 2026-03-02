@@ -45,7 +45,7 @@ _HEARTBEAT_INTERVAL = 15.0
 
 # Allowed event type literals (enforced at serialisation time)
 _VALID_EVENT_TYPES = frozenset(
-    {"queued", "running", "complete", "error", "heartbeat"}
+    {"queued", "running", "complete", "error", "heartbeat", "dashboard_refresh"}
 )
 
 

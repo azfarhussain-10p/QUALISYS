@@ -153,6 +153,14 @@ app.include_router(events_router)
 from src.api.v1.artifacts.router import router as artifacts_router  # noqa: E402
 app.include_router(artifacts_router)
 
+# Story 2.12 — PM Dashboard (coverage overview + trend)
+from src.api.v1.dashboard.router import router as dashboard_router  # noqa: E402
+app.include_router(dashboard_router)
+
+# Story 2.13 — PM Dashboard org-level (multi-project health grid)
+from src.api.v1.dashboard.org_router import org_router as pm_org_dashboard_router  # noqa: E402
+app.include_router(pm_org_dashboard_router)
+
 # ---------------------------------------------------------------------------
 # Startup / Shutdown
 # ---------------------------------------------------------------------------

@@ -17,6 +17,8 @@ import CreateProjectPage from '@/pages/projects/create/CreateProjectPage'
 import ProjectSettingsPage from '@/pages/projects/settings/ProjectSettingsPage'
 import ProjectListPage from '@/pages/projects/ProjectListPage'
 import ArtifactsPage from '@/pages/projects/artifacts/ArtifactsPage'
+import DashboardPage from '@/pages/projects/dashboard/DashboardPage'
+import ProjectsGridPage from '@/pages/dashboard/ProjectsGridPage'
 import Dashboard from '@/pages/admin/Dashboard'
 import AuditLogs from '@/pages/admin/AuditLogs'
 
@@ -65,6 +67,12 @@ export default function App() {
 
         {/* Story 2.10 — Test artifact viewer (AC-21 navigation target) */}
         <Route path="/projects/:projectId/artifacts" element={<ArtifactsPage />} />
+
+        {/* Story 2.12 — PM/CSM project health dashboard */}
+        <Route path="/projects/:projectId/dashboard" element={<DashboardPage />} />
+
+        {/* Story 2.13 — PM/CSM multi-project health grid */}
+        <Route path="/orgs/:orgId/pm-dashboard" element={<ProjectsGridPage />} />
 
         {/* Story 1.11 — Project list (archive, delete, list) */}
         <Route path="/projects" element={<ProjectListPage />} />

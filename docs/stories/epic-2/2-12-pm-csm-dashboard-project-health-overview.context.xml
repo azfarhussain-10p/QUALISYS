@@ -1,0 +1,345 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>epic-2</epicId>
+    <storyId>2-12</storyId>
+    <title>PM/CSM Dashboard — Project Health Overview</title>
+    <status>drafted</status>
+    <generatedAt>2026-03-02</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/epic-2/2-12-pm-csm-dashboard-project-health-overview.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>PM/CSM</asA>
+    <iWant>to view a project health dashboard with key metrics</iWant>
+    <soThat>I can report on test coverage status to leadership and identify projects that need attention</soThat>
+    <tasks>
+      Task 1 — Backend: PMDashboardService (AC-30, AC-31)
+        1.1 Create backend/src/services/pm_dashboard_service.py with PMDashboardService class
+            - get_overview(): Redis cache check → DB query → compute coverage_pct + health_status
+            - _compute_health(): None→no_data, >=80→green, >=50→yellow, else→red
+            - get_coverage_trend(): 30-day grouped artifact query + zero-fill → trend list
+        1.2 Module-level singleton: pm_dashboard_service = PMDashboardService()
+
+      Task 2 — Backend: Dashboard router + schemas (AC-30, AC-31)
+        2.1 Create backend/src/api/v1/dashboard/__init__.py (empty)
+        2.2 Create backend/src/api/v1/dashboard/schemas.py (TrendPoint, DashboardOverviewResponse, DashboardCoverageResponse)
+        2.3 Create backend/src/api/v1/dashboard/router.py
+            - GET /api/v1/projects/{project_id}/dashboard/overview
+            - GET /api/v1/projects/{project_id}/dashboard/coverage
+            - RBAC: require_project_role("owner", "admin", "qa-automation", "pm-csm")
+
+      Task 3 — Backend: Dashboard SSE endpoint (AC-32)
+        3.1 Add dashboard_sse_endpoint to backend/src/api/v1/events/router.py
+            - GET /api/v1/events/dashboard/{project_id}
+            - Validates project exists; returns build_sse_response with _dashboard_event_generator
+        3.2 Add _dashboard_event_generator: asyncio.sleep(30) loop yielding dashboard_refresh events
+            ⚠️ MUST extend _VALID_EVENT_TYPES in sse_pattern.py to include "dashboard_refresh"
+
+      Task 4 — Backend: Register dashboard router in main.py (AC-30, AC-31)
+        4.1 Add import + app.include_router(dashboard_router) after artifacts router block
+
+      Task 5 — Frontend: dashboardApi in api.ts (AC-30, AC-31)
+        5.1 Add TrendPoint, DashboardOverview, DashboardCoverage interfaces to api.ts
+        5.2 Add dashboardApi namespace (getOverview, getCoverage)
+
+      Task 6 — Frontend: DashboardPage.tsx (AC-30, AC-31, AC-32, AC-33)
+        6.1 Create web/src/pages/projects/dashboard/DashboardPage.tsx
+            ⚠️ Must install recharts first: npm install recharts (NOT in package.json)
+        6.2 HealthDot helper component (colour map: green/yellow/red/no_data)
+        6.3 computeHealthLabel helper (Healthy/At Risk/Critical/No Data)
+        6.4 DashboardPage main component with useQuery (overview + coverage) + SSE useEffect
+        6.5 Overview section: health dot + label, coverage %, recent activity string
+        6.6 Coverage trend: summary string + LineChart with ReferenceLine + target input
+        6.7 Two placeholder widgets: Execution Velocity (BarChart) + Defect Leakage (LineChart), opacity-40
+
+      Task 7 — Frontend: Register route in App.tsx (AC-30)
+        7.1 Import DashboardPage
+        7.2 Add Route path="/projects/:projectId/dashboard"
+
+      Task 8 — Tests (AC-30, AC-31, AC-32, AC-33)
+        8.1 backend/tests/unit/services/test_pm_dashboard_service.py — 5 unit tests
+        8.2 backend/tests/integration/test_dashboard.py — 5 integration tests
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-30">
+      Dashboard page at /projects/:projectId/dashboard shows:
+      (a) health indicator dot — Green if coverage >= 80%, Yellow if 50–79%, Red if &lt; 50% (or "No data" gray if no artifacts);
+      (b) coverage % text "X% coverage";
+      (c) recent activity string "N artifacts generated {relative-time} ago" (or "No agent runs yet").
+      Data from GET /api/v1/projects/{project_id}/dashboard/overview.
+      Unit test: health colour mapping function returns correct status for boundary values (79%, 80%, 50%, 49%).
+    </criterion>
+    <criterion id="AC-31">
+      Coverage widget renders:
+      (a) summary string "N of M requirements covered (X%)";
+      (b) Recharts LineChart showing daily coverage % for last 30 days (zero-filled);
+      (c) configurable target line (default 80%, stored in localStorage key dashboard_target_{projectId}).
+      Data from GET /api/v1/projects/{project_id}/dashboard/coverage.
+      Integration test: response has requirements_covered, total_requirements, coverage_pct, trend[] with date+coverage_pct.
+    </criterion>
+    <criterion id="AC-32">
+      Dashboard opens SSE stream to GET /api/v1/events/dashboard/{project_id} on mount.
+      Server emits dashboard_refresh event every 30 seconds.
+      On receipt: invalidate ['dashboard-overview', projectId] and ['dashboard-coverage', projectId] React Query keys.
+      SSE connection closed on component unmount.
+      Integration test: SSE endpoint emits at least one event with type dashboard_refresh within 35 seconds.
+    </criterion>
+    <criterion id="AC-33">
+      Two placeholder widget panels:
+      (a) "Execution Velocity" subtitle "Available in Epic 3" with grayed-out BarChart placeholder;
+      (b) "Defect Leakage" subtitle "Available in Epic 4" with grayed-out LineChart placeholder.
+      Both: opacity-40 pointer-events-none + "Coming Soon" badge.
+      No API calls for these widgets.
+      Unit test: both panels render with correct "Coming Soon" badge text.
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>backend/src/services/analytics_service.py</path>
+        <title>AnalyticsService — Redis cache pattern</title>
+        <section>Redis get/set with TTL, cache-aside pattern</section>
+        <snippet>Redis cache key: analytics:dashboard:{tenant_id}, TTL 300s. Pattern: try redis.get → on miss compute → redis.setex(key, TTL, json.dumps(result)). Use same pattern for dashboard:{project_id}, TTL 60s.</snippet>
+      </doc>
+      <doc>
+        <path>backend/src/api/v1/events/router.py</path>
+        <title>Agent Run SSE Endpoint — model for dashboard SSE</title>
+        <section>agent_run_sse_endpoint, _event_generator</section>
+        <snippet>Validates resource exists in tenant schema, calls build_sse_response(event_generator=..., run_id=...). Dashboard SSE follows same pattern but uses asyncio.sleep(30) loop instead of SSEManager queue.</snippet>
+      </doc>
+      <doc>
+        <path>backend/src/patterns/sse_pattern.py</path>
+        <title>SSE Pattern — SSEEvent, build_sse_response, _VALID_EVENT_TYPES</title>
+        <section>_VALID_EVENT_TYPES, SSEEvent.to_wire(), build_sse_response()</section>
+        <snippet>_VALID_EVENT_TYPES = frozenset({"queued","running","complete","error","heartbeat"}). MUST add "dashboard_refresh" before use. build_sse_response(event_generator, run_id, heartbeat_interval) → StreamingResponse with X-Accel-Buffering:no.</snippet>
+      </doc>
+      <doc>
+        <path>backend/src/services/artifact_service.py</path>
+        <title>ArtifactService — artifacts table query pattern</title>
+        <section>list_artifacts, get_artifact — SQL via text() + schema interpolation</section>
+        <snippet>All queries: text(f'SELECT ... FROM "{schema_name}".artifacts WHERE project_id = :pid'). Metadata JSONB accessed via metadata->>'key'. Use ?-operator to check key existence before casting.</snippet>
+      </doc>
+      <doc>
+        <path>backend/src/middleware/rbac.py</path>
+        <title>RBAC — require_project_role, valid role names</title>
+        <section>require_project_role factory, role name list (line 22)</section>
+        <snippet>Valid roles: owner, admin, pm-csm, qa-manual, qa-automation, developer, viewer. PM/CSM persona = "pm-csm" NOT "pm". Use require_project_role("owner","admin","qa-automation","pm-csm") for dashboard endpoints.</snippet>
+      </doc>
+      <doc>
+        <path>backend/src/main.py</path>
+        <title>Router registration pattern</title>
+        <section>include_router calls for Story 2.x routers</section>
+        <snippet>Pattern: from src.api.v1.dashboard.router import router as dashboard_router  # noqa: E402 then app.include_router(dashboard_router). Insert after artifacts_router block (line 153-154).</snippet>
+      </doc>
+      <doc>
+        <path>web/src/App.tsx</path>
+        <title>Route registration — current routes + insertion point</title>
+        <section>Story 2.10 artifacts route — model for dashboard route</section>
+        <snippet>Current last Epic 2 route: &lt;Route path="/projects/:projectId/artifacts" element={&lt;ArtifactsPage /&gt;} /&gt; at line 67. New dashboard route goes after this.</snippet>
+      </doc>
+      <doc>
+        <path>web/src/pages/projects/agents/AgentsTab.tsx</path>
+        <title>EventSource SSE client pattern (AC-32 model)</title>
+        <section>useEffect with EventSource, addEventListener, cleanup</section>
+        <snippet>const es = new EventSource(url, {withCredentials: true}); es.addEventListener('event_type', handler); return () => es.close(). Dashboard uses 'dashboard_refresh' event type instead of agent step events.</snippet>
+      </doc>
+      <doc>
+        <path>backend/tests/integration/test_artifacts.py</path>
+        <title>Integration test mock pattern — model for test_dashboard.py</title>
+        <section>_make_token, _make_artifact_row, get_db override</section>
+        <snippet>from src.db import get_db; from src.main import app; mock_session = AsyncMock(spec=AsyncSession); app.dependency_overrides[get_db] = lambda: mock_session. Use _make_token(user_id, tenant_id, role="owner") for auth headers.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <artifact>
+        <path>backend/src/services/analytics_service.py</path>
+        <kind>service</kind>
+        <symbol>AnalyticsService.get_dashboard_metrics</symbol>
+        <lines>43-80</lines>
+        <reason>Redis cache-aside pattern to mirror for PMDashboardService.get_overview(). Uses get_redis_client(), json.loads/dumps, setex(key, TTL, value).</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/api/v1/events/router.py</path>
+        <kind>controller</kind>
+        <symbol>agent_run_sse_endpoint, _event_generator</symbol>
+        <lines>36-96</lines>
+        <reason>Model for dashboard_sse_endpoint. Shows: project validation with text(f'SELECT id FROM "{schema_name}".{table} WHERE id = :id'), then build_sse_response(). Dashboard replaces queue-based generator with asyncio.sleep(30) loop.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/patterns/sse_pattern.py</path>
+        <kind>service</kind>
+        <symbol>SSEEvent, build_sse_response, _VALID_EVENT_TYPES</symbol>
+        <lines>47-155</lines>
+        <reason>SSEEvent dataclass: type (str), run_id (uuid.UUID), payload (dict). build_sse_response signature: (event_generator, run_id=None, heartbeat_interval=15.0). CRITICAL: _VALID_EVENT_TYPES must be extended to include "dashboard_refresh".</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/services/artifact_service.py</path>
+        <kind>service</kind>
+        <symbol>ArtifactService.list_artifacts</symbol>
+        <lines>24-58</lines>
+        <reason>SQL pattern for querying "{schema_name}".artifacts with project_id filter. Dashboard queries same table filtering artifact_type='coverage_matrix' and checking metadata ? 'requirements_covered'.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/middleware/rbac.py</path>
+        <kind>service</kind>
+        <symbol>require_project_role</symbol>
+        <lines>211-325</lines>
+        <reason>Dependency factory for project-scoped RBAC. Pass allowed roles as positional args. Dashboard RBAC: require_project_role("owner","admin","qa-automation","pm-csm").</reason>
+      </artifact>
+      <artifact>
+        <path>backend/alembic/versions/015_create_agent_runs_and_artifacts.py</path>
+        <kind>migration</kind>
+        <symbol>artifacts table, artifact_versions table</symbol>
+        <lines>120-162</lines>
+        <reason>Confirms: artifacts.metadata is JSONB (nullable), artifacts.artifact_type VARCHAR, artifacts.project_id UUID, artifacts.created_at TIMESTAMPTZ. No new migration needed for Story 2-12.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/tests/integration/test_artifacts.py</path>
+        <kind>test</kind>
+        <symbol>_make_token, _make_artifact_row, _make_detail_row</symbol>
+        <lines>29-79</lines>
+        <reason>Reusable helpers for integration tests. _make_token uses token_service.create_access_token. _make_artifact_row returns coverage_matrix dict with metadata. Copy this pattern for test_dashboard.py.</reason>
+      </artifact>
+      <artifact>
+        <path>web/src/App.tsx</path>
+        <kind>component</kind>
+        <symbol>App (Routes)</symbol>
+        <lines>63-80</lines>
+        <reason>Insertion point for new dashboard route. Add after line 67 (artifacts route). Import pattern: import DashboardPage from '@/pages/projects/dashboard/DashboardPage'.</reason>
+      </artifact>
+      <artifact>
+        <path>web/src/pages/projects/agents/AgentsTab.tsx</path>
+        <kind>component</kind>
+        <symbol>AgentsTab (SSE useEffect)</symbol>
+        <lines>1-60</lines>
+        <reason>EventSource client pattern with withCredentials:true, addEventListener by event type, cleanup via es.close(). Model for DashboardPage SSE useEffect (AC-32).</reason>
+      </artifact>
+      <artifact>
+        <path>web/src/lib/api.ts</path>
+        <kind>service</kind>
+        <symbol>apiClient, api namespace pattern</symbol>
+        <lines>1-60</lines>
+        <reason>Base axios client (baseURL, withCredentials). Add dashboardApi namespace following pattern of existing api namespaces. Exports TrendPoint, DashboardOverview, DashboardCoverage interfaces.</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <python>
+        <package name="fastapi" version="installed"/>
+        <package name="sqlalchemy" version="installed (asyncpg driver)"/>
+        <package name="redis" version="installed (aioredis-compatible async client)"/>
+        <package name="pydantic" version="v2 installed"/>
+        <note>No new Python packages needed. All existing.</note>
+      </python>
+      <frontend>
+        <package name="recharts" version="MUST INSTALL — NOT in package.json">
+          <install>npm install recharts</install>
+          <note>Story Dev Notes claim recharts@^2.12.7 is present but confirmed ABSENT from web/package.json as of 2026-03-02. DEV must install before implementing DashboardPage.</note>
+        </package>
+        <package name="@tanstack/react-query" version="^5.17.19 — installed"/>
+        <package name="react-router-dom" version="^6.22.1 — installed"/>
+        <package name="@monaco-editor/react" version="^4.7.0 — installed (Story 2-11)"/>
+        <package name="axios" version="^1.6.7 — installed"/>
+        <package name="lucide-react" version="^0.330.0 — installed"/>
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1-SQL">All SQL via SQLAlchemy text() with named :params only. Schema name double-quoted in f-string: text(f'SELECT ... FROM "{schema_name}".artifacts WHERE ...'). Schema from slug_to_schema_name(current_tenant_slug.get()).</constraint>
+    <constraint id="C2-RBAC">Use require_project_role("owner","admin","qa-automation","pm-csm") on all dashboard endpoints. PM/CSM persona maps to "pm-csm" role (NOT "pm") — confirmed in rbac.py line 22 comment. require_project_role does string match so "pm" would silently fail for pm-csm users.</constraint>
+    <constraint id="C3-REDIS">Redis cache key: dashboard:{project_id} (string, JSON-serialised dict), TTL 60 seconds. Use get_redis_client() from src.cache. Pattern: cached = await redis.get(key); if cached: return json.loads(cached). Store: await redis.set(key, json.dumps(result), ex=60).</constraint>
+    <constraint id="C4-SSE-TYPE">_VALID_EVENT_TYPES in backend/src/patterns/sse_pattern.py does NOT include "dashboard_refresh". MUST extend the frozenset before implementing dashboard SSE or SSEEvent.to_wire() will raise ValueError. Add "dashboard_refresh" to _VALID_EVENT_TYPES (line 47-49).</constraint>
+    <constraint id="C5-SSE-GENERATOR">Dashboard SSE uses asyncio.sleep(30) loop — NOT SSEManager (which is queue-based for agent runs). Generator: while True: await asyncio.sleep(30); yield SSEEvent(type="dashboard_refresh", run_id=project_id, payload={"project_id": str(project_id)}). FastAPI cancels generator on client disconnect.</constraint>
+    <constraint id="C6-RECHARTS">recharts is NOT in web/package.json as of story start. Must npm install recharts before implementing DashboardPage. After install, import: LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, BarChart, Bar, ResponsiveContainer from 'recharts'.</constraint>
+    <constraint id="C7-METADATA">Coverage data from artifacts.metadata JSONB. Always check key existence before casting: WHERE metadata ? 'requirements_covered' AND metadata ? 'total_requirements'. Then COALESCE((metadata->>'requirements_covered')::int, 0). Only artifact_type='coverage_matrix' rows.</constraint>
+    <constraint id="C8-NO-MIGRATION">No new migration required. artifacts and agent_runs tables exist from Migration 015. Coverage data already stored in artifacts.metadata by BAConsultant agent (Story 2-8).</constraint>
+    <constraint id="C9-NO-TOAST">No toast libraries. Use inline status banners for error states. Project has no toast lib installed.</constraint>
+    <constraint id="C10-TREND-ZEROFILL">Trend array must always return exactly 30 items (last 30 calendar days). Days with no artifacts: coverage_pct = null. Use Python: end=date.today(); {start+timedelta(i): None for i in range(30)}; fill from DB rows; emit sorted list.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>GET /api/v1/projects/{project_id}/dashboard/overview</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/v1/projects/{project_id}/dashboard/overview → DashboardOverviewResponse</signature>
+      <path>backend/src/api/v1/dashboard/router.py</path>
+      <notes>RBAC: require_project_role("owner","admin","qa-automation","pm-csm"). Returns: coverage_pct (float|null), health_status (green|yellow|red|no_data), requirements_covered (int), total_requirements (int), artifact_count (int), last_run_at (str|null).</notes>
+    </interface>
+    <interface>
+      <name>GET /api/v1/projects/{project_id}/dashboard/coverage</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/v1/projects/{project_id}/dashboard/coverage → DashboardCoverageResponse</signature>
+      <path>backend/src/api/v1/dashboard/router.py</path>
+      <notes>Returns: requirements_covered (int), total_requirements (int), coverage_pct (float|null), trend (list[TrendPoint]). trend always has 30 items. TrendPoint: {date: "YYYY-MM-DD", coverage_pct: float|null}.</notes>
+    </interface>
+    <interface>
+      <name>GET /api/v1/events/dashboard/{project_id}</name>
+      <kind>REST endpoint (SSE stream)</kind>
+      <signature>GET /api/v1/events/dashboard/{project_id} → StreamingResponse (text/event-stream)</signature>
+      <path>backend/src/api/v1/events/router.py</path>
+      <notes>Emits dashboard_refresh event every 30s. Wire format: data: {"type":"dashboard_refresh","run_id":"&lt;project_id&gt;","payload":{"project_id":"..."}}\n\n. RBAC same as above. Validates project exists first (404 PROJECT_NOT_FOUND).</notes>
+    </interface>
+    <interface>
+      <name>dashboardApi.getOverview(projectId)</name>
+      <kind>TypeScript API function</kind>
+      <signature>getOverview: (projectId: string) => Promise&lt;DashboardOverview&gt;</signature>
+      <path>web/src/lib/api.ts</path>
+      <notes>Uses apiClient.get('/projects/${projectId}/dashboard/overview'). Part of dashboardApi namespace.</notes>
+    </interface>
+    <interface>
+      <name>dashboardApi.getCoverage(projectId)</name>
+      <kind>TypeScript API function</kind>
+      <signature>getCoverage: (projectId: string) => Promise&lt;DashboardCoverage&gt;</signature>
+      <path>web/src/lib/api.ts</path>
+      <notes>Uses apiClient.get('/projects/${projectId}/dashboard/coverage').</notes>
+    </interface>
+    <interface>
+      <name>PMDashboardService.get_overview</name>
+      <kind>Python async method</kind>
+      <signature>async def get_overview(self, db: AsyncSession, schema_name: str, project_id: str) -> dict</signature>
+      <path>backend/src/services/pm_dashboard_service.py</path>
+      <notes>Redis cache-aside (TTL 60s). Queries artifacts table for coverage_matrix rows with metadata fields. Also queries agent_runs for last run timestamp. Returns dict with 6 keys.</notes>
+    </interface>
+    <interface>
+      <name>PMDashboardService._compute_health</name>
+      <kind>Python static method</kind>
+      <signature>def _compute_health(coverage_pct: float | None) -> str</signature>
+      <path>backend/src/services/pm_dashboard_service.py</path>
+      <notes>Pure function: None→"no_data"; >=80→"green"; >=50→"yellow"; else→"red". Must be accessible for unit testing without DB/Redis mocks.</notes>
+    </interface>
+    <interface>
+      <name>PMDashboardService.get_coverage_trend</name>
+      <kind>Python async method</kind>
+      <signature>async def get_coverage_trend(self, db: AsyncSession, schema_name: str, project_id: str) -> dict</signature>
+      <path>backend/src/services/pm_dashboard_service.py</path>
+      <notes>Groups coverage_matrix artifacts by DATE(created_at) for last 30 days. Zero-fills missing days. Returns dict with requirements_covered, total_requirements, coverage_pct, trend (30 items).</notes>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Follow the test_artifacts.py mock pattern: override app.dependency_overrides[get_db] with AsyncMock returning a session whose execute() returns MagicMock rows. Use _make_token(user_id, tenant_id, role) for Bearer auth headers. All integration tests are async (pytest-asyncio), use AsyncClient(transport=ASGITransport(app=app)). Unit tests test pure logic functions (e.g., _compute_health) without any mocking. Pre-existing failures in test_backup_code_service.py and test_profile_service.py are unrelated — do not investigate.</standards>
+    <locations>
+      backend/tests/unit/services/test_pm_dashboard_service.py (new — 5 unit tests)
+      backend/tests/integration/test_dashboard.py (new — 5 integration tests)
+    </locations>
+    <ideas>
+      <idea ac="AC-30">test_compute_health_no_data: _compute_health(None) == "no_data"</idea>
+      <idea ac="AC-30">test_compute_health_green: _compute_health(80.0) == "green" (boundary)</idea>
+      <idea ac="AC-30">test_compute_health_yellow: _compute_health(79.9) == "yellow" (boundary)</idea>
+      <idea ac="AC-30">test_compute_health_yellow_lower: _compute_health(50.0) == "yellow" (boundary)</idea>
+      <idea ac="AC-30">test_compute_health_red: _compute_health(49.9) == "red" (boundary)</idea>
+      <idea ac="AC-30">test_get_overview_returns_cached: mock Redis to return JSON bytes; assert db.execute NOT called; assert response matches cached dict</idea>
+      <idea ac="AC-30">test_get_overview_200: mock get_db with seeded coverage_matrix artifact (metadata {requirements_covered:8, total_requirements:10}); GET /overview → 200; assert coverage_pct==80.0, health_status=="green"</idea>
+      <idea ac="AC-30">test_get_overview_no_data: no artifacts; GET /overview → 200; assert health_status=="no_data", coverage_pct==None</idea>
+      <idea ac="AC-31">test_get_coverage_trend_200: seed 3 artifacts on different days; GET /coverage → 200; assert trend list length==30, requirements_covered&gt;0</idea>
+      <idea ac="AC-30">test_get_overview_rbac_401: no auth header → 401</idea>
+      <idea ac="AC-32">test_dashboard_sse_endpoint_200: GET /api/v1/events/dashboard/{project_id} with valid auth + mocked project SELECT → assert Content-Type=="text/event-stream"</idea>
+    </ideas>
+  </tests>
+</story-context>

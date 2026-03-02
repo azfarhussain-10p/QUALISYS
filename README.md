@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/AI%20Agents-7%20Specialized-blueviolet?style=flat-square" alt="AI Agents">
   <img src="https://img.shields.io/badge/Agent%20Skills-21%20Custom-orange?style=flat-square" alt="Skills">
   <img src="https://img.shields.io/badge/Functional%20Requirements-147-green?style=flat-square" alt="FRs">
-  <img src="https://img.shields.io/badge/Stories-45%2F132%20Done%20(34%25)-yellowgreen?style=flat-square" alt="Stories">
+  <img src="https://img.shields.io/badge/Stories-48%2F132%20Done%20(36%25)-yellowgreen?style=flat-square" alt="Stories">
   <img src="https://img.shields.io/badge/Sprint-Epic%202%20AI%20Agent%20Platform-ff69b4?style=flat-square" alt="Current Sprint">
   <img src="https://img.shields.io/badge/Cloud-AWS%20%7C%20Azure-informational?style=flat-square" alt="Multi-Cloud">
   <img src="https://img.shields.io/badge/License-Proprietary-red?style=flat-square" alt="License">
@@ -558,7 +558,7 @@ QUALISYS serves **6 distinct personas** with role-optimized interfaces:
 |------|------|----------|--------|----------------|
 | **0** | Infrastructure Foundation | 2-3 weeks | **Complete** (22/22 stories) | Multi-cloud infra, CI/CD, monitoring, local dev |
 | **1** | Foundation & Administration | 2 weeks | **Complete** (13/13 stories done) | Auth, orgs, invitations, member management, MFA, projects, audit, export |
-| **2** | AI Agent Platform & Executive Visibility | 3-4 weeks | **In Progress** (10/18 stories done) | 3 MVP agents, document ingestion, PM dashboards, JIRA integration |
+| **2** | AI Agent Platform & Executive Visibility | 3-4 weeks | **In Progress** (13/18 stories done) | 3 MVP agents, document ingestion, PM dashboards, JIRA integration |
 | **3** | Manual Testing & Developer Integration | 3-4 weeks | Backlog | Manual test execution, evidence capture, GitHub PR integration |
 | **4** | Automated Execution & Self-Healing | 4-5 weeks | Backlog | Playwright execution, self-healing engine, QA dashboards |
 | **5** | Complete Dashboards & Ecosystem | 3-4 weeks | Backlog | TestRail/Slack integrations, advanced reporting, SLA monitoring |
@@ -630,7 +630,7 @@ gantt
 - Comprehensive test suites: unit, integration, and security tests (350+ tests passing across Epics 1-2)
 - **Retrospective:** [Epic 1 Retro 2026-02-26](./docs/stories/epic-1/epic-1-retro-2026-02-26.md) — 8 action items, 4 pattern spikes required before Epic 2
 
-**Epic 2 — AI Agent Platform & Executive Visibility: IN PROGRESS** (10/18 stories done)
+**Epic 2 — AI Agent Platform & Executive Visibility: IN PROGRESS** (13/18 stories done)
 
 | Story | Name | Status |
 |-------|------|--------|
@@ -644,9 +644,9 @@ gantt
 | 2-8 | Agent Execution Engine (LLM calls, context hashing, token tracking) | **Done** |
 | 2-9 | Real-Time Agent Progress Tracking (SSE streaming, live status, error handling) | **Done** |
 | 2-10 | Test Artifact Storage & Viewer (artifact CRUD, versioning, 4-tab viewer) | **Done** |
-| 2-11 | Artifact Editing & Versioning | Backlog |
-| 2-12 | PM/CSM Dashboard — Project Health Overview | Backlog |
-| 2-13 | PM Dashboard — Test Coverage Metrics | Backlog |
+| 2-11 | Artifact Editing & Versioning (Monaco editor, version history, DiffEditor) | **Done** |
+| 2-12 | PM/CSM Dashboard — Project Health Overview (health indicator, Recharts, SSE refresh) | **Done** |
+| 2-13 | PM Dashboard — Test Coverage Metrics (TrendBadge, coverage matrix, multi-project grid) | **Done** |
 | 2-14 | PM Dashboard — Execution Velocity & Defect Leakage Placeholders | Backlog |
 | 2-15 | JIRA Integration — Connection Setup | Backlog |
 | 2-16 | JIRA Integration — Import Issues | Backlog |
@@ -657,7 +657,9 @@ gantt
 - 4 pattern spikes completed before Epic 2: LLM, pgvector, SSE, Playwright (`backend/src/patterns/`)
 - 3 AI agent services: BAConsultant, QAConsultant, AutomationConsultant + Agent Orchestrator
 - 15 Alembic migrations (001–015, adding pgvector/documents, github/crawls, agent runs/artifacts)
-- 350+ tests passing (unit + integration across both epics)
+- Monaco editor for in-line artifact editing with version history & DiffEditor (Story 2-11)
+- PMDashboardService: project health overview, Recharts charts, SSE `dashboard_refresh`, coverage matrix, multi-project health grid (Stories 2-12/2-13)
+- 400+ tests passing (unit + integration across both epics)
 
 ### By The Numbers
 
@@ -665,7 +667,7 @@ gantt
 |--------|-------|
 | **Total Epics** | 8 (Epic 0-7) |
 | **Total Stories** | 132 (100 MVP + 32 Post-MVP) |
-| **Stories Completed** | 45 of 132 (~34%) — Epic 0 (22), Epic 1 (13), Epic 2 partial (10/18) |
+| **Stories Completed** | 48 of 132 (~36%) — Epic 0 (22), Epic 1 (13), Epic 2 partial (13/18) |
 | **Functional Requirements** | 147 (110 MVP + 9 Custom Agents + 28 Agent Skills) |
 | **AI Agents** | 7 (3 MVP + 4 Post-MVP) |
 | **Agent Skills** | 21 (across all 7 agents) |
@@ -743,11 +745,11 @@ For the complete setup guide, see [Local Development Guide](./docs/local-develop
 
 ```
 QUALISYS/
-├── backend/                     # Python FastAPI backend (Epics 0-1 complete, Epic 2 in progress — 10/18 done)
+├── backend/                     # Python FastAPI backend (Epics 0-1 complete, Epic 2 in progress — 13/18 done)
 │   ├── src/                    # Application source code
 │   │   ├── api/v1/             # REST API routers (auth, mfa, orgs, export, invitations, members,
 │   │   │                       #   projects, users, admin, agent_runs, artifacts, crawls,
-│   │   │                       #   documents, events, github)
+│   │   │                       #   documents, events, github, dashboard)
 │   │   ├── middleware/         # RBAC, rate limiting, tenant context (ContextVar)
 │   │   ├── models/             # SQLAlchemy models (User, Tenant, Invitation, PasswordReset,
 │   │   │                       #   UserBackupCode, UserNotificationPreferences)
@@ -755,9 +757,9 @@ QUALISYS/
 │   │   ├── services/           # Business logic (agents/, auth, invitation, notification,
 │   │   │                       #   artifact, agent_run, audit, document, dom_crawler,
 │   │   │                       #   embedding, export, github_connector, password_reset,
-│   │   │                       #   profile, project, project_member, source_code_analyzer,
-│   │   │                       #   sse_manager, tenant_provisioning, token, token_budget,
-│   │   │                       #   user_management)
+│   │   │                       #   pm_dashboard, profile, project, project_member,
+│   │   │                       #   source_code_analyzer, sse_manager, tenant_provisioning,
+│   │   │                       #   token, token_budget, user_management)
 │   │   └── templates/email/    # Email templates (7: verification, invitation, role-changed,
 │   │                           #   member-removed, password-reset, password-reset-google,
 │   │                           #   project-assignment)
@@ -788,6 +790,17 @@ QUALISYS/
 
 ## Documentation
 
+### Sub-Project READMEs
+
+| README | Description |
+|--------|-------------|
+| [backend/README.md](./backend/README.md) | Backend setup, structure, env vars, running the API and tests |
+| [web/README.md](./web/README.md) | Frontend setup, dev server, build, API client conventions |
+| [docs/README.md](./docs/README.md) | Full documentation index — all planning, architecture, and story files |
+| [backend/src/patterns/README.md](./backend/src/patterns/README.md) | Integration pattern contracts (LLM, pgvector, SSE, Playwright) |
+| [backend/tests/README.md](./backend/tests/README.md) | Test suite guide — how to run unit, integration, security, and pattern tests |
+| [infrastructure/README.md](./infrastructure/README.md) | Infrastructure overview (multi-cloud, Terraform, Kubernetes) |
+
 ### Strategic & Planning
 
 | Document | Description |
@@ -813,7 +826,7 @@ QUALISYS/
 
 ### UI Mockups & Designs
 
-Visual mockups for the 8 core user workflows, located in [`docs/designs/mockups/`](./docs/designs/mockups):
+Visual mockups for the 8 core user workflows, located in [`docs/designs/mockups/`](./docs/designs/mockups/):
 
 | # | Screen | Preview |
 |---|--------|---------|

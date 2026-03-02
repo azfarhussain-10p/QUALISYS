@@ -1019,6 +1019,10 @@ export interface ArtifactVersionSummary {
   created_at: string
 }
 
+export interface ArtifactUpdateRequest {
+  content: string
+}
+
 export const artifactApi = {
   list: (projectId: string, artifactType?: string) =>
     apiClient
@@ -1030,6 +1034,11 @@ export const artifactApi = {
   get: (projectId: string, artifactId: string) =>
     apiClient
       .get<ArtifactDetail>(`/api/v1/projects/${projectId}/artifacts/${artifactId}`)
+      .then((r) => r.data),
+
+  update: (projectId: string, artifactId: string, content: string): Promise<ArtifactDetail> =>
+    apiClient
+      .put<ArtifactDetail>(`/api/v1/projects/${projectId}/artifacts/${artifactId}`, { content })
       .then((r) => r.data),
 
   listVersions: (projectId: string, artifactId: string) =>
@@ -1045,4 +1054,76 @@ export const artifactApi = {
         `/api/v1/projects/${projectId}/artifacts/${artifactId}/versions/${version}`,
       )
       .then((r) => r.data),
+}
+
+// ---------------------------------------------------------------------------
+// PM Dashboard — Story 2.12 + 2.13
+// ---------------------------------------------------------------------------
+
+export interface TrendPoint {
+  date: string          // "YYYY-MM-DD"
+  coverage_pct: number | null
+}
+
+export interface DashboardOverview {
+  coverage_pct: number | null
+  health_status: 'green' | 'yellow' | 'red' | 'no_data'
+  requirements_covered: number
+  total_requirements: number
+  artifact_count: number
+  last_run_at: string | null
+}
+
+export interface DashboardCoverage {
+  requirements_covered: number
+  total_requirements: number
+  coverage_pct: number | null
+  trend: TrendPoint[]
+  week_over_week_pct: number | null       // AC-1 — signed delta, rounded 1dp
+  week_over_week_direction: string        // AC-1 — "up"|"down"|"flat"|"no_data"
+}
+
+// AC-2 — Coverage matrix drill-down
+
+export interface RequirementCoverageItem {
+  name: string
+  covered: boolean
+  test_count: number
+}
+
+export interface CoverageMatrixData {
+  artifact_id: string | null
+  artifact_title: string | null
+  requirements: RequirementCoverageItem[]
+  generated_at: string | null
+  fallback_url: string | null
+}
+
+// AC-3 — Multi-project health grid
+
+export interface ProjectHealthItem {
+  project_id: string
+  project_name: string
+  health_status: 'green' | 'yellow' | 'red' | 'no_data'
+  coverage_pct: number | null
+  artifact_count: number
+  last_run_at: string | null
+}
+
+export interface ProjectsHealthData {
+  projects: ProjectHealthItem[]
+}
+
+export const dashboardApi = {
+  getOverview: (projectId: string): Promise<DashboardOverview> =>
+    apiClient.get(`/api/v1/projects/${projectId}/dashboard/overview`).then((r) => r.data),
+
+  getCoverage: (projectId: string): Promise<DashboardCoverage> =>
+    apiClient.get(`/api/v1/projects/${projectId}/dashboard/coverage`).then((r) => r.data),
+
+  getCoverageMatrix: (projectId: string): Promise<CoverageMatrixData> =>
+    apiClient.get(`/api/v1/projects/${projectId}/dashboard/coverage/matrix`).then((r) => r.data),
+
+  getProjectsHealth: (orgId: string): Promise<ProjectsHealthData> =>
+    apiClient.get(`/api/v1/orgs/${orgId}/dashboard/projects`).then((r) => r.data),
 }

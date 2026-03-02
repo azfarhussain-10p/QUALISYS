@@ -37,3 +37,9 @@ class ArtifactVersionSummary(BaseModel):
     content_type: str
     edited_by: Optional[str] = None
     created_at: Optional[str] = None
+
+
+class ArtifactUpdateRequest(BaseModel):
+    """Request body for PUT /artifacts/{id} — save edited content (AC-28)."""
+
+    content: str

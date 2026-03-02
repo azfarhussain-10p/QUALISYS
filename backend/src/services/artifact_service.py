@@ -1,13 +1,16 @@
 """
 QUALISYS — Artifact Service
-Story: 2-10-test-artifact-storage-viewer
+Story: 2-10-test-artifact-storage-viewer (read ops)
+       2-11-artifact-editing-versioning (update_artifact write op)
 AC-26: CRUD operations for AI-generated test artifacts + version management.
+AC-28: Save edited content as new artifact version (update_artifact).
 
 Security (C1, C2):
   - All queries use SQLAlchemy text() with named :params
   - Schema name only in f-string (double-quoted), never from user input
 """
 
+import difflib
 from typing import Optional
 
 from fastapi import HTTPException, status
@@ -16,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class ArtifactService:
-    """Read-only artifact queries for the viewer. Write operations live in orchestrator."""
+    """Artifact queries and write operations. Orchestrator handles initial artifact creation."""
 
     async def list_artifacts(
         self,
@@ -173,6 +176,58 @@ class ArtifactService:
             "content": row["content"],
             "content_type": row["content_type"],
         }
+
+    async def update_artifact(
+        self,
+        db: AsyncSession,
+        schema_name: str,
+        project_id: str,
+        artifact_id: str,
+        content: str,
+        edited_by: str,
+    ) -> dict:
+        """Save edited content as new artifact version (AC-28).
+
+        Raises HTTPException(404, ARTIFACT_NOT_FOUND) if artifact/project mismatch.
+        """
+        current = await self.get_artifact(db, schema_name, project_id, artifact_id)
+
+        diff_lines = list(
+            difflib.unified_diff(
+                current["content"].splitlines(),
+                content.splitlines(),
+                lineterm="",
+            )
+        )
+        diff_from_prev = "\n".join(diff_lines)
+        new_version = current["current_version"] + 1
+
+        await db.execute(
+            text(
+                f'INSERT INTO "{schema_name}".artifact_versions '
+                f"(artifact_id, version, content, content_type, diff_from_prev, edited_by) "
+                f"VALUES (:aid, :ver, :content, :ct, :diff, :eby)"
+            ),
+            {
+                "aid": artifact_id,
+                "ver": new_version,
+                "content": content,
+                "ct": current["content_type"],
+                "diff": diff_from_prev,
+                "eby": edited_by,
+            },
+        )
+        await db.execute(
+            text(
+                f'UPDATE "{schema_name}".artifacts '
+                f"SET current_version = :ver, updated_at = NOW() "
+                f"WHERE id = :aid"
+            ),
+            {"ver": new_version, "aid": artifact_id},
+        )
+        await db.commit()
+
+        return await self.get_artifact(db, schema_name, project_id, artifact_id)
 
 
 artifact_service = ArtifactService()

@@ -1,6 +1,7 @@
 """
-QUALISYS — Agent Run SSE Endpoint
-Story: 2-9-real-time-agent-progress-tracking
+QUALISYS — Events SSE Endpoints
+Story: 2-9-real-time-agent-progress-tracking (agent run SSE)
+Story: 2-12-pm-csm-dashboard-project-health-overview (dashboard SSE)
 
 AC-19: GET /api/v1/events/agent-runs/{run_id}
   - Returns StreamingResponse with Content-Type: text/event-stream
@@ -9,12 +10,18 @@ AC-19: GET /api/v1/events/agent-runs/{run_id}
   - Validates run_id exists in tenant schema; raises 404 RUN_NOT_FOUND if absent
   - Heartbeat (15 s) handled automatically by build_sse_response — no manual heartbeat code here
 
-Security (C2 / C5): run_id validated in tenant schema BEFORE starting stream.
-Generator itself is tenant-unaware.
+AC-32: GET /api/v1/events/dashboard/{project_id}
+  - Emits dashboard_refresh event every 30 seconds (asyncio.sleep loop, NOT SSEManager)
+  - RBAC: require_project_role("owner", "admin", "qa-automation", "pm-csm")
+  - Validates project exists in tenant schema; raises 404 PROJECT_NOT_FOUND if absent
+
+Security (C2 / C5): resource validated in tenant schema BEFORE starting stream.
+Generators themselves are tenant-unaware.
 """
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from typing import AsyncGenerator
 
@@ -94,3 +101,55 @@ async def _event_generator(run_id: str) -> AsyncGenerator[SSEEvent, None]:
                 return
     finally:
         sse_manager.remove_queue(run_id)
+
+
+# ---------------------------------------------------------------------------
+# Story 2.12 — Dashboard SSE endpoint (AC-32)
+# ---------------------------------------------------------------------------
+
+@router.get("/api/v1/events/dashboard/{project_id}")
+async def dashboard_sse_endpoint(
+    project_id: uuid.UUID,
+    auth: tuple = require_project_role("owner", "admin", "qa-automation", "pm-csm"),
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    """
+    AC-32: Stream 30-second heartbeat SSE events for PM dashboard auto-refresh.
+
+    Validates project_id belongs to the current tenant, then opens a streaming
+    response that emits a dashboard_refresh event every 30 seconds.
+    Client-side EventSource.close() on unmount triggers FastAPI to cancel generator.
+    """
+    schema_name = slug_to_schema_name(current_tenant_slug.get())
+
+    result = await db.execute(
+        text(f'SELECT id FROM "{schema_name}".projects WHERE id = :pid'),
+        {"pid": str(project_id)},
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "PROJECT_NOT_FOUND", "message": "Project not found."},
+        )
+
+    return build_sse_response(
+        event_generator=_dashboard_event_generator(str(project_id)),
+        run_id=project_id,
+    )
+
+
+async def _dashboard_event_generator(project_id: str) -> AsyncGenerator[SSEEvent, None]:
+    """
+    AC-32: Async generator that emits a dashboard_refresh event every 30 seconds.
+
+    Runs indefinitely — FastAPI cancels this generator when the client disconnects
+    (EventSource.close() on component unmount).
+    Does NOT use SSEManager (queue-based); uses simple asyncio.sleep loop instead.
+    """
+    while True:
+        await asyncio.sleep(30)
+        yield SSEEvent(
+            type="dashboard_refresh",
+            run_id=uuid.UUID(project_id),
+            payload={"project_id": project_id},
+        )

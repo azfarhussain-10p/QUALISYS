@@ -193,3 +193,104 @@ async def test_get_version_raises_404_unknown_version():
 
     assert exc_info.value.status_code == 404
     assert exc_info.value.detail["error"] == "VERSION_NOT_FOUND"
+
+
+# ---------------------------------------------------------------------------
+# update_artifact() tests — AC-28 (Story 2-11)
+# ---------------------------------------------------------------------------
+
+
+def _make_result_for_detail(row: dict | None) -> MagicMock:
+    """Build a mock execute result that returns row from mappings().fetchone()."""
+    r = MagicMock()
+    r.mappings.return_value.fetchone.return_value = row
+    return r
+
+
+def _make_blank_result() -> MagicMock:
+    """Build a mock execute result for INSERT/UPDATE (no return value needed)."""
+    return MagicMock()
+
+
+@pytest.mark.asyncio
+async def test_update_artifact_creates_new_version():
+    # Proves: update_artifact() inserts a new version row and returns current_version == 2.
+    mock_db = AsyncMock()
+    mock_db.commit = AsyncMock()
+
+    row_v1 = _make_detail_row(content="old content", content_type="text/plain")
+    row_v2 = _make_detail_row(content="new content", content_type="text/plain")
+    row_v2["current_version"] = 2
+
+    # Call order: get_artifact SELECT, INSERT, UPDATE, get_artifact SELECT again
+    mock_db.execute = AsyncMock(
+        side_effect=[
+            _make_result_for_detail(row_v1),
+            _make_blank_result(),
+            _make_blank_result(),
+            _make_result_for_detail(row_v2),
+        ]
+    )
+
+    result = await service.update_artifact(
+        mock_db, _SCHEMA, _PROJECT_ID, _ARTIFACT_ID, "new content", str(uuid.uuid4())
+    )
+
+    assert result["current_version"] == 2
+    assert result["content"] == "new content"
+    mock_db.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_update_artifact_computes_diff():
+    # Proves: update_artifact() passes diff_from_prev containing '-line2' and '+line3' to INSERT.
+    mock_db = AsyncMock()
+    mock_db.commit = AsyncMock()
+
+    old_content = "line1\nline2"
+    new_content = "line1\nline3"
+
+    row_v1 = _make_detail_row(content=old_content, content_type="text/plain")
+    row_v2 = _make_detail_row(content=new_content, content_type="text/plain")
+    row_v2["current_version"] = 2
+
+    mock_db.execute = AsyncMock(
+        side_effect=[
+            _make_result_for_detail(row_v1),
+            _make_blank_result(),
+            _make_blank_result(),
+            _make_result_for_detail(row_v2),
+        ]
+    )
+
+    await service.update_artifact(
+        mock_db, _SCHEMA, _PROJECT_ID, _ARTIFACT_ID, new_content, str(uuid.uuid4())
+    )
+
+    # Second execute call (index 1) is the INSERT; params are the second positional arg
+    insert_call = mock_db.execute.call_args_list[1]
+    insert_params = insert_call[0][1]  # positional args: (text_clause, params_dict)
+    diff_stored = insert_params["diff"]
+
+    assert "-line2" in diff_stored
+    assert "+line3" in diff_stored
+
+
+@pytest.mark.asyncio
+async def test_update_artifact_raises_404_if_not_found():
+    # Proves: update_artifact() raises HTTPException(404) and makes no INSERT when artifact missing.
+    mock_db = AsyncMock()
+    mock_db.commit = AsyncMock()
+
+    mock_db.execute = AsyncMock(return_value=_make_result_for_detail(None))
+
+    with pytest.raises(HTTPException) as exc_info:
+        await service.update_artifact(
+            mock_db, _SCHEMA, _PROJECT_ID, str(uuid.uuid4()), "content", str(uuid.uuid4())
+        )
+
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail["error"] == "ARTIFACT_NOT_FOUND"
+    # Only one db.execute call — no INSERT or UPDATE attempted
+    assert mock_db.execute.call_count == 1
+    mock_db.commit.assert_not_called()
